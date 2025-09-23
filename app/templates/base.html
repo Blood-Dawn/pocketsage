@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PocketSage</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+  <nav>
+    <a href="{{ url_for('main.ledger') }}">Ledger</a>
+    <a href="{{ url_for('main.habits') }}">Habits</a>
+    <a href="{{ url_for('main.liabilities') }}">Liabilities</a>
+    <a href="{{ url_for('main.portfolio') }}">Portfolio</a>
+    <a href="{{ url_for('main.admin') }}">Admin</a>
+  </nav>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
