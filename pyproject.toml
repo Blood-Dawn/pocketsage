@@ -1,7 +1,51 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pocketsage"
+version = "0.1.0"
+description = "Offline Flask/Jinja2 finance and habit tracking app scaffold."
+readme = "README.md"
+authors = [{ name = "PocketSage Framework Owner" }]
+requires-python = ">=3.11,<3.13"
+dependencies = [
+	"argon2-cffi==23.1.0",
+	"cryptography==43.0.1",
+	"flask==3.0.0",
+	"jinja2==3.1.4",
+	"matplotlib==3.8.4",
+	"pandas==2.2.2",
+	"pydantic==2.8.2",
+	"python-dotenv==1.0.1",
+	"sqlalchemy==2.0.32",
+	"sqlmodel==0.0.16",
+]
+
+[project.optional-dependencies]
+watcher = ["watchdog>=3.0.0"]
+dev = [
+	"black==24.8.0",
+	"pytest==8.2.0",
+	"ruff==0.6.2",
+	"pre-commit==3.8.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Blood-Dawn/pocketsage"
+
 [tool.black]
 line-length = 100
 target-version = ["py311"]
 
 [tool.ruff]
 line-length = 100
-select = ["E", "F", "I"]
+src = ["pocketsage", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = []
+
+[tool.pytest.ini_options]
+addopts = "-q"
+pythonpath = ["."]

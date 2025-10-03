@@ -1,0 +1,3 @@
+date,amount,category,memo,type
+2025-09-01,1200,Income,Paycheck,income
+2025-09-02,-45.5,Food,Groceries,expense
