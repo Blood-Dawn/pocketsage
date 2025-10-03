@@ -1,4 +1,4 @@
-# PocketSage · Offline Finance + Habits Campus Board Scaffold
+# PocketSage · Offline Finance + Habits Scaffold
 
 Framework Owner checkpoint for the PocketSage desktop-first Flask app. Focus areas:
 - 💸 Ledger + budgeting (SQLModel)
@@ -7,7 +7,7 @@ Framework Owner checkpoint for the PocketSage desktop-first Flask app. Focus are
 - 📈 Portfolio CSV import (optional)
 - 🛠️ Admin seed/reset/export workflows
 
-> **Campus Board Pattern** – Methods, services, and docs include explicit `# TODO(@assignee)` markers. Teammates own implementations in follow-up PRs.
+> **Pattern** – Methods, services, and docs include explicit `# TODO(@assignee)` markers. Teammates own implementations in follow-up PRs.
 
 ## Stack Snapshot
 - Python 3.11, Flask app-factory + Blueprints
@@ -54,4 +54,4 @@ Framework Owner checkpoint for the PocketSage desktop-first Flask app. Focus are
 - Wire watchdog optional observer when extra installed
 - Fill Admin tasks, seeding, and export flows
 
-See `TODO.md` for the full Campus Board itemization with owners.
+See `TODO.md` for the full itemization with owners.

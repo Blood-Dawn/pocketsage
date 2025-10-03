@@ -1,4 +1,4 @@
-# PocketSage Campus Board TODOs
+# PocketSage TODOs
 
 ## Configuration & Infrastructure
 - [ ] # TODO(@ops-team) Harden `BaseConfig`: fail application start when `POCKETSAGE_SECRET_KEY` equals default.
