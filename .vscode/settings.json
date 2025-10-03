@@ -6,5 +6,12 @@
   "python.formatting.provider": "black",
   "editor.codeActionsOnSave": {
     "source.fixAll": true
+  },
+  "[choicescript]": {
+    "editor.quickSuggestions": {
+      "comments": false,
+      "strings": false,
+      "other": false
+    }
   }
 }
