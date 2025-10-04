@@ -15,7 +15,7 @@
 - [ ] # TODO(@ledger-squad) Hook Matplotlib spending chart into ledger template.
 - [ ] # TODO(@ledger-squad) Ensure optimistic locking on transaction updates.
 
-## Habits
+## Habits - Dossell Sinclair
 - [ ] # TODO(@habits-squad) Persist HabitEntry creation via repository with streak recalculation.
 - [ ] # TODO(@habits-squad) Implement HabitForm validation + error messaging.
 - [ ] # TODO(@habits-squad) Add weekly/monthly heatmap visualization for habit completion.
