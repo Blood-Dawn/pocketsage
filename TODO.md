@@ -45,13 +45,13 @@
 - [ ] # TODO(@reports) Implement `export_spending_png` to persist chart via renderer protocol.
 - [ ] # TODO(@analytics) Add rolling cash flow computation in `services.budgeting`.
 
-## Admin & Operations
+## Admin & Operations(KD)
 - [ ] # TODO(@admin-squad) Implement `run_demo_seed` to populate all tables with sample data.
 - [ ] # TODO(@admin-squad) Implement `run_export` to bundle CSV + PNG artifacts into zip.
 - [ ] # TODO(@admin-squad) Add admin UI feedback (progress indicators, error handling).
 - [ ] # TODO(@admin-squad) Create CLI commands (`flask pocketsage seed`, etc.).
 
-## Testing & QA
+## Testing & QA(KD)
 - [ ] # TODO(@qa-team) Replace skipped tests with golden datasets for budgeting/debts services.
 - [ ] # TODO(@qa-team) Add route smoke tests verifying template context variables.
 - [ ] # TODO(@qa-team) Add CSV import idempotency regression tests using fixtures.
