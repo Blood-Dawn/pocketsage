@@ -7,7 +7,7 @@
 - [ ] # TODO(@ops-team) Add structured logging config (JSON + rotating file handler).
 - [ ] # TODO(@ops-team) Wire background job scheduler (e.g., APScheduler) for nightly tasks.
 
-## Ledger
+## Ledger - Jennifer Ginther
 - [ ] # TODO(@ledger-squad) Implement SQLModel repository for transactions with filtering + pagination.
 - [ ] # TODO(@ledger-squad) Build LedgerEntryForm validation using WTForms or Pydantic.
 - [ ] # TODO(@ledger-squad) Add category management UI + CRUD endpoints.
