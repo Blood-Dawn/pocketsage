@@ -22,7 +22,7 @@
 - [ ] # TODO(@habits-squad) Introduce reminders (local notification or email toggle).
 - [ ] # TODO(@habits-squad) Support habit archival and reactivation flows.
 
-## Liabilities & Debts
+## Liabilities & Debts - Vedell Jones
 - [ ] # TODO(@debts-squad) Implement liabilities repository with create/read/update and payoff schedule storage.
 - [ ] # TODO(@debts-squad) Finish snowball and avalanche calculators with deterministic ordering.
 - [ ] # TODO(@debts-squad) Generate payoff timeline chart PNG via `services.reports`.
