@@ -29,7 +29,7 @@
 - [ ] # TODO(@debts-squad) Add ability to record actual payments and reconcile balances.
 - [ ] # TODO(@debts-squad) Surface debt-free date projections in UI.
 
-## Portfolio (Optional)
+## Portfolio (Optional)(KD)
 - [ ] # TODO(@portfolio-squad) Wire upload form to accept CSV and call `import_csv.import_csv_file`.
 - [ ] # TODO(@portfolio-squad) Implement repository to persist holdings + allocation snapshots.
 - [ ] # TODO(@portfolio-squad) Render allocation donut chart via Matplotlib.
