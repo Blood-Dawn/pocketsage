@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Mapping
+from typing import Iterable, Mapping, Optional
 
 import pandas as pd
 
@@ -18,8 +18,9 @@ class ColumnMapping:
     memo: str | None = None
     category: str | None = None
     external_id: str | None = None
-
-    # TODO(@imports): add currency + account columns when multi-account support ships.
+    account_id: str | None = None
+    account_name: str | None = None
+    currency: str | None = None
 
 
 def normalize_frame(*, file_path: Path, encoding: str = "utf-8") -> pd.DataFrame:
@@ -53,6 +54,27 @@ def upsert_transactions(*, rows: Iterable[Mapping], mapping: ColumnMapping) -> l
         memo = row.get(mapping.memo) if mapping.memo else ""
         external = row.get(mapping.external_id) if mapping.external_id else None
 
+        account_id: Optional[int] = None
+        if mapping.account_id:
+            candidate = row.get(mapping.account_id)
+            if candidate not in (None, ""):
+                try:
+                    account_id = int(candidate)
+                except (TypeError, ValueError):
+                    account_id = None
+
+        account_name = None
+        if mapping.account_name:
+            raw_name = row.get(mapping.account_name)
+            if isinstance(raw_name, str) and raw_name.strip():
+                account_name = raw_name.strip()
+
+        currency = None
+        if mapping.currency:
+            raw_currency = row.get(mapping.currency)
+            if isinstance(raw_currency, str) and raw_currency.strip():
+                currency = raw_currency.strip().upper()[:3]
+
         tx = {
             "occurred_at": occurred_at,
             "amount": amount,
@@ -60,6 +82,12 @@ def upsert_transactions(*, rows: Iterable[Mapping], mapping: ColumnMapping) -> l
             "external_id": external,
             "category_id": row.get(mapping.category) if mapping.category else None,
         }
+        if account_id is not None:
+            tx["account_id"] = account_id
+        if account_name:
+            tx["account_name"] = account_name
+        if currency:
+            tx["currency"] = currency
         created.append(tx)
 
     # Note: this function returns plain dicts; callers may persist them using a repository/session.

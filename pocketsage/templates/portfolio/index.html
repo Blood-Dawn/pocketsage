@@ -49,6 +49,8 @@
                 <th scope="col">Average price</th>
                 <th scope="col">Market value</th>
                 <th scope="col">Allocation</th>
+                <th scope="col">Account</th>
+                <th scope="col">Currency</th>
               </tr>
             </thead>
             <tbody>
@@ -59,6 +61,8 @@
                   <td data-label="Average price">{{ holding.avg_price_display }}</td>
                   <td data-label="Market value">{{ holding.value_display }}</td>
                   <td data-label="Allocation">{{ holding.allocation_display }}</td>
+                  <td data-label="Account">{{ holding.account or "—" }}</td>
+                  <td data-label="Currency">{{ holding.currency }}</td>
                 </tr>
               {% endfor %}
             </tbody>

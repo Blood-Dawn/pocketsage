@@ -37,7 +37,8 @@
     <h2>CSV format checklist</h2>
     <ul>
       <li>Each row represents a holding with a <strong>symbol</strong>, numeric <strong>quantity</strong>, and <strong>average price</strong>.</li>
-      <li>Quantities support fractional shares (e.g. <code>0.125</code>).</li>
+  <li>Quantities support fractional shares (e.g. <code>0.125</code>).</li>
+  <li>Include <code>account_id</code> (existing account) or <code>account</code> (new name) to attribute holdings; add <code>currency</code> for non-USD accounts.</li>
       <li>Prices should use a dot as the decimal separator. Currency should match the rest of your ledger.</li>
       <li>Duplicate symbols are merged by summing quantity and recomputing the weighted average price.</li>
       <li>You can download a fresh export from the portfolio overview at any time.</li>

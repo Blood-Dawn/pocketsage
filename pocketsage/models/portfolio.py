@@ -1,11 +1,12 @@
 """Portfolio models."""
 
-from __future__ import annotations
-
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
+
+if TYPE_CHECKING:  # pragma: no cover
+    from .account import Account
 
 
 class Holding(SQLModel, table=True):
@@ -16,3 +17,7 @@ class Holding(SQLModel, table=True):
     quantity: float = Field(nullable=False, default=0.0)
     avg_price: float = Field(nullable=False, default=0.0)
     acquired_at: Optional[datetime] = Field(default=None)
+    account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    currency: str = Field(default="USD", max_length=3)
+
+    account: Optional["Account"] = Relationship(back_populates="holdings")

@@ -6,7 +6,7 @@ import csv
 from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
-from typing import Iterable
+from typing import Dict, Iterable
 
 from flask import (
     current_app,
@@ -24,6 +24,20 @@ from ...extensions import session_scope
 from . import bp
 from .repository import SqlModelPortfolioRepository
 
+COLUMN_ALIASES: Dict[str, tuple[str, ...]] = {
+    "symbol": ("symbol", "ticker", "security"),
+    "quantity": ("quantity", "shares", "units"),
+    "avg_price": ("avg_price", "price", "cost_basis", "basis", "avgprice"),
+    "amount": ("amount", "value", "market_value", "balance"),
+    "occurred_at": ("occurred_at", "date", "trade_date", "priced_at", "asof"),
+    "acquired_at": ("acquired_at", "purchased_at", "purchase_date"),
+    "account_id": ("account_id", "accountid", "acct_id"),
+    "account_name": ("account", "account_name", "portfolio", "wallet"),
+    "currency": ("currency", "ccy", "fx"),
+    "memo": ("memo", "note", "description"),
+    "external_id": ("external_id", "externalid", "id", "uid"),
+}
+
 
 def _prefers_json() -> bool:
     accepts = request.accept_mimetypes
@@ -40,13 +54,24 @@ def _format_quantity(amount: float) -> str:
     return f"{amount:,.4f}".rstrip("0").rstrip(".")
 
 
-def _normalize_rows(rows: Iterable[dict]) -> list[dict]:
+def _suggest_mapping(columns: Iterable[str]) -> dict[str, str | None]:
+    normalized = [c.strip().lower() for c in columns]
+    mapping: dict[str, str | None] = {}
+    for canonical, aliases in COLUMN_ALIASES.items():
+        mapping[canonical] = next((col for col in normalized if col in aliases), None)
+    return mapping
+
+
+def _normalize_rows(rows: Iterable[dict], mapping: dict[str, str | None]) -> list[dict]:
     normalized: list[dict] = []
     for row in rows:
         clean = {
             (key or "").strip().lower(): (str(value).strip() if value is not None else "")
             for key, value in row.items()
         }
+        for canonical, column in mapping.items():
+            if column and column in clean:
+                clean[canonical] = clean[column]
         normalized.append(clean)
     return normalized
 
@@ -67,6 +92,11 @@ def list_portfolio():
             avg_price = float(holding.avg_price or 0)
             value = quantity * avg_price
             allocation_pct = round(allocation_map.get(holding.symbol, 0.0) * 100, 2)
+            account_name = None
+            if holding.account is not None:
+                account_name = holding.account.name
+            elif holding.account_id is not None:
+                account_name = f"Account #{holding.account_id}"
             holdings_view.append(
                 {
                     "symbol": holding.symbol,
@@ -78,6 +108,8 @@ def list_portfolio():
                     "value_display": f"${value:,.2f}",
                     "allocation_pct": allocation_pct,
                     "allocation_display": f"{allocation_pct:.2f}%",
+                    "account": account_name,
+                    "currency": (holding.currency or "USD").upper(),
                 }
             )
 
@@ -120,12 +152,16 @@ def import_portfolio():
     file_storage.save(file_path)
 
     rows: list[dict]
+    mapping: dict[str, str | None] = {}
     try:
         with file_path.open("r", encoding="utf-8", newline="") as handle:
             reader = csv.DictReader(handle)
             if not reader.fieldnames:
                 raise ValueError("CSV file is missing a header row")
-            rows = _normalize_rows(reader)
+            normalized_headers = [header.strip().lower() for header in reader.fieldnames]
+            reader.fieldnames = normalized_headers
+            mapping = _suggest_mapping(normalized_headers)
+            rows = _normalize_rows(reader, mapping)
     except Exception:  # pragma: no cover - surfaced via user feedback
         file_path.unlink(missing_ok=True)
         message = "Unable to read CSV file. Please verify the format."
@@ -149,12 +185,18 @@ def import_portfolio():
                     "imported": imported,
                     "message": message,
                     "redirect": url_for("portfolio.list_portfolio"),
+                    "mapping": mapping,
                 }
             ),
             status,
         )
 
-    flash(message, "success" if imported else "info")
+    account_hint = mapping.get("account_id") or mapping.get("account_name") or "n/a"
+    currency_hint = mapping.get("currency") or "n/a"
+    flash(
+        f"{message} (account column: {account_hint}, currency column: {currency_hint}).",
+        "success" if imported else "info",
+    )
     return redirect(url_for("portfolio.list_portfolio"))
 
 

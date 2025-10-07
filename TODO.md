@@ -35,10 +35,10 @@
 - [x] # TODO(@portfolio-squad) Render allocation donut chart via Matplotlib.
 - [x] # TODO(@portfolio-squad) Add gain/loss table with cost basis calculations.
 - [x] # TODO(@portfolio-squad) Provide export of holdings to CSV.
- - [ ] # TODO(@imports) Add account and currency column support in CSV imports and mapping suggestions so portfolio uploads can record account_id + currency.
- - [ ] # TODO(@ledger-squad) Persist parsed portfolio-imported transactions into the ledger repository (ensure account_id and currency are stored and respected by reporting).
+ - [x] # TODO(@imports) Add account and currency column support in CSV imports and mapping suggestions so portfolio uploads can record account_id + currency.
+ - [x] # TODO(@ledger-squad) Persist parsed portfolio-imported transactions into the ledger repository (ensure account_id and currency are stored and respected by reporting).
  - [x] # TODO(@frontend) Update portfolio templates to show upload progress, validation messaging, and export/download links.
- - [ ] # TODO(@qa-team) Add idempotency & end-to-end tests for portfolio CSV import -> persist -> allocation snapshot.
+ - [x] # TODO(@qa-team) Add idempotency & end-to-end tests for portfolio CSV import -> persist -> allocation snapshot.
 
 ## Services & Integrations
 - [ ] # TODO(@imports) Implement idempotent `upsert_transactions` with external_id matching.
