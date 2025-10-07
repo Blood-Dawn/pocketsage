@@ -7,6 +7,7 @@ from typing import Iterable
 
 from flask import Flask
 
+from . import cli as _cli
 from .config import BaseConfig, DevConfig
 from .extensions import init_db
 
@@ -48,6 +49,12 @@ def create_app(config_name: str | None = None) -> Flask:
 
     _register_blueprints(app)
     init_db(app)
+    # Register CLI commands
+    try:
+        _cli.init_app(app)
+    except Exception:
+        # avoid breaking app startup if CLI wiring fails in some environments
+        pass
 
     # TODO(@framework-owner): register CLI commands, logging, and background services.
 

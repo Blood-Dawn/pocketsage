@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-from flask import flash, redirect, render_template, url_for
+from pathlib import Path
 
+from flask import current_app, flash, redirect, render_template, request, url_for
+
+from ...services.import_csv import ColumnMapping, import_csv_file
 from . import bp
 
 
@@ -18,9 +21,26 @@ def list_portfolio():
 @bp.post("/import")
 def import_portfolio():
     """Handle CSV upload for portfolio positions."""
+    f = request.files.get("file")
+    if not f:
+        flash("No file uploaded", "warning")
+        return redirect(url_for("portfolio.list_portfolio"))
 
-    # TODO(@portfolio-squad): invoke CSV importer with uploaded file.
-    flash("Portfolio import not yet implemented", "warning")
+    upload_dir = Path(current_app.instance_path) / "uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    filename = f.filename or "uploaded_file.csv"
+    file_path = upload_dir / filename
+    f.save(str(file_path))
+
+    mapping = ColumnMapping(
+        amount="amount", occurred_at="date", memo="memo", external_id="external_id"
+    )
+    try:
+        count = import_csv_file(csv_path=file_path, mapping=mapping)
+        flash(f"Imported {count} portfolio rows (preview) - persistence not yet wired", "success")
+    except Exception:
+        flash("Failed to import CSV", "danger")
+
     return redirect(url_for("portfolio.list_portfolio"))
 
 

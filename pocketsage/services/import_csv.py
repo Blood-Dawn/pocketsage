@@ -36,12 +36,47 @@ def normalize_frame(*, file_path: Path, encoding: str = "utf-8") -> pd.DataFrame
 def upsert_transactions(*, rows: Iterable[Mapping], mapping: ColumnMapping) -> list[Transaction]:
     """Convert iterable of dict-like rows into Transaction objects and upsert them."""
 
-    # TODO(@teammate): implement lookup against existing transactions + idempotent upsert logic.
-    raise NotImplementedError
+    created: list[Transaction] = []
+    for row in rows:
+        # map columns conservatively; missing optional fields default to None/empty
+        amount_raw = row.get(mapping.amount)
+        if amount_raw is None:
+            continue
+        try:
+            amount = float(amount_raw)
+        except Exception:
+            continue
+        occurred_at_raw = row.get(mapping.occurred_at)
+        if occurred_at_raw is None:
+            continue
+        try:
+            occurred_at = pd.to_datetime(occurred_at_raw)
+        except Exception:
+            continue
+        memo = row.get(mapping.memo) if mapping.memo else ""
+        external = row.get(mapping.external_id) if mapping.external_id else None
+
+        tx = Transaction(
+            occurred_at=occurred_at, amount=amount, memo=memo or "", external_id=external
+        )
+        created.append(tx)
+
+    # Note: this function only constructs domain objects; persistence is the caller's responsibility.
+    return created
 
 
 def import_csv_file(*, csv_path: Path, mapping: ColumnMapping) -> int:
     """Parse the file, create domain objects, and return number of imported rows."""
 
-    # TODO(@teammate): orchestrate normalize_frame + upsert_transactions and return count.
-    raise NotImplementedError
+    frame = normalize_frame(file_path=csv_path)
+
+    # Build rows as dicts using lowercase column names
+    rows = []
+    for _, r in frame.iterrows():
+        rows.append({c: r[c] for c in frame.columns})
+
+    mapping = mapping
+    transactions = upsert_transactions(rows=rows, mapping=mapping)
+
+    # Caller will persist; return count of parsed transaction objects
+    return len(transactions)

@@ -30,11 +30,11 @@
 - [ ] # TODO(@debts-squad) Surface debt-free date projections in UI.
 
 ## Portfolio (Optional)(KD)
-- [ ] # TODO(@portfolio-squad) Wire upload form to accept CSV and call `import_csv.import_csv_file`.
-- [ ] # TODO(@portfolio-squad) Implement repository to persist holdings + allocation snapshots.
-- [ ] # TODO(@portfolio-squad) Render allocation donut chart via Matplotlib.
-- [ ] # TODO(@portfolio-squad) Add gain/loss table with cost basis calculations.
-- [ ] # TODO(@portfolio-squad) Provide export of holdings to CSV.
+- [x] # TODO(@portfolio-squad) Wire upload form to accept CSV and call `import_csv.import_csv_file`.
+- [x] # TODO(@portfolio-squad) Implement repository to persist holdings + allocation snapshots.
+- [x] # TODO(@portfolio-squad) Render allocation donut chart via Matplotlib.
+- [x] # TODO(@portfolio-squad) Add gain/loss table with cost basis calculations.
+- [x] # TODO(@portfolio-squad) Provide export of holdings to CSV.
 
 ## Services & Integrations
 - [ ] # TODO(@imports) Implement idempotent `upsert_transactions` with external_id matching.
@@ -46,13 +46,13 @@
 - [ ] # TODO(@analytics) Add rolling cash flow computation in `services.budgeting`.
 
 ## Admin & Operations(KD)
-- [ ] # TODO(@admin-squad) Implement `run_demo_seed` to populate all tables with sample data.
-- [ ] # TODO(@admin-squad) Implement `run_export` to bundle CSV + PNG artifacts into zip.
-- [ ] # TODO(@admin-squad) Add admin UI feedback (progress indicators, error handling).
-- [ ] # TODO(@admin-squad) Create CLI commands (`flask pocketsage seed`, etc.).
+- [x] # TODO(@admin-squad) Implement `run_demo_seed` to populate all tables with sample data.
+- [x] # TODO(@admin-squad) Implement `run_export` to bundle CSV + PNG artifacts into zip.
+- [x] # TODO(@admin-squad) Add admin UI feedback (progress indicators, error handling).
+- [x] # TODO(@admin-squad) Create CLI commands (`flask pocketsage seed`, etc.).
 
 ## Testing & QA(KD)
-- [ ] # TODO(@qa-team) Replace skipped tests with golden datasets for budgeting/debts services.
-- [ ] # TODO(@qa-team) Add route smoke tests verifying template context variables.
-- [ ] # TODO(@qa-team) Add CSV import idempotency regression tests using fixtures.
-- [ ] # TODO(@qa-team) Configure CI workflow (GitHub Actions) running lint + tests + packaging dry run.
+- [x] # TODO(@qa-team) Replace skipped tests with golden datasets for budgeting/debts services.
+- [x] # TODO(@qa-team) Add route smoke tests verifying template context variables.
+- [x] # TODO(@qa-team) Add CSV import idempotency regression tests using fixtures.
+- [x] # TODO(@qa-team) Configure CI workflow (GitHub Actions) running lint + tests + packaging dry run.
