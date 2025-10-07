@@ -35,6 +35,10 @@
 - [x] # TODO(@portfolio-squad) Render allocation donut chart via Matplotlib.
 - [x] # TODO(@portfolio-squad) Add gain/loss table with cost basis calculations.
 - [x] # TODO(@portfolio-squad) Provide export of holdings to CSV.
+ - [ ] # TODO(@imports) Add account and currency column support in CSV imports and mapping suggestions so portfolio uploads can record account_id + currency.
+ - [ ] # TODO(@ledger-squad) Persist parsed portfolio-imported transactions into the ledger repository (ensure account_id and currency are stored and respected by reporting).
+ - [ ] # TODO(@frontend) Update portfolio templates to show upload progress, validation messaging, and export/download links.
+ - [ ] # TODO(@qa-team) Add idempotency & end-to-end tests for portfolio CSV import -> persist -> allocation snapshot.
 
 ## Services & Integrations
 - [ ] # TODO(@imports) Implement idempotent `upsert_transactions` with external_id matching.
@@ -44,12 +48,18 @@
 - [ ] # TODO(@reports) Implement `build_spending_chart` with category color palette.
 - [ ] # TODO(@reports) Implement `export_spending_png` to persist chart via renderer protocol.
 - [ ] # TODO(@analytics) Add rolling cash flow computation in `services.budgeting`.
+ - [ ] # TODO(@imports) Implement the persistence path: take parsed dicts from `import_csv` and insert/update ORM models via repository/session_scope (portfolio and transactions).
+ - [ ] # TODO(@qa-team) Add DB-backed tests for import persistence and idempotency (use a temporary SQLite DB fixture).
 
 ## Admin & Operations(KD)
 - [x] # TODO(@admin-squad) Implement `run_demo_seed` to populate all tables with sample data.
 - [x] # TODO(@admin-squad) Implement `run_export` to bundle CSV + PNG artifacts into zip.
 - [x] # TODO(@admin-squad) Add admin UI feedback (progress indicators, error handling).
 - [x] # TODO(@admin-squad) Create CLI commands (`flask pocketsage seed`, etc.).
+ - [ ] # TODO(@frontend) Update admin templates to show export/download button, seed confirmation UI, and progress/status indicators wired to endpoints.
+ - [ ] # TODO(@ops-team) Implement exports retention/rotation and filesystem permissions for `instance/exports` (ensure secure access and cleanup policy).
+ - [ ] # TODO(@framework-owner) Register background worker or scheduler (e.g., APScheduler/Celery) and wire `run_demo_seed` / `run_export` into it; provide a job-status API.
+ - [ ] # TODO(@qa-team) Add route and integration tests for `/admin/export/download`, seed confirmation flow, and background task behavior (mocking worker runtimes).
 
 ## Testing & QA(KD)
 - [x] # TODO(@qa-team) Replace skipped tests with golden datasets for budgeting/debts services.
