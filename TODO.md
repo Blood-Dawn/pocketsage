@@ -56,10 +56,10 @@
 - [x] # TODO(@admin-squad) Implement `run_export` to bundle CSV + PNG artifacts into zip.
 - [x] # TODO(@admin-squad) Add admin UI feedback (progress indicators, error handling).
 - [x] # TODO(@admin-squad) Create CLI commands (`flask pocketsage seed`, etc.).
- - [ ] # TODO(@frontend) Update admin templates to show export/download button, seed confirmation UI, and progress/status indicators wired to endpoints.
- - [ ] # TODO(@ops-team) Implement exports retention/rotation and filesystem permissions for `instance/exports` (ensure secure access and cleanup policy).
- - [ ] # TODO(@framework-owner) Register background worker or scheduler (e.g., APScheduler/Celery) and wire `run_demo_seed` / `run_export` into it; provide a job-status API.
- - [ ] # TODO(@qa-team) Add route and integration tests for `/admin/export/download`, seed confirmation flow, and background task behavior (mocking worker runtimes).
+- [x] # TODO(@frontend) Update admin templates to show export/download button, seed confirmation UI, and progress/status indicators wired to endpoints.
+- [x] # TODO(@ops-team) Implement exports retention/rotation and filesystem permissions for `instance/exports` (ensure secure access and cleanup policy).
+- [x] # TODO(@framework-owner) Register background worker or scheduler (e.g., APScheduler/Celery) and wire `run_demo_seed` / `run_export` into it; provide a job-status API.
+- [x] # TODO(@qa-team) Add route and integration tests for `/admin/export/download`, seed confirmation flow, and background task behavior (mocking worker runtimes).
 
 ## Testing & QA(KD)
 - [x] # TODO(@qa-team) Replace skipped tests with golden datasets for budgeting/debts services.

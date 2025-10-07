@@ -1,7 +1,5 @@
 """Budgeting tables."""
 
-from __future__ import annotations
-
 from datetime import date
 from typing import List, Optional
 
@@ -30,6 +28,6 @@ class BudgetLine(SQLModel, table=True):
     planned_amount: float = Field(nullable=False)
     rollover_enabled: bool = Field(default=False, nullable=False)
 
-    budget: Budget = Relationship(back_populates="lines")
+    budget: "Budget" = Relationship(back_populates="lines")
 
     # TODO(@budgeting): track actual spend + available with materialized views.

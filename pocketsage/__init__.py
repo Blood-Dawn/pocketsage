@@ -9,7 +9,6 @@ from flask import Flask
 
 from . import cli as _cli
 from .config import BaseConfig, DevConfig
-from .extensions import init_db
 
 _CONFIG_MAP = {
     "development": DevConfig,
@@ -48,6 +47,11 @@ def create_app(config_name: str | None = None) -> Flask:
     # TODO(@ops-team): layer instance config + environment overrides using `app.config.from_envvar`.
 
     _register_blueprints(app)
+    # Import init_db lazily to avoid importing extensions and models at
+    # package-import time (which can initialize SQLModel mappers and
+    # interfere with lightweight tests that import model classes).
+    from .extensions import init_db
+
     init_db(app)
     # Register CLI commands
     try:

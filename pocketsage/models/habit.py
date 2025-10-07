@@ -1,7 +1,5 @@
 """Habits tracking data structures."""
 
-from __future__ import annotations
-
 from datetime import date
 from typing import List, Optional
 
@@ -29,6 +27,6 @@ class HabitEntry(SQLModel, table=True):
     occurred_on: date = Field(primary_key=True, index=True)
     value: int = Field(default=1, nullable=False)
 
-    habit: Habit = Relationship(back_populates="entries")
+    habit: "Habit" = Relationship(back_populates="entries")
 
     # TODO(@analytics): enforce timezone-aware capture for cross-region tracking.

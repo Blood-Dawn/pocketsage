@@ -1,13 +1,12 @@
 """SQLModel definitions for ledger transactions."""
 
-from __future__ import annotations
-
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:  # pragma: no cover - import guard for circular dependency
+    from .account import Account
     from .category import Category
 
 
@@ -22,6 +21,11 @@ class Transaction(SQLModel, table=True):
     category_id: Optional[int] = Field(default=None, foreign_key="category.id")
 
     category: Optional["Category"] = Relationship(back_populates="transactions")
+
+    # Link transactions to an account and record the currency used for the amount.
+    account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    account: Optional["Account"] = Relationship(back_populates="transactions")
+    currency: str = Field(default="USD", max_length=3, description="ISO-4217 currency code")
 
     # TODO(@data-team): enforce account linkage + currency once multi-account support lands.
 

@@ -2,26 +2,111 @@
 
 from __future__ import annotations
 
-from flask import flash, redirect, render_template, url_for
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Optional
+
+from flask import (
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    url_for,
+)
+from sqlmodel import select
+
+from pocketsage.extensions import session_scope
+from pocketsage.models import Transaction
+from pocketsage.services.jobs import enqueue, get_job, list_jobs
 
 from . import bp
 from .tasks import run_demo_seed, run_export
 
 
+def _prefers_json_response() -> bool:
+    accepts = request.accept_mimetypes
+    return request.is_json or accepts["application/json"] >= accepts["text/html"]
+
+
+def _resolve_exports_dir() -> Path:
+    configured = current_app.config.get("POCKETSAGE_EXPORTS_DIR")
+    if configured:
+        return Path(configured)
+    return Path(current_app.instance_path) / "exports"
+
+
+def _latest_export_metadata(exports_dir: Path) -> Optional[dict]:
+    if not exports_dir.exists():
+        return None
+
+    archives = sorted(
+        exports_dir.glob("pocketsage_export_*.zip"),
+        key=lambda file: file.stat().st_mtime,
+        reverse=True,
+    )
+    if not archives:
+        return None
+
+    latest = archives[0]
+    stat = latest.stat()
+    return {
+        "name": latest.name,
+        "path": str(latest),
+        "modified_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+        "size": stat.st_size,
+        "download_url": url_for("admin.export_download"),
+    }
+
+
 @bp.get("/")
 def dashboard():
     """Display admin dashboard actions."""
+    # Show lightweight system status: counts and last transaction time.
+    tx_count: int = 0
+    last_tx: Optional[Transaction] = None
+    with session_scope() as session:
+        txs = session.exec(select(Transaction)).all()
+        # Sort in-Python to avoid type-checker issues with column expressions
+        txs_sorted = sorted(txs, key=lambda t: t.occurred_at)
+        tx_count = len(txs_sorted)
+        last_tx = txs_sorted[-1] if txs_sorted else None
 
-    # TODO(@admin-squad): expose system status, last import timestamps, etc.
-    return render_template("admin/index.html")
+    last_tx_time = last_tx.occurred_at.isoformat() if last_tx is not None else None
+
+    exports_dir = _resolve_exports_dir()
+    latest_export = _latest_export_metadata(exports_dir)
+
+    return render_template(
+        "admin/index.html",
+        stats={"transactions": tx_count, "last_transaction": last_tx_time},
+        latest_export=latest_export,
+        jobs=list_jobs(limit=10),
+        exports_available=latest_export is not None,
+    )
 
 
 @bp.post("/seed-demo")
 def seed_demo():
     """Seed demo data into the database."""
+    # Require an explicit confirmation form value to avoid accidental seeding.
+    confirm = request.form.get("confirm")
+    if request.is_json:
+        payload = request.get_json(silent=True) or {}
+        confirm = "1" if payload.get("confirm") else None
 
-    # TODO(@admin-squad): add confirmation + background task handling.
-    run_demo_seed()
+    if confirm != "1":
+        if _prefers_json_response():
+            return jsonify({"error": "confirmation_required"}), 400
+        flash("Please confirm demo seeding before proceeding.", "warning")
+        return redirect(url_for("admin.dashboard"))
+
+    job = enqueue("seed-demo", run_demo_seed)
+    if _prefers_json_response():
+        return jsonify(job.to_dict()), 202
+
     flash("Demo data seeding scheduled", "success")
     return redirect(url_for("admin.dashboard"))
 
@@ -29,8 +114,47 @@ def seed_demo():
 @bp.post("/export")
 def export_reports():
     """Trigger report export archive creation."""
+    # Run export in background and write output to the instance exports folder so
+    # users can download it from the admin UI once ready.
+    exports_dir = _resolve_exports_dir()
+    exports_dir.mkdir(parents=True, exist_ok=True)
 
-    # TODO(@admin-squad): stream export file or email to user.
-    run_export()
-    flash("Report export scheduled", "info")
+    job = enqueue(
+        "export-reports",
+        run_export,
+        metadata={"output_dir": str(exports_dir)},
+        output_dir=exports_dir,
+    )
+    if _prefers_json_response():
+        return jsonify(job.to_dict()), 202
+
+    flash("Report export scheduled; check the export download link once ready.", "info")
     return redirect(url_for("admin.dashboard"))
+
+
+@bp.get("/export/download")
+def export_download():
+    """Download the most recent export ZIP from the instance exports folder."""
+    exports_dir = _resolve_exports_dir()
+    if not exports_dir.exists():
+        flash("No exports available", "warning")
+        return redirect(url_for("admin.dashboard"))
+
+    # find most recent pocketsage_export_*.zip file
+    zips = sorted(
+        exports_dir.glob("pocketsage_export_*.zip"), key=lambda p: p.stat().st_mtime, reverse=True
+    )
+    if not zips:
+        flash("No exports available", "warning")
+        return redirect(url_for("admin.dashboard"))
+
+    latest = zips[0]
+    return send_file(latest, as_attachment=True)
+
+
+@bp.get("/jobs/<job_id>")
+def job_status(job_id: str):
+    job = get_job(job_id)
+    if job is None:
+        return jsonify({"error": "job_not_found", "job_id": job_id}), 404
+    return jsonify(job)

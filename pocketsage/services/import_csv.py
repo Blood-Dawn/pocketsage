@@ -8,8 +8,6 @@ from typing import Iterable, Mapping
 
 import pandas as pd
 
-from ..models.transaction import Transaction
-
 
 @dataclass(slots=True)
 class ColumnMapping:
@@ -33,10 +31,14 @@ def normalize_frame(*, file_path: Path, encoding: str = "utf-8") -> pd.DataFrame
     return frame
 
 
-def upsert_transactions(*, rows: Iterable[Mapping], mapping: ColumnMapping) -> list[Transaction]:
-    """Convert iterable of dict-like rows into Transaction objects and upsert them."""
+def upsert_transactions(*, rows: Iterable[Mapping], mapping: ColumnMapping) -> list[dict]:
+    """Convert iterable of dict-like rows into plain dicts representing transactions.
 
-    created: list[Transaction] = []
+    This function intentionally returns plain dictionaries to avoid importing
+    ORM models during pure parsing (keeps the parser safe for unit tests).
+    """
+
+    created: list[dict] = []
     for row in rows:
         # map columns conservatively; missing optional fields default to None/empty
         amount_raw = row.get(mapping.amount)
@@ -46,37 +48,35 @@ def upsert_transactions(*, rows: Iterable[Mapping], mapping: ColumnMapping) -> l
             amount = float(amount_raw)
         except Exception:
             continue
-        occurred_at_raw = row.get(mapping.occurred_at)
-        if occurred_at_raw is None:
-            continue
-        try:
-            occurred_at = pd.to_datetime(occurred_at_raw)
-        except Exception:
-            continue
+
+        occurred_at = row.get(mapping.occurred_at)
         memo = row.get(mapping.memo) if mapping.memo else ""
         external = row.get(mapping.external_id) if mapping.external_id else None
 
-        tx = Transaction(
-            occurred_at=occurred_at, amount=amount, memo=memo or "", external_id=external
-        )
+        tx = {
+            "occurred_at": occurred_at,
+            "amount": amount,
+            "memo": memo or "",
+            "external_id": external,
+            "category_id": row.get(mapping.category) if mapping.category else None,
+        }
         created.append(tx)
 
-    # Note: this function only constructs domain objects; persistence is the caller's responsibility.
+    # Note: this function returns plain dicts; callers may persist them using a repository/session.
     return created
 
 
 def import_csv_file(*, csv_path: Path, mapping: ColumnMapping) -> int:
-    """Parse the file, create domain objects, and return number of imported rows."""
+    """Parse the file, create domain dicts, and return number of parsed rows."""
 
     frame = normalize_frame(file_path=csv_path)
 
     # Build rows as dicts using lowercase column names
-    rows = []
+    rows: list[dict] = []
     for _, r in frame.iterrows():
         rows.append({c: r[c] for c in frame.columns})
 
-    mapping = mapping
     transactions = upsert_transactions(rows=rows, mapping=mapping)
 
-    # Caller will persist; return count of parsed transaction objects
+    # Caller will persist; return count of parsed transaction dicts
     return len(transactions)

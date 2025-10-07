@@ -62,4 +62,132 @@ body {
     opacity: 0.75;
 }
 
+.admin-dashboard {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.admin-header h1 {
+    margin-bottom: 0.25rem;
+}
+
+.admin-panel {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+}
+
+.admin-stats {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.admin-stats dt {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.admin-stats dd {
+    margin: 0.25rem 0 0;
+}
+
+.admin-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-link {
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-primary {
+    background: #22c55e;
+    color: #0f172a;
+}
+
+.btn-secondary {
+    background: #3b82f6;
+    color: #f8fafc;
+}
+
+.btn-link {
+    background: transparent;
+    color: #38bdf8;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.hint {
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.empty {
+    opacity: 0.6;
+    font-style: italic;
+}
+
+.job-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.75rem;
+}
+
+.job-item {
+    display: grid;
+    gap: 0.25rem;
+    background: rgba(148, 163, 184, 0.1);
+    border-radius: 0.6rem;
+    padding: 0.75rem 1rem;
+}
+
+.job-item header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.job-item .job-status {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.job-status[data-status="queued"],
+.job-status[data-status="running"] {
+    color: #fbbf24;
+}
+
+.job-status[data-status="succeeded"] {
+    color: #22c55e;
+}
+
+.job-status[data-status="failed"] {
+    color: #f97316;
+}
+
+.job-meta {
+    font-size: 0.8rem;
+    opacity: 0.75;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
 /* TODO(@ux-team): extend design tokens, typography scale, and dark/light mode palettes. */
