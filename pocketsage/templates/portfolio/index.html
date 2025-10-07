@@ -1,6 +1,72 @@
 {% extends 'base.html' %}
 {% block title %}Portfolio · PocketSage{% endblock %}
 {% block content %}
-  <h1>Portfolio</h1>
-  <p class="todo">TODO(@portfolio-squad): display holdings table and allocation chart.</p>
+  <section class="portfolio-dashboard">
+    <header class="portfolio-header">
+      <div>
+        <h1>Portfolio</h1>
+        <p class="portfolio-subtitle">Track allocation and review imported positions.</p>
+      </div>
+      <nav class="portfolio-actions" aria-label="Portfolio actions">
+        <a class="btn-secondary" href="{{ upload_url }}">Upload positions</a>
+        <a class="btn-primary{% if not holdings %} btn-disabled{% endif %}" href="{{ export_url }}"{% if not holdings %} aria-disabled="true"{% endif %}>Download CSV</a>
+      </nav>
+    </header>
+
+    <section class="portfolio-summary" aria-label="Portfolio summary">
+      <h2>Total market value</h2>
+      <p class="portfolio-total">{{ "$ {:,.2f}".format(total_value) }}</p>
+    </section>
+
+    <section class="portfolio-allocation" aria-label="Allocation by symbol">
+      <h2>Allocation</h2>
+      {% if allocation %}
+        <div class="allocation-chart" role="list">
+          {% for item in allocation %}
+            <div class="allocation-row" role="listitem">
+              <div class="allocation-symbol">{{ item.symbol }}</div>
+              <div class="allocation-bar" aria-hidden="true">
+                <div class="allocation-bar-fill" style="--allocation: {{ item.percentage }};"></div>
+              </div>
+              <div class="allocation-value">{{ "{:,.2f}".format(item.percentage) }}%</div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="empty">Allocation data will appear after you upload your first CSV.</p>
+      {% endif %}
+    </section>
+
+    <section class="portfolio-holdings" aria-label="Holdings table">
+      <h2>Holdings</h2>
+      {% if holdings %}
+        <div class="table-scroll">
+          <table class="holdings-table" role="grid">
+            <thead>
+              <tr>
+                <th scope="col">Symbol</th>
+                <th scope="col">Quantity</th>
+                <th scope="col">Average price</th>
+                <th scope="col">Market value</th>
+                <th scope="col">Allocation</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for holding in holdings %}
+                <tr>
+                  <td data-label="Symbol">{{ holding.symbol }}</td>
+                  <td data-label="Quantity">{{ holding.quantity_display }}</td>
+                  <td data-label="Average price">{{ holding.avg_price_display }}</td>
+                  <td data-label="Market value">{{ holding.value_display }}</td>
+                  <td data-label="Allocation">{{ holding.allocation_display }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="empty">No holdings yet. Upload a CSV to see your portfolio here.</p>
+      {% endif %}
+    </section>
+  </section>
 {% endblock %}

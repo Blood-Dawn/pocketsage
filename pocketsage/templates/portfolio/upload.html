@@ -1,6 +1,46 @@
 {% extends 'base.html' %}
 {% block title %}Upload Portfolio CSV · PocketSage{% endblock %}
 {% block content %}
-  <h1>Upload Portfolio CSV</h1>
-  <p class="todo">TODO(@portfolio-squad): implement file chooser and mapping hints.</p>
+  <section class="upload-card">
+    <header class="upload-header">
+      <h1>Upload positions</h1>
+      <p>Import a CSV file featuring your latest holdings. Existing positions will be replaced.</p>
+    </header>
+
+    <form
+      method="post"
+      action="{{ url_for('portfolio.import_portfolio') }}"
+      enctype="multipart/form-data"
+      data-portfolio-upload
+      data-redirect="{{ url_for('portfolio.list_portfolio') }}"
+      aria-label="Upload portfolio CSV"
+    >
+      <div class="upload-input">
+        <label class="file-picker">
+          <span class="file-picker-label" data-file-label>Choose a CSV file</span>
+          <input type="file" name="file" accept=".csv,text/csv" required>
+        </label>
+        <p class="upload-hint">Accepted columns: <code>symbol</code>, <code>quantity</code>, <code>avg_price</code>. Extra columns are ignored.</p>
+      </div>
+      <p class="upload-progress" data-upload-progress hidden>Waiting for file…</p>
+      <div class="upload-actions">
+        <button type="submit" class="btn-primary">Import CSV</button>
+        <a class="btn-secondary" href="{{ url_for('portfolio.list_portfolio') }}">Back to portfolio</a>
+      </div>
+      <noscript>
+        <p class="empty">JavaScript is disabled &mdash; the page will refresh while uploading.</p>
+      </noscript>
+    </form>
+  </section>
+
+  <section class="upload-guidance" aria-label="CSV format guidance">
+    <h2>CSV format checklist</h2>
+    <ul>
+      <li>Each row represents a holding with a <strong>symbol</strong>, numeric <strong>quantity</strong>, and <strong>average price</strong>.</li>
+      <li>Quantities support fractional shares (e.g. <code>0.125</code>).</li>
+      <li>Prices should use a dot as the decimal separator. Currency should match the rest of your ledger.</li>
+      <li>Duplicate symbols are merged by summing quantity and recomputing the weighted average price.</li>
+      <li>You can download a fresh export from the portfolio overview at any time.</li>
+    </ul>
+  </section>
 {% endblock %}

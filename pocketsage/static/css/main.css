@@ -130,6 +130,12 @@ body {
     padding-right: 0;
 }
 
+.btn-disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+    pointer-events: none;
+}
+
 .hint {
     margin-top: 0.75rem;
     font-size: 0.85rem;
@@ -147,6 +153,198 @@ body {
     padding: 0;
     display: grid;
     gap: 0.75rem;
+}
+
+.portfolio-dashboard {
+    display: grid;
+    gap: 2rem;
+}
+
+.portfolio-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.portfolio-subtitle {
+    margin: 0.35rem 0 0;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.portfolio-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.portfolio-summary,
+.portfolio-allocation,
+.portfolio-holdings,
+.upload-card,
+.upload-guidance {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+}
+
+.portfolio-summary {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.portfolio-total {
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 700;
+    margin: 0;
+}
+
+.allocation-chart {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.allocation-row {
+    display: grid;
+    grid-template-columns: minmax(6rem, 1fr) minmax(10rem, 4fr) minmax(5rem, auto);
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.allocation-symbol {
+    font-weight: 600;
+}
+
+.allocation-bar {
+    position: relative;
+    height: 0.65rem;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.25);
+    overflow: hidden;
+}
+
+.allocation-bar-fill {
+    --allocation: 0;
+    position: absolute;
+    inset: 0;
+    width: calc(var(--allocation) * 1%);
+    background: linear-gradient(90deg, #22d3ee, #3b82f6);
+}
+
+.allocation-value {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.table-scroll {
+    overflow-x: auto;
+    border-radius: 0.5rem;
+}
+
+.holdings-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 40rem;
+}
+
+.holdings-table th,
+.holdings-table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.holdings-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.holdings-table td[data-label] {
+    font-variant-numeric: tabular-nums;
+}
+
+.upload-card {
+    display: grid;
+    gap: 1rem;
+    max-width: 38rem;
+}
+
+.upload-header h1 {
+    margin-bottom: 0.35rem;
+}
+
+.upload-input {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.file-picker {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 0.9rem 1.2rem;
+    border-radius: 0.75rem;
+    border: 1px dashed rgba(148, 163, 184, 0.45);
+    background: rgba(15, 23, 42, 0.35);
+    cursor: pointer;
+    position: relative;
+}
+
+.file-picker input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.file-picker-label {
+    font-weight: 600;
+}
+
+.upload-hint {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.upload-progress {
+    font-size: 0.9rem;
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.upload-progress[data-state="progress"] {
+    color: #3b82f6;
+}
+
+.upload-progress[data-state="success"],
+.upload-progress[data-state="ready"] {
+    color: #22c55e;
+}
+
+.upload-progress[data-state="warning"] {
+    color: #fbbf24;
+}
+
+.upload-progress[hidden] {
+    display: none;
+}
+
+.upload-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.upload-guidance ul {
+    padding-left: 1.2rem;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.upload-guidance li {
+    line-height: 1.5;
 }
 
 .job-item {

@@ -37,7 +37,7 @@
 - [x] # TODO(@portfolio-squad) Provide export of holdings to CSV.
  - [ ] # TODO(@imports) Add account and currency column support in CSV imports and mapping suggestions so portfolio uploads can record account_id + currency.
  - [ ] # TODO(@ledger-squad) Persist parsed portfolio-imported transactions into the ledger repository (ensure account_id and currency are stored and respected by reporting).
- - [ ] # TODO(@frontend) Update portfolio templates to show upload progress, validation messaging, and export/download links.
+ - [x] # TODO(@frontend) Update portfolio templates to show upload progress, validation messaging, and export/download links.
  - [ ] # TODO(@qa-team) Add idempotency & end-to-end tests for portfolio CSV import -> persist -> allocation snapshot.
 
 ## Services & Integrations

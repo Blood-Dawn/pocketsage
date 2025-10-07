@@ -3,6 +3,11 @@
 const FINAL_JOB_STATUSES = new Set(["succeeded", "failed"]);
 
 document.addEventListener("DOMContentLoaded", () => {
+    initAdminDashboard();
+    initPortfolioUpload();
+});
+
+function initAdminDashboard() {
     const adminRoot = document.querySelector("[data-admin-dashboard]");
     if (!adminRoot) {
         return;
@@ -51,7 +56,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const payload = await response.json();
             trackJob(payload);
         } catch (error) {
-            // Silent failure; UI polling will retry later.
             console.warn("Failed to poll job", jobId, error);
         }
     };
@@ -113,7 +117,112 @@ document.addEventListener("DOMContentLoaded", () => {
     renderJobs();
     pollActiveJobs();
     setInterval(pollActiveJobs, 5000);
-});
+}
+
+function initPortfolioUpload() {
+    const uploadForm = document.querySelector("[data-portfolio-upload]");
+    if (!uploadForm) {
+        return;
+    }
+
+    const fileInput = uploadForm.querySelector("input[type='file']");
+    const fileLabel = uploadForm.querySelector("[data-file-label]");
+    const progress = uploadForm.querySelector("[data-upload-progress]");
+    const redirectUrl = uploadForm.dataset.redirect;
+
+    const resetProgress = () => {
+        if (!progress) {
+            return;
+        }
+        progress.hidden = true;
+        progress.textContent = "";
+        progress.dataset.state = "idle";
+    };
+
+    const setProgress = (message, state = "info") => {
+        if (!progress) {
+            return;
+        }
+        progress.hidden = false;
+        progress.dataset.state = state;
+        progress.textContent = message;
+    };
+
+    resetProgress();
+
+    if (fileInput) {
+        fileInput.addEventListener("change", () => {
+            if (fileInput.files && fileInput.files.length > 0) {
+                const [{ name }] = fileInput.files;
+                if (fileLabel) {
+                    fileLabel.textContent = name;
+                }
+                setProgress(`Ready to upload ${name}`, "ready");
+            } else {
+                if (fileLabel) {
+                    fileLabel.textContent = "Choose a CSV file";
+                }
+                resetProgress();
+            }
+        });
+    }
+
+    uploadForm.addEventListener("submit", async (event) => {
+        if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+            event.preventDefault();
+            showFlash("Please choose a CSV file first.", "warning");
+            setProgress("Select a CSV file before uploading.", "warning");
+            return;
+        }
+
+        event.preventDefault();
+        const submitButton = uploadForm.querySelector("button[type='submit']");
+        let skipUnlock = false;
+        if (submitButton) {
+            submitButton.disabled = true;
+        }
+
+        setProgress("Uploading…", "progress");
+
+        try {
+            const formData = new FormData(uploadForm);
+            const response = await fetch(uploadForm.action, {
+                method: "POST",
+                body: formData,
+                headers: { Accept: "application/json" },
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || payload.error) {
+                const message = payload.message || "Upload failed. Please try again.";
+                showFlash(message, "warning");
+                setProgress(message, "warning");
+                return;
+            }
+
+            const message = payload.message || "Portfolio imported.";
+            showFlash(message, "success");
+            setProgress("Upload complete.", "success");
+            const nextLocation = payload.redirect || redirectUrl;
+            skipUnlock = Boolean(nextLocation);
+            if (nextLocation) {
+                setTimeout(() => {
+                    window.location.href = nextLocation;
+                }, 600);
+            }
+        } catch (error) {
+            console.error("Portfolio upload failed", error);
+            if (submitButton) {
+                submitButton.disabled = false;
+            }
+            uploadForm.submit();
+        } finally {
+            if (submitButton && !skipUnlock) {
+                submitButton.disabled = false;
+            }
+        }
+    });
+}
 
 function safeParseJSON(value) {
     if (!value) {
