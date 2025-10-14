@@ -1,4 +1,4 @@
-@startuml docs/uml/usecases.puml
+@startuml usecases
 left to right direction
 actor "User" as U
 actor "Admin" as A
@@ -9,6 +9,11 @@ usecase "View Budgets & Charts" as UC4
 usecase "Manage Liabilities" as UC5
 usecase "Export/Backup" as UC6
 usecase "Seed/Reset" as UC7
-U --> UC1; U --> UC2; U --> UC3; U --> UC4; U --> UC5; U --> UC6
+U --> UC1
+U --> UC2
+U --> UC3
+U --> UC4
+U --> UC5
+U --> UC6
 A --> UC7
 @enduml

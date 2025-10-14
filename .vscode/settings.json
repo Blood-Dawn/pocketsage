@@ -6,6 +6,7 @@
   "python.formatting.provider": "black",
   "plantuml.exportFormat": "png",
   "plantuml.exportOutDir": "docs/uml",
+  "plantuml.diagramsRoot": "docs/uml",
   "editor.codeActionsOnSave": {
     "source.fixAll": "explicit"
   },
