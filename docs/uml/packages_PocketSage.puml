@@ -1,87 +1,25 @@
 @startuml packages_PocketSage
 set namespaceSeparator none
-package "pocketsage" as pocketsage {
-}
-package "pocketsage.blueprints" as pocketsage.blueprints {
-}
-package "pocketsage.blueprints.admin" as pocketsage.blueprints.admin {
-}
-package "pocketsage.blueprints.admin.routes" as pocketsage.blueprints.admin.routes {
-}
-package "pocketsage.blueprints.admin.tasks" as pocketsage.blueprints.admin.tasks {
-}
-package "pocketsage.blueprints.habits" as pocketsage.blueprints.habits {
-}
-package "pocketsage.blueprints.habits.forms" as pocketsage.blueprints.habits.forms {
-}
-package "pocketsage.blueprints.habits.repository" as pocketsage.blueprints.habits.repository {
-}
-package "pocketsage.blueprints.habits.routes" as pocketsage.blueprints.habits.routes {
-}
-package "pocketsage.blueprints.ledger" as pocketsage.blueprints.ledger {
-}
-package "pocketsage.blueprints.ledger.forms" as pocketsage.blueprints.ledger.forms {
-}
-package "pocketsage.blueprints.ledger.repository" as pocketsage.blueprints.ledger.repository {
-}
-package "pocketsage.blueprints.ledger.routes" as pocketsage.blueprints.ledger.routes {
-}
-package "pocketsage.blueprints.liabilities" as pocketsage.blueprints.liabilities {
-}
-package "pocketsage.blueprints.liabilities.forms" as pocketsage.blueprints.liabilities.forms {
-}
-package "pocketsage.blueprints.liabilities.repository" as pocketsage.blueprints.liabilities.repository {
-}
-package "pocketsage.blueprints.liabilities.routes" as pocketsage.blueprints.liabilities.routes {
-}
-package "pocketsage.blueprints.portfolio" as pocketsage.blueprints.portfolio {
-}
-package "pocketsage.blueprints.portfolio.forms" as pocketsage.blueprints.portfolio.forms {
-}
-package "pocketsage.blueprints.portfolio.repository" as pocketsage.blueprints.portfolio.repository {
-}
-package "pocketsage.blueprints.portfolio.routes" as pocketsage.blueprints.portfolio.routes {
-}
-package "pocketsage.cli" as pocketsage.cli {
-}
-package "pocketsage.config" as pocketsage.config {
-}
-package "pocketsage.extensions" as pocketsage.extensions {
-}
-package "pocketsage.models" as pocketsage.models {
-}
-package "pocketsage.models.account" as pocketsage.models.account {
-}
-package "pocketsage.models.budget" as pocketsage.models.budget {
-}
-package "pocketsage.models.category" as pocketsage.models.category {
-}
-package "pocketsage.models.habit" as pocketsage.models.habit {
-}
-package "pocketsage.models.liability" as pocketsage.models.liability {
-}
-package "pocketsage.models.portfolio" as pocketsage.models.portfolio {
-}
-package "pocketsage.models.settings" as pocketsage.models.settings {
-}
-package "pocketsage.models.transaction" as pocketsage.models.transaction {
-}
-package "pocketsage.services" as pocketsage.services {
-}
-package "pocketsage.services.budgeting" as pocketsage.services.budgeting {
-}
-package "pocketsage.services.debts" as pocketsage.services.debts {
-}
-package "pocketsage.services.export_csv" as pocketsage.services.export_csv {
-}
-package "pocketsage.services.import_csv" as pocketsage.services.import_csv {
-}
-package "pocketsage.services.jobs" as pocketsage.services.jobs {
-}
-package "pocketsage.services.reports" as pocketsage.services.reports {
-}
-package "pocketsage.services.watcher" as pocketsage.services.watcher {
-}
+package "pocketsage" as pocketsage {}
+package "pocketsage.config" as pocketsage.config {}
+package "pocketsage.extensions" as pocketsage.extensions {}
+package "pocketsage.blueprints.admin.routes" as pocketsage.blueprints.admin.routes {}
+package "pocketsage.blueprints.admin.tasks" as pocketsage.blueprints.admin.tasks {}
+package "pocketsage.blueprints.portfolio.repository" as pocketsage.blueprints.portfolio.repository {}
+package "pocketsage.blueprints.portfolio.routes" as pocketsage.blueprints.portfolio.routes {}
+package "pocketsage.cli" as pocketsage.cli {}
+package "pocketsage.models" as pocketsage.models {}
+package "pocketsage.models.account" as pocketsage.models.account {}
+package "pocketsage.models.budget" as pocketsage.models.budget {}
+package "pocketsage.models.category" as pocketsage.models.category {}
+package "pocketsage.models.habit" as pocketsage.models.habit {}
+package "pocketsage.models.liability" as pocketsage.models.liability {}
+package "pocketsage.models.portfolio" as pocketsage.models.portfolio {}
+package "pocketsage.models.settings" as pocketsage.models.settings {}
+package "pocketsage.models.transaction" as pocketsage.models.transaction {}
+package "pocketsage.services.export_csv" as pocketsage.services.export_csv {}
+package "pocketsage.services.jobs" as pocketsage.services.jobs {}
+package "pocketsage.services.reports" as pocketsage.services.reports {}
 pocketsage --> pocketsage.config
 pocketsage --> pocketsage.extensions
 pocketsage.blueprints.admin.routes --> pocketsage.blueprints.admin.tasks
