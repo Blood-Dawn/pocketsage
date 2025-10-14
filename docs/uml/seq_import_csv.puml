@@ -1,0 +1,16 @@
+@startuml seq_import_csv.puml
+actor User
+participant "UI" as UI
+participant "ImportService" as IS
+participant "TransactionRepo" as Repo
+database "SQLite" as DB
+User -> UI: upload CSV
+UI -> IS: parse(file)
+IS -> IS: dedupe + map
+IS -> Repo: bulk_upsert(list)
+Repo -> DB: insert or replace N rows
+DB --> Repo: counts
+Repo --> IS: summary
+IS --> UI: report (imported N, skipped M)
+UI --> User: done
+@enduml

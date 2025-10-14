@@ -1,0 +1,43 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "UML: Generate",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/gen-uml.ps1",
+				"-Src",
+				"pocketsage",
+				"-Out",
+				"docs/uml",
+				"-Project",
+				"PocketSage"
+			],
+			"problemMatcher": []
+		},
+		{
+			"label": "UML: Generate",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/gen-uml.ps1",
+				"-Src",
+				"pocketsage",
+				"-Out",
+				"docs/uml",
+				"-Project",
+				"PocketSage"
+			],
+			"problemMatcher": []
+		}
+	]
+}

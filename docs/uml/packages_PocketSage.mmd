@@ -1,0 +1,111 @@
+classDiagram
+  class pocketsage {
+  }
+  class blueprints {
+  }
+  class admin {
+  }
+  class routes {
+  }
+  class tasks {
+  }
+  class habits {
+  }
+  class forms {
+  }
+  class repository {
+  }
+  class routes {
+  }
+  class ledger {
+  }
+  class forms {
+  }
+  class repository {
+  }
+  class routes {
+  }
+  class liabilities {
+  }
+  class forms {
+  }
+  class repository {
+  }
+  class routes {
+  }
+  class portfolio {
+  }
+  class forms {
+  }
+  class repository {
+  }
+  class routes {
+  }
+  class cli {
+  }
+  class config {
+  }
+  class extensions {
+  }
+  class models {
+  }
+  class account {
+  }
+  class budget {
+  }
+  class category {
+  }
+  class habit {
+  }
+  class liability {
+  }
+  class portfolio {
+  }
+  class settings {
+  }
+  class transaction {
+  }
+  class services {
+  }
+  class budgeting {
+  }
+  class debts {
+  }
+  class export_csv {
+  }
+  class import_csv {
+  }
+  class jobs {
+  }
+  class reports {
+  }
+  class watcher {
+  }
+  pocketsage --> config
+  pocketsage --> extensions
+  routes --> tasks
+  routes --> extensions
+  routes --> models
+  routes --> jobs
+  tasks --> extensions
+  tasks --> models
+  tasks --> export_csv
+  tasks --> reports
+  routes --> repository
+  cli --> tasks
+  extensions --> config
+  models --> account
+  models --> budget
+  models --> category
+  models --> habit
+  models --> liability
+  models --> portfolio
+  models --> settings
+  models --> transaction
+  reports --> export_csv
+  account ..> portfolio
+  account ..> transaction
+  category ..> transaction
+  portfolio ..> account
+  transaction ..> account
+  transaction ..> category
