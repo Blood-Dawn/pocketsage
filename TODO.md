@@ -1,29 +1,38 @@
-# PocketSage TODOs
+# PocketSage Roadmap & Review Log
+
+PocketSage delivery work is organized into near-term execution tracks, mid-term feature delivery, and a rolling backlog that feeds future milestones. Every owner should update the appropriate section before Friday stand-up so the weekly review log reflects the latest state.
+
+## How to Use This Document
+- Update the milestone checklist whenever a linked issue is closed or the due date shifts.
+- Keep task tables sorted by target date so near-term priorities are visible at a glance.
+- When you unblock an item, move it out of "Blocked" status immediately and note the unblocker in the review log.
+- Add review notes each Friday; include risks, blockers, and next steps so leadership can follow up quickly.
 
 ## Milestone Checklist
-- [ ] Harden production configuration & secrets (Due: 2024-06-14) — owners: Ops Team — [#101](https://github.com/pocketsage/pocketsage/issues/101)
-- [ ] Deliver ledger transaction MVP (Due: 2024-06-21) — owners: Ledger Squad — [#112](https://github.com/pocketsage/pocketsage/issues/112)
-- [ ] Launch habit tracker streak improvements (Due: 2024-06-28) — owners: Habits Squad — [#121](https://github.com/pocketsage/pocketsage/issues/121)
-- [ ] Publish debt payoff modeling toolkit (Due: 2024-07-12) — owners: Debts Squad — [#135](https://github.com/pocketsage/pocketsage/issues/135)
+| Status | Milestone | Due Date | Owners | Tracker |
+| --- | --- | --- | --- | --- |
+| ☐ | Harden production configuration & secrets | 2024-06-14 | Ops Team | [#101](https://github.com/pocketsage/pocketsage/issues/101) |
+| ☐ | Deliver ledger transaction MVP | 2024-06-21 | Ledger Squad | [#112](https://github.com/pocketsage/pocketsage/issues/112) |
+| ☐ | Launch habit tracker streak improvements | 2024-06-28 | Habits Squad | [#121](https://github.com/pocketsage/pocketsage/issues/121) |
+| ☐ | Publish debt payoff modeling toolkit | 2024-07-12 | Debts Squad | [#135](https://github.com/pocketsage/pocketsage/issues/135) |
 
-## Near Term (0–4 Weeks)
+## Near-Term (0–4 Weeks)
 | Task | Owner | Target Date | Status | Tracker |
 | --- | --- | --- | --- | --- |
-| Harden `BaseConfig` so the app fails when `POCKETSAGE_SECRET_KEY` uses the default value | Ops Team | 2024-06-14 | Not Started | [#101](https://github.com/pocketsage/pocketsage/issues/101) |
-| Implement SQLCipher key handshake (`PRAGMA key`) driven by `POCKETSAGE_SQLCIPHER_KEY` | Ops Team | 2024-06-17 | In Progress | [#102](https://github.com/pocketsage/pocketsage/issues/102) |
-| Provide Alembic migration bootstrap scripts and document the workflow | Ops Team | 2024-06-19 | Not Started | [#103](https://github.com/pocketsage/pocketsage/issues/103) |
-| Add structured logging config (JSON output + rotating file handler) | Ops Team | 2024-06-21 | Not Started | [#104](https://github.com/pocketsage/pocketsage/issues/104) |
-| Wire a background job scheduler (e.g., APScheduler) for nightly tasks | Ops Team | 2024-06-24 | Not Started | [#105](https://github.com/pocketsage/pocketsage/issues/105) |
-| Implement SQLModel repository for transactions with filtering and pagination | Ledger Squad | 2024-06-21 | In Progress | [#112](https://github.com/pocketsage/pocketsage/issues/112) |
-| Build `LedgerEntryForm` validation using WTForms or Pydantic | Ledger Squad | 2024-06-24 | Not Started | [#113](https://github.com/pocketsage/pocketsage/issues/113) |
-| Persist `HabitEntry` creation with streak recalculation via repository layer | Habits Squad | 2024-06-28 | Not Started | [#121](https://github.com/pocketsage/pocketsage/issues/121) |
+| Harden `BaseConfig` to reject default `POCKETSAGE_SECRET_KEY` | Ops Team | 2024-06-14 | In Progress | [#101](https://github.com/pocketsage/pocketsage/issues/101) |
+| Implement SQLCipher key handshake via `POCKETSAGE_SQLCIPHER_KEY` | Ops Team | 2024-06-17 | Not Started | [#102](https://github.com/pocketsage/pocketsage/issues/102) |
+| Provide Alembic migration bootstrap scripts and runbook | Ops Team | 2024-06-19 | Not Started | [#103](https://github.com/pocketsage/pocketsage/issues/103) |
+| Add structured logging config (JSON output + rotating file handler) | Ops Team | 2024-06-21 | Blocked (needs config hardening) | [#104](https://github.com/pocketsage/pocketsage/issues/104) |
+| Implement SQLModel repository for transactions with filtering/pagination | Ledger Squad | 2024-06-21 | In Progress | [#112](https://github.com/pocketsage/pocketsage/issues/112) |
+| Build `LedgerEntryForm` validation using WTForms/Pydantic | Ledger Squad | 2024-06-24 | Not Started | [#113](https://github.com/pocketsage/pocketsage/issues/113) |
+| Persist `HabitEntry` creation with streak recalculation | Habits Squad | 2024-06-28 | Not Started | [#121](https://github.com/pocketsage/pocketsage/issues/121) |
 
-## Mid Term (1–2 Months)
+## Mid-Term (1–2 Months)
 | Task | Owner | Target Date | Status | Tracker |
 | --- | --- | --- | --- | --- |
 | Add category management UI and CRUD endpoints for ledger entries | Ledger Squad | 2024-07-05 | Not Started | [#114](https://github.com/pocketsage/pocketsage/issues/114) |
-| Implement ledger rollup summaries (income vs. expense, net cashflow) | Ledger Squad | 2024-07-05 | Not Started | [#115](https://github.com/pocketsage/pocketsage/issues/115) |
-| Hook Matplotlib spending chart into ledger template | Ledger Squad | 2024-07-08 | Blocked (awaiting rollup API) | [#116](https://github.com/pocketsage/pocketsage/issues/116) |
+| Implement ledger rollup summaries (income vs. expense, net cashflow) | Ledger Squad | 2024-07-05 | Blocked (awaiting repo filters) | [#115](https://github.com/pocketsage/pocketsage/issues/115) |
+| Hook Matplotlib spending chart into ledger template | Ledger Squad | 2024-07-08 | Blocked (needs rollup API) | [#116](https://github.com/pocketsage/pocketsage/issues/116) |
 | Ensure optimistic locking on transaction updates | Ledger Squad | 2024-07-12 | Not Started | [#117](https://github.com/pocketsage/pocketsage/issues/117) |
 | Add weekly/monthly habit heatmap visualization | Habits Squad | 2024-07-12 | Not Started | [#123](https://github.com/pocketsage/pocketsage/issues/123) |
 | Introduce habit reminders (local notification or email toggle) | Habits Squad | 2024-07-19 | Not Started | [#124](https://github.com/pocketsage/pocketsage/issues/124) |
@@ -74,8 +83,10 @@
 | Review Date | Highlights | Risks / Blockers | Next Steps |
 | --- | --- | --- | --- |
 | 2024-05-31 | Kick-off review. Configuration hardening queued; ledger repository work underway. | Matplotlib spending chart blocked on rollup API. | Confirm Ops timelines; unblock chart once summaries API lands. |
+| 2024-06-07 | SQLCipher handshake design approved; habit streak spec finalized. | Logging rollout waiting on config refactor; reminders need UX input. | Land `BaseConfig` fixes, publish logging ADR, schedule UX design review. |
 
 ## Notes
 - Owners correspond to cross-functional squads; adjust to specific individuals as assignments firm up.
 - Target dates reflect current planning assumptions and should be revisited during the weekly review.
 - Status options: Not Started, In Progress, Blocked, Done (include completion date in Highlights when relevant).
+- When work shifts between squads, update both the owner and the associated tracker issue to avoid stale assignments.
