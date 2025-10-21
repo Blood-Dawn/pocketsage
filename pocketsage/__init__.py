@@ -27,6 +27,7 @@ def _resolve_config(name: str | None) -> type[BaseConfig]:
 def _blueprint_paths() -> Iterable[str]:
     """Yield blueprint import paths registered by the framework owner."""
 
+    yield "pocketsage.blueprints.home"
     yield "pocketsage.blueprints.ledger"
     yield "pocketsage.blueprints.habits"
     yield "pocketsage.blueprints.liabilities"
