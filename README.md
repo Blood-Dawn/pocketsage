@@ -22,7 +22,7 @@ Framework Owner checkpoint for the PocketSage desktop-first Flask app. Focus are
 2. `pip install -e ".[dev]"`
 3. `cp .env.example .env`
 4. `python run.py`
-5. Visit http://127.0.0.1:5000 (blueprints return scaffolded templates)
+5. Visit http://127.0.0.1:5000 to view the landing page and navigate to scaffolded blueprints
 
 ### Make Targets
 - `make setup` → install deps, enable pre-commit
