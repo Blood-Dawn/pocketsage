@@ -26,7 +26,7 @@
             <div class="allocation-row" role="listitem">
               <div class="allocation-symbol">{{ item.symbol }}</div>
               <div class="allocation-bar" aria-hidden="true">
-                <div class="allocation-bar-fill" style="--allocation: {{ item.percentage }};"></div>
+                <div class="allocation-bar-fill" data-allocation="{{ item.percentage }}"></div>
               </div>
               <div class="allocation-value">{{ "{:,.2f}".format(item.percentage) }}%</div>
             </div>
