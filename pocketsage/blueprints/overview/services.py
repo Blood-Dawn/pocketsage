@@ -57,6 +57,7 @@ def load_overview_summary() -> dict:
 
         # Habits -------------------------------------------------------------
         habits = session.exec(select(Habit)).all()
+        active_habit_count = sum(1 for habit in habits if habit.is_active)
         entries = session.exec(select(HabitEntry)).all()
         today = date.today()
         week_start = today - timedelta(days=6)
@@ -109,7 +110,7 @@ def load_overview_summary() -> dict:
             "recent_spending": recent_spending,
         },
         "habits": {
-            "active": sum(1 for habit in habits if habit.is_active),
+            "active": active_habit_count,
             "total": len(habits),
             "completions_today": completions_today,
             "weekly_completions": weekly_completions,
