@@ -1,6 +1,42 @@
 {% extends 'base.html' %}
 {% block title %}Ledger · PocketSage{% endblock %}
 {% block content %}
-  <h1>Ledger</h1>
-  <p class="todo">TODO(@ledger-squad): render transaction table, filters, and rollups.</p>
+  <section class="ledger-dashboard">
+    <header class="ledger-header">
+      <h1>Ledger</h1>
+      <p class="ledger-subtitle">Monitor cash flow and stay ahead of upcoming spending.</p>
+    </header>
+
+    <section class="ledger-rollups" aria-label="Cash flow summary{% if current_period_label %} for {{ current_period_label }}{% endif %}">
+      {% for metric in rollups %}
+        <article class="card-surface ledger-rollup-card" role="group" aria-labelledby="rollup-{{ metric.key }}">
+          <header class="ledger-rollup-header">
+            <p class="ledger-rollup-label" id="rollup-{{ metric.key }}">{{ metric.label }}</p>
+            {% if current_period_label %}
+              <p class="ledger-rollup-period">Current period: {{ current_period_label }}</p>
+            {% endif %}
+          </header>
+          <p class="ledger-rollup-amount">{{ metric.formatted_amount }}</p>
+          <p class="ledger-rollup-trend" data-direction="{{ metric.direction }}">
+            <span class="ledger-rollup-trend-icon" aria-hidden="true">
+              {% if metric.direction == 'up' %}
+                ▲
+              {% elif metric.direction == 'down' %}
+                ▼
+              {% else %}
+                ◆
+              {% endif %}
+            </span>
+            <span class="ledger-rollup-trend-value">{{ metric.trend_value }}</span>
+            {% if metric.trend_caption %}
+              <span class="ledger-rollup-trend-caption" aria-hidden="true">{{ metric.trend_caption }}</span>
+            {% endif %}
+            <span class="sr-only">{{ metric.trend_sr_text }}</span>
+          </p>
+        </article>
+      {% endfor %}
+    </section>
+
+    <p class="todo">Transaction table coming soon.</p>
+  </section>
 {% endblock %}
