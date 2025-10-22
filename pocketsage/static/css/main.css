@@ -29,17 +29,30 @@ body {
 }
 
 .container {
-    padding: 2rem;
+    width: min(100%, 72rem);
+    margin: 0 auto;
+    padding: clamp(1.5rem, 4vw, 3rem) clamp(1rem, 4vw, 3rem);
+    display: grid;
+    gap: clamp(2rem, 4vw, 3rem);
+}
+
+.surface-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    padding: clamp(1.25rem, 2.5vw, 1.75rem);
+    display: grid;
+    gap: clamp(0.75rem, 2vw, 1.25rem);
 }
 
 .flash-messages {
-    margin-bottom: 1rem;
+    display: grid;
+    gap: 0.75rem;
 }
 
 .flash {
     border-radius: 0.5rem;
     padding: 0.75rem 1rem;
-    margin-bottom: 0.5rem;
 }
 
 .flash-success {
@@ -64,7 +77,7 @@ body {
 
 .admin-dashboard {
     display: grid;
-    gap: 1.5rem;
+    gap: clamp(1.25rem, 3vw, 1.75rem);
 }
 
 .admin-header h1 {
@@ -72,10 +85,8 @@ body {
 }
 
 .admin-panel {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 0.75rem;
-    padding: 1.5rem;
+    display: grid;
+    gap: clamp(0.75rem, 2vw, 1.25rem);
 }
 
 .admin-stats {
@@ -157,7 +168,7 @@ body {
 
 .portfolio-dashboard {
     display: grid;
-    gap: 2rem;
+    gap: clamp(1.5rem, 3vw, 2rem);
 }
 
 .portfolio-header {
@@ -179,19 +190,7 @@ body {
     flex-wrap: wrap;
 }
 
-.portfolio-summary,
-.portfolio-allocation,
-.portfolio-holdings,
-.upload-card,
-.upload-guidance {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 0.75rem;
-    padding: 1.5rem;
-}
-
 .portfolio-summary {
-    display: grid;
     gap: 0.35rem;
 }
 
@@ -241,6 +240,7 @@ body {
 .table-scroll {
     overflow-x: auto;
     border-radius: 0.5rem;
+    max-width: 100%;
 }
 
 .holdings-table {
@@ -265,8 +265,7 @@ body {
 }
 
 .upload-card {
-    display: grid;
-    gap: 1rem;
+    gap: clamp(1rem, 2.5vw, 1.5rem);
     max-width: 38rem;
 }
 
@@ -389,3 +388,25 @@ body {
 }
 
 /* TODO(@ux-team): extend design tokens, typography scale, and dark/light mode palettes. */
+
+@media (min-width: 48rem) {
+    .portfolio-dashboard {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+    }
+
+    .portfolio-dashboard > .portfolio-header,
+    .portfolio-dashboard > .portfolio-holdings {
+        grid-column: 1 / -1;
+    }
+
+    .admin-dashboard {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+    }
+
+    .admin-dashboard > .admin-header,
+    .admin-dashboard > .admin-panel:last-child {
+        grid-column: 1 / -1;
+    }
+}

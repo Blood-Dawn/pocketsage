@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}Upload Portfolio CSV · PocketSage{% endblock %}
 {% block content %}
-  <section class="upload-card">
+  <section class="surface-card upload-card">
     <header class="upload-header">
       <h1>Upload positions</h1>
       <p>Import a CSV file featuring your latest holdings. Existing positions will be replaced.</p>
@@ -33,7 +33,7 @@
     </form>
   </section>
 
-  <section class="upload-guidance" aria-label="CSV format guidance">
+  <section class="surface-card upload-guidance" aria-label="CSV format guidance">
     <h2>CSV format checklist</h2>
     <ul>
       <li>Each row represents a holding with a <strong>symbol</strong>, numeric <strong>quantity</strong>, and <strong>average price</strong>.</li>
