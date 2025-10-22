@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from calendar import monthrange
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
@@ -12,7 +13,7 @@ from sqlalchemy.exc import OperationalError
 from sqlmodel import select
 
 from pocketsage.extensions import session_scope
-from pocketsage.models import Transaction
+from pocketsage.models import Account, Budget, BudgetLine, Category, Transaction
 from pocketsage.services.export_csv import export_transactions_csv
 from pocketsage.services.reports import export_spending_png
 
@@ -30,11 +31,153 @@ def run_demo_seed() -> None:
         if count > 0:
             return
 
-        # Use timezone-aware UTC datetimes for persisted rows.
-        t1 = Transaction(occurred_at=datetime.now(timezone.utc), amount=-12.34, memo="Coffee")
-        t2 = Transaction(occurred_at=datetime.now(timezone.utc), amount=1500.0, memo="Salary")
-        session.add(t1)
-        session.add(t2)
+        # Seed canonical categories covering common inflows and outflows.
+        categories_seed = [
+            {"name": "Groceries", "slug": "groceries", "category_type": "expense", "color": "#4CAF50"},
+            {"name": "Dining Out", "slug": "dining-out", "category_type": "expense", "color": "#FF7043"},
+            {"name": "Utilities", "slug": "utilities", "category_type": "expense", "color": "#29B6F6"},
+            {"name": "Transportation", "slug": "transportation", "category_type": "expense", "color": "#AB47BC"},
+            {"name": "Wellness", "slug": "wellness", "category_type": "expense", "color": "#8D6E63"},
+            {"name": "Paycheck", "slug": "paycheck", "category_type": "income", "color": "#2E7D32"},
+            {"name": "Interest Income", "slug": "interest-income", "category_type": "income", "color": "#1B5E20"},
+            {"name": "Transfer In", "slug": "transfer-in", "category_type": "income", "color": "#00796B"},
+        ]
+        categories: dict[str, Category] = {}
+        for payload in categories_seed:
+            category = Category(**payload)
+            session.add(category)
+            categories[payload["slug"]] = category
+        session.flush()
+
+        accounts_seed = [
+            {"name": "Everyday Checking", "currency": "USD"},
+            {"name": "Rainy Day Savings", "currency": "USD"},
+        ]
+        accounts: dict[str, Account] = {}
+        for payload in accounts_seed:
+            account = Account(**payload)
+            session.add(account)
+            accounts[payload["name"]] = account
+        session.flush()
+
+        # Use timezone-aware UTC datetimes for persisted rows with staggered activity.
+        base_timestamp = datetime.now(timezone.utc).replace(hour=9, minute=0, second=0, microsecond=0, day=1)
+        transactions_seed = [
+            {
+                "offset_days": 0,
+                "amount": 3200.0,
+                "memo": "Paycheck deposit #IncomeOverview",
+                "category": "paycheck",
+                "account": "Everyday Checking",
+            },
+            {
+                "offset_days": 1,
+                "amount": -82.45,
+                "memo": "Fresh Mart groceries #BudgetBasics",
+                "category": "groceries",
+                "account": "Everyday Checking",
+            },
+            {
+                "offset_days": 3,
+                "amount": -54.12,
+                "memo": "Neighborhood market restock #MealPlan",
+                "category": "groceries",
+                "account": "Everyday Checking",
+            },
+            {
+                "offset_days": 4,
+                "amount": -32.18,
+                "memo": "Lunch with team #SocialSpending",
+                "category": "dining-out",
+                "account": "Everyday Checking",
+            },
+            {
+                "offset_days": 6,
+                "amount": -120.5,
+                "memo": "City utilities autopay #HouseholdHub",
+                "category": "utilities",
+                "account": "Everyday Checking",
+            },
+            {
+                "offset_days": 9,
+                "amount": -45.0,
+                "memo": "Transit pass reload #CommuteTracker",
+                "category": "transportation",
+                "account": "Everyday Checking",
+            },
+            {
+                "offset_days": 11,
+                "amount": -18.25,
+                "memo": "Rideshare to client site #OnTheGo",
+                "category": "transportation",
+                "account": "Everyday Checking",
+            },
+            {
+                "offset_days": 13,
+                "amount": -62.0,
+                "memo": "Wellness studio membership #SelfCare",
+                "category": "wellness",
+                "account": "Everyday Checking",
+            },
+            {
+                "offset_days": 15,
+                "amount": 200.0,
+                "memo": "Savings top-up from paycheck #GoalSetting",
+                "category": "transfer-in",
+                "account": "Rainy Day Savings",
+            },
+            {
+                "offset_days": 17,
+                "amount": 8.75,
+                "memo": "Monthly savings interest #PassiveIncome",
+                "category": "interest-income",
+                "account": "Rainy Day Savings",
+            },
+        ]
+
+        for seed in transactions_seed:
+            occurred_at = base_timestamp + timedelta(days=seed["offset_days"])
+            transaction = Transaction(
+                occurred_at=occurred_at,
+                amount=seed["amount"],
+                memo=seed["memo"],
+                category_id=categories[seed["category"]].id,
+                account_id=accounts[seed["account"]].id,
+                currency="USD",
+            )
+            session.add(transaction)
+
+        # Budget for the current month, aligning planned totals with seeded categories.
+        period_start = date(base_timestamp.year, base_timestamp.month, 1)
+        period_end = date(
+            base_timestamp.year,
+            base_timestamp.month,
+            monthrange(base_timestamp.year, base_timestamp.month)[1],
+        )
+        budget = Budget(
+            period_start=period_start,
+            period_end=period_end,
+            label=f"{base_timestamp.strftime('%B %Y')} Household Budget",
+        )
+        session.add(budget)
+        session.flush()
+
+        planned_lines: list[tuple[str, float]] = [
+            ("groceries", 450.0),
+            ("dining-out", 150.0),
+            ("utilities", 200.0),
+            ("transportation", 120.0),
+            ("wellness", 80.0),
+        ]
+        for slug, planned_amount in planned_lines:
+            session.add(
+                BudgetLine(
+                    budget_id=budget.id,
+                    category_id=categories[slug].id,
+                    planned_amount=planned_amount,
+                    rollover_enabled=False,
+                )
+            )
 
 
 EXPORT_RETENTION = 5
