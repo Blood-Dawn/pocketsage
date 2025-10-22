@@ -8,12 +8,19 @@
     {% block head %}{% endblock %}
   </head>
   <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
     {% include '_nav.html' %}
-    <main class="container">
+    {% block breadcrumb %}{% endblock %}
+    <main id="main-content" class="container">
       {% include '_flash.html' %}
       {% block content %}{% endblock %}
     </main>
     <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
     {% block scripts %}{% endblock %}
+    <footer class="site-footer">
+      {% block footer %}
+        <p>© PocketSage. Crafted with care.</p>
+      {% endblock %}
+    </footer>
   </body>
 </html>
