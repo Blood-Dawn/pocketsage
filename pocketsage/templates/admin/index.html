@@ -12,7 +12,7 @@
       <p>Manage demo data, exports, and background jobs.</p>
     </header>
 
-    <section class="admin-panel">
+    <section class="surface-card admin-panel">
       <h2>Ledger Snapshot</h2>
       <dl class="admin-stats">
         <div>
@@ -32,7 +32,7 @@
       </dl>
     </section>
 
-    <section class="admin-panel">
+    <section class="surface-card admin-panel">
       <h2>Maintenance Actions</h2>
       <div class="admin-actions">
         <form method="post" action="{{ url_for('admin.seed_demo') }}" data-job-submit data-payload='{"confirm": true}'>
@@ -46,7 +46,7 @@
       <p class="hint">Actions run in the background; status appears below.</p>
     </section>
 
-    <section class="admin-panel">
+    <section class="surface-card admin-panel">
       <h2>Exports</h2>
       {% if latest_export %}
         <p class="export-meta">
@@ -60,7 +60,7 @@
       {% endif %}
     </section>
 
-    <section class="admin-panel">
+    <section class="surface-card admin-panel">
       <h2>Background Jobs</h2>
       <ul class="job-list" data-job-list>
         <!-- Populated via JavaScript -->
