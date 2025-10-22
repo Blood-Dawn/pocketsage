@@ -48,15 +48,37 @@
 
     <section class="admin-panel">
       <h2>Exports</h2>
-      {% if latest_export %}
-        <p class="export-meta">
-          Latest export <code>{{ latest_export.name }}</code>
-          (<span title="{{ latest_export.size }} bytes">{{ latest_export.size | filesizeformat }}</span>)
-          generated <time datetime="{{ latest_export.modified_at }}">{{ latest_export.modified_at }}</time>.
-        </p>
-        <a class="btn-link" href="{{ latest_export.download_url }}">Download Latest Export</a>
+      {% if exports %}
+        <div class="exports-table-wrapper">
+          <table class="exports-table">
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Generated</th>
+                <th scope="col">Size</th>
+                <th scope="col" class="exports-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for export in exports %}
+                <tr>
+                  <td data-label="Name"><code>{{ export.name }}</code></td>
+                  <td data-label="Generated">
+                    <time datetime="{{ export.modified_at }}">{{ export.modified_at }}</time>
+                  </td>
+                  <td data-label="Size">
+                    <span title="{{ export.size }} bytes">{{ export.size | filesizeformat }}</span>
+                  </td>
+                  <td data-label="Actions" class="exports-action-cell">
+                    <a class="btn-link" href="{{ export.download_url }}">Download</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       {% else %}
-        <p class="empty">No exports generated yet.</p>
+        <p class="empty exports-empty">No exports generated yet.</p>
       {% endif %}
     </section>
 
