@@ -1,6 +1,76 @@
 {% extends 'base.html' %}
 {% block title %}Ledger Entry · PocketSage{% endblock %}
 {% block content %}
-  <h1>Ledger Entry</h1>
-  <p class="todo">TODO(@ledger-squad): build accessible form with categories + date picker.</p>
+  {% set occurred_at_value = form.occurred_at.isoformat(timespec='minutes') if form and form.occurred_at else '' %}
+  {% set amount_value = '{:.2f}'.format(form.amount) if form and form.amount is not none else '' %}
+  {% set memo_value = form.memo if form and form.memo else '' %}
+  {% set category_value = '{}'.format(form.category_id) if form and form.category_id is not none else '' %}
+
+  <section class="form-card" aria-labelledby="ledger-form-title">
+    <header class="form-header">
+      <h1 id="ledger-form-title">Ledger Entry</h1>
+      <p class="form-subtitle">Capture an expense, income, or transfer in your ledger.</p>
+    </header>
+
+    <form method="post" action="{{ url_for('ledger.create_transaction') }}" class="form-layout">
+      <div class="form-field">
+        <label class="form-label" for="occurred_at">Date &amp; time</label>
+        <input
+          class="form-input"
+          type="datetime-local"
+          id="occurred_at"
+          name="occurred_at"
+          value="{{ occurred_at_value }}"
+          required
+        />
+        <p class="form-help">When the transaction occurred.</p>
+      </div>
+
+      <div class="form-field">
+        <label class="form-label" for="amount">Amount</label>
+        <div class="form-field-row">
+          <span class="form-prefix" aria-hidden="true">$</span>
+          <input
+            class="form-input"
+            type="number"
+            step="0.01"
+            id="amount"
+            name="amount"
+            value="{{ amount_value }}"
+            inputmode="decimal"
+            required
+          />
+        </div>
+        <p class="form-help">Use positive numbers for deposits and negative for withdrawals.</p>
+      </div>
+
+      <div class="form-field form-field--full">
+        <label class="form-label" for="memo">Memo</label>
+        <textarea
+          class="form-input"
+          id="memo"
+          name="memo"
+          rows="4"
+          placeholder="Describe the transaction"
+        >{{ memo_value | e }}</textarea>
+        <p class="form-help">Optional note that will appear on reports.</p>
+      </div>
+
+      <div class="form-field">
+        <label class="form-label" for="category_id">Category</label>
+        <select class="form-input" id="category_id" name="category_id">
+          <option value="" {% if not category_value %}selected{% endif %}>Select a category</option>
+          <option value="1" {% if category_value == '1' %}selected{% endif %}>General</option>
+          <option value="2" {% if category_value == '2' %}selected{% endif %}>Income</option>
+          <option value="3" {% if category_value == '3' %}selected{% endif %}>Transfer</option>
+        </select>
+        <p class="form-help">Choose where this transaction should be tracked.</p>
+      </div>
+
+      <div class="form-actions form-field--full">
+        <button type="submit" class="btn-primary">Save entry</button>
+        <a class="btn-link" href="{{ url_for('ledger.list_transactions') }}">Cancel</a>
+      </div>
+    </form>
+  </section>
 {% endblock %}
