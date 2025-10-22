@@ -5,6 +5,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+from sqlmodel import select
+
 from pocketsage import create_app
 from pocketsage.services.jobs import clear_jobs, set_async_execution
 
@@ -37,6 +39,20 @@ def _post_json(client, url: str, payload: dict[str, object]):
         json=payload,
         headers={"Accept": "application/json"},
     )
+
+
+@pytest.fixture()
+def demo_seed_tools(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    db_path = tmp_path / "demo-seed.db"
+    monkeypatch.setenv("POCKETSAGE_DATABASE_URL", f"sqlite:///{db_path}")
+
+    create_app("development")
+
+    from pocketsage.blueprints.admin.tasks import run_demo_seed
+    from pocketsage.extensions import session_scope
+    from pocketsage.models import Transaction
+
+    return run_demo_seed, session_scope, Transaction
 
 
 def test_seed_demo_requires_confirmation(client):
@@ -91,3 +107,44 @@ def test_export_download_serves_latest_archive(client):
     response = client.get("/admin/export/download")
     assert response.status_code == 200
     assert "attachment" in response.headers.get("Content-Disposition", "")
+
+
+def test_run_demo_seed_populates_two_transactions(demo_seed_tools):
+    run_demo_seed, session_scope, Transaction = demo_seed_tools
+
+    run_demo_seed()
+
+    with session_scope() as session:
+        transactions = session.exec(select(Transaction)).all()
+        memo_data = {tx.memo: tx.amount for tx in transactions}
+
+    assert len(memo_data) == 2
+
+    memos = memo_data
+    assert set(memos.keys()) == {"Coffee", "Salary"}
+    assert memos["Coffee"] < 0
+    assert memos["Salary"] > 0
+
+
+def test_run_demo_seed_noop_when_transactions_exist(demo_seed_tools):
+    from datetime import datetime, timezone
+
+    run_demo_seed, session_scope, Transaction = demo_seed_tools
+
+    with session_scope() as session:
+        session.add(
+            Transaction(
+                occurred_at=datetime.now(timezone.utc),
+                amount=42.0,
+                memo="Existing",
+            )
+        )
+
+    run_demo_seed()
+
+    with session_scope() as session:
+        transactions = session.exec(select(Transaction)).all()
+        memo_data = [(tx.memo, tx.amount) for tx in transactions]
+
+    assert len(memo_data) == 1
+    assert memo_data[0][0] == "Existing"
