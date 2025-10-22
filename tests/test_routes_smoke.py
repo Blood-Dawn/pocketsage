@@ -17,6 +17,7 @@ def client():
 @pytest.mark.parametrize(
     "path",
     [
+        "/",
         "/ledger/",
         "/ledger/new",
         "/habits/",
@@ -28,7 +29,6 @@ def client():
         "/admin/",
     ],
 )
-@pytest.mark.skip(reason="TODO(@qa-team): unskip once templates render with real data.")
 def test_routes_render(path, client):
     response = client.get(path)
     assert response.status_code == 200
