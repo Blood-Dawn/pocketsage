@@ -1,6 +1,17 @@
 :root {
     color-scheme: light dark;
     font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --allocation-track: rgba(148, 163, 184, 0.25);
+    --allocation-fill-start: #22d3ee;
+    --allocation-fill-end: #3b82f6;
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --allocation-track: rgba(100, 116, 139, 0.3);
+        --allocation-fill-start: #0ea5e9;
+        --allocation-fill-end: #2563eb;
+    }
 }
 
 body {
@@ -221,7 +232,7 @@ body {
     position: relative;
     height: 0.65rem;
     border-radius: 999px;
-    background: rgba(148, 163, 184, 0.25);
+    background: var(--allocation-track);
     overflow: hidden;
 }
 
@@ -230,7 +241,7 @@ body {
     position: absolute;
     inset: 0;
     width: calc(var(--allocation) * 1%);
-    background: linear-gradient(90deg, #22d3ee, #3b82f6);
+    background: linear-gradient(90deg, var(--allocation-fill-start), var(--allocation-fill-end));
 }
 
 .allocation-value {

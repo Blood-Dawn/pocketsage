@@ -5,7 +5,30 @@ const FINAL_JOB_STATUSES = new Set(["succeeded", "failed"]);
 document.addEventListener("DOMContentLoaded", () => {
     initAdminDashboard();
     initPortfolioUpload();
+    applyAllocationFallback();
 });
+
+function applyAllocationFallback() {
+    const supportsCustomProperties =
+        typeof window.CSS !== "undefined" &&
+        typeof window.CSS.supports === "function" &&
+        window.CSS.supports("(--allocation: 0)");
+
+    if (supportsCustomProperties) {
+        return;
+    }
+
+    document
+        .querySelectorAll(".allocation-bar-fill[data-allocation]")
+        .forEach((bar) => {
+            const value = Number.parseFloat(bar.dataset.allocation);
+            if (!Number.isFinite(value)) {
+                return;
+            }
+            const clamped = Math.max(0, Math.min(value, 100));
+            bar.style.width = `${clamped}%`;
+        });
+}
 
 function initAdminDashboard() {
     const adminRoot = document.querySelector("[data-admin-dashboard]");
