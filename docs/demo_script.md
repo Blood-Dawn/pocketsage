@@ -8,6 +8,7 @@
 ## Suggested Narrative
 1. **App Launch**
    - Run `make dev` (Windows: `python run.py`).
+   - To showcase the packaged build, first run `make package`, then execute the binary from `dist/PocketSage/` (`./PocketSage` on macOS/Linux or `PocketSage.exe` on Windows) which mirrors the `run.py` entry point.
    - Mention offline-first architecture and SQLCipher toggle.
 2. **Ledger Tour**
    - Show placeholder ledger list; describe upcoming rollups and Matplotlib charts.

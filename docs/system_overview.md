@@ -22,7 +22,7 @@ The sections below describe each component in more detail.
 | File | Purpose |
 | --- | --- |
 | `run.py` | Small runner that imports `create_app` and starts Flask's development server. |
-| `PocketSage.spec` | PyInstaller specification wiring the CLI entry point and extra data to build a desktop binary. |
+| `PocketSage.spec` | PyInstaller specification that bundles `run.py` (calls `create_app()` then `app.run(debug=True)`) and the extra data needed for a desktop binary. |
 | `Makefile` | Convenience shortcuts for linting, testing, packaging, and cleanup. |
 
 `run.py` delegates all setup to the application factory, ensuring configuration and blueprints stay consistent between development, production, and bundled binaries.
