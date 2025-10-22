@@ -24,6 +24,11 @@ Framework Owner checkpoint for the PocketSage desktop-first Flask app. Focus are
 4. `python run.py`
 5. Visit http://127.0.0.1:5000 to view the landing page and navigate to scaffolded blueprints
 
+## Packaging
+- The PyInstaller build mirrors `run.py`, which calls `create_app()` and then `app.run(debug=True)` for a development-friendly binary entry point.
+- `make package` → run PyInstaller using `PocketSage.spec` (outputs to `dist/`).
+- Launch the bundled app the same way as the script (`./dist/PocketSage/PocketSage` on macOS/Linux, `dist\\PocketSage\\PocketSage.exe` on Windows) to confirm parity with local execution.
+
 ### Make Targets
 - `make setup` → install deps, enable pre-commit
 - `make dev` → run Flask dev server
