@@ -65,6 +65,7 @@ def _suggest_mapping(columns: Iterable[str]) -> dict[str, str | None]:
 
 def _normalize_rows(rows: Iterable[dict], mapping: dict[str, str | None]) -> list[dict]:
     normalized: list[dict] = []
+    permitted_keys = {canonical for canonical, column in mapping.items() if column}
     for row in rows:
         clean = {
             (key or "").strip().lower(): (str(value).strip() if value is not None else "")
@@ -73,7 +74,13 @@ def _normalize_rows(rows: Iterable[dict], mapping: dict[str, str | None]) -> lis
         for canonical, column in mapping.items():
             if column and column in clean:
                 clean[canonical] = clean[column]
-        normalized.append(clean)
+            elif not column:
+                clean.pop(canonical, None)
+        if permitted_keys:
+            filtered = {key: clean.get(key, "") for key in permitted_keys}
+        else:
+            filtered = {}
+        normalized.append(filtered)
     return normalized
 
 
