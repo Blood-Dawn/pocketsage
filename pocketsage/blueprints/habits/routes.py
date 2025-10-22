@@ -7,6 +7,7 @@ from datetime import date
 from flask import flash, redirect, render_template, url_for
 
 from . import bp
+from .forms import HabitCadence, HabitForm
 
 
 @bp.get("/")
@@ -31,5 +32,6 @@ def toggle_habit(habit_id: int):
 def new_habit():
     """Render form for creating a new habit."""
 
-    # TODO(@habits-squad): supply HabitForm with defaults.
-    return render_template("habits/form.html")
+    form = HabitForm()
+    cadence_options = list(HabitCadence)
+    return render_template("habits/form.html", form=form, cadence_options=cadence_options)
