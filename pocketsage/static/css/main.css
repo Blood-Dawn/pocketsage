@@ -264,6 +264,88 @@ body {
     font-variant-numeric: tabular-nums;
 }
 
+.account-groups {
+    display: grid;
+    gap: 1rem;
+}
+
+.account-group {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.03);
+    overflow: hidden;
+}
+
+.account-summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    font-weight: 600;
+    background: rgba(15, 23, 42, 0.35);
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.account-summary:focus-visible {
+    outline: 3px solid rgba(34, 197, 94, 0.6);
+    outline-offset: 2px;
+}
+
+.account-summary:hover {
+    background: rgba(15, 23, 42, 0.5);
+}
+
+.account-summary::-webkit-details-marker,
+.account-summary::marker {
+    display: none;
+}
+
+.account-summary-title {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.account-name {
+    font-size: 1.05rem;
+}
+
+.account-meta {
+    display: flex;
+    gap: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.9rem;
+}
+
+.account-summary-icon {
+    width: 0.75rem;
+    height: 0.75rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform 0.2s ease;
+}
+
+.account-group[open] .account-summary-icon {
+    transform: rotate(-135deg);
+}
+
+.account-group[open] .account-summary {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.account-holdings {
+    padding: 0 1.25rem 1.25rem;
+}
+
+.account-share {
+    color: rgba(34, 197, 94, 0.85);
+}
+
 .upload-card {
     display: grid;
     gap: 1rem;
