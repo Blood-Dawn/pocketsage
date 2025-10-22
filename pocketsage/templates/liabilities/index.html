@@ -1,6 +1,79 @@
 {% extends 'base.html' %}
 {% block title %}Liabilities · PocketSage{% endblock %}
 {% block content %}
-  <h1>Liabilities</h1>
-  <p class="todo">TODO(@debts-squad): visualize payoff strategies and payment schedules.</p>
+  <section
+    class="liabilities-dashboard"
+    data-liability-dashboard
+    data-job-status-endpoint="{{ job_status_endpoint }}"
+    data-initial-jobs='{{ initial_jobs | tojson | safe }}'
+  >
+    <header class="liabilities-header">
+      <h1>Liabilities</h1>
+      <p class="liabilities-subtitle">
+        Track payoff progress and trigger recalculations when balances change.
+      </p>
+    </header>
+
+    <div class="liability-grid" data-liability-list>
+      {% for liability in liabilities %}
+        <article
+          class="liability-card"
+          data-liability-card
+          data-liability-id="{{ liability.id }}"
+          data-liability-name="{{ liability.name }}"
+        >
+          <header class="liability-card-header">
+            <h2>{{ liability.name }}</h2>
+            <span class="liability-balance">${{ '{:,.2f}'.format(liability.balance) }}</span>
+          </header>
+
+          <dl class="liability-meta">
+            <div>
+              <dt>APR</dt>
+              <dd>{{ '%.2f'|format(liability.apr) }}%</dd>
+            </div>
+            <div>
+              <dt>Minimum Payment</dt>
+              <dd>${{ '{:,.2f}'.format(liability.minimum_payment) }}</dd>
+            </div>
+            <div>
+              <dt>Strategy</dt>
+              <dd>{{ liability.strategy | capitalize }}</dd>
+            </div>
+            <div>
+              <dt>Next Due</dt>
+              <dd>{{ liability.next_due_display }}</dd>
+            </div>
+          </dl>
+
+          <div
+            class="liability-status"
+            data-status-region
+            {% if not liability.last_recalculated_display %}hidden{% endif %}
+          >
+            {% if liability.last_recalculated_display %}
+              Last recalculated {{ liability.last_recalculated_display }}
+            {% endif %}
+          </div>
+
+          <div class="liability-actions">
+            <form
+              method="post"
+              action="{{ url_for('liabilities.recalc_liability', liability_id=liability.id) }}"
+              data-job-submit
+            >
+              <button type="submit" class="btn-secondary" data-job-button>
+                Recalculate payoff
+              </button>
+            </form>
+            <button type="button" class="btn-link" disabled>
+              Details (coming soon)
+            </button>
+          </div>
+
+          <div class="liability-inline-flash" data-inline-flash hidden></div>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
 {% endblock %}

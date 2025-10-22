@@ -388,4 +388,160 @@ body {
     flex-wrap: wrap;
 }
 
+.liabilities-dashboard {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.liabilities-header h1 {
+    margin-bottom: 0.35rem;
+}
+
+.liabilities-subtitle {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.95rem;
+}
+
+.liability-grid {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+
+.liability-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.85rem;
+    padding: 1.5rem;
+    display: grid;
+    gap: 1rem;
+    min-height: 14rem;
+}
+
+.liability-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+}
+
+.liability-card-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.liability-balance {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.liability-meta {
+    margin: 0;
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.liability-meta div {
+    display: grid;
+    gap: 0.15rem;
+}
+
+.liability-meta dt {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.65;
+}
+
+.liability-meta dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.liability-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.liability-actions .btn-link {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.liability-status {
+    font-size: 0.85rem;
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.liability-status[hidden] {
+    display: none;
+}
+
+.liability-status[data-state="pending"] {
+    color: #fbbf24;
+}
+
+.liability-status[data-state="success"] {
+    color: #22c55e;
+}
+
+.liability-status[data-state="warning"] {
+    color: #f97316;
+}
+
+.liability-inline-flash {
+    font-size: 0.85rem;
+    border-radius: 0.6rem;
+    padding: 0.6rem 0.75rem;
+}
+
+.liability-inline-flash[hidden] {
+    display: none;
+}
+
+.liability-inline-flash-info {
+    background: rgba(59, 130, 246, 0.12);
+    color: #60a5fa;
+}
+
+.liability-inline-flash-success {
+    background: rgba(34, 197, 94, 0.12);
+    color: #4ade80;
+}
+
+.liability-inline-flash-warning {
+    background: rgba(251, 191, 36, 0.15);
+    color: #facc15;
+}
+
+.liability-inline-flash-error {
+    background: rgba(248, 113, 113, 0.15);
+    color: #f87171;
+}
+
+.liability-inline-flash strong {
+    font-weight: 600;
+}
+
+.liability-inline-flash button {
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.liability-inline-flash button:hover {
+    text-decoration: underline;
+}
+
+.liability-inline-flash button:disabled {
+    cursor: default;
+    opacity: 0.65;
+}
+
 /* TODO(@ux-team): extend design tokens, typography scale, and dark/light mode palettes. */

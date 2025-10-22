@@ -5,6 +5,7 @@ const FINAL_JOB_STATUSES = new Set(["succeeded", "failed"]);
 document.addEventListener("DOMContentLoaded", () => {
     initAdminDashboard();
     initPortfolioUpload();
+    initLiabilityDashboard();
 });
 
 function initAdminDashboard() {
@@ -222,6 +223,239 @@ function initPortfolioUpload() {
             }
         }
     });
+}
+
+function initLiabilityDashboard() {
+    const root = document.querySelector("[data-liability-dashboard]");
+    if (!root) {
+        return;
+    }
+
+    const jobEndpointTemplate = root.dataset.jobStatusEndpoint || "";
+    const initialJobs = safeParseJSON(root.dataset.initialJobs) || [];
+    const cards = new Map();
+    const jobs = new Map();
+    const flashTimers = new Map();
+
+    root.querySelectorAll("[data-liability-card]").forEach((card) => {
+        const liabilityId = Number(card.dataset.liabilityId);
+        if (!Number.isFinite(liabilityId)) {
+            return;
+        }
+
+        const form = card.querySelector("form[data-job-submit]");
+        const button = form ? form.querySelector("button[type='submit']") : null;
+        const status = card.querySelector("[data-status-region]");
+        const flash = card.querySelector("[data-inline-flash]");
+        const defaultStatus = status ? status.textContent.trim() : "";
+        const defaultState = status ? status.dataset.state || "idle" : "idle";
+
+        cards.set(liabilityId, {
+            card,
+            form,
+            button,
+            status,
+            flash,
+            defaultStatus,
+            defaultState,
+            name: card.dataset.liabilityName || "This liability",
+        });
+
+        if (form) {
+            form.addEventListener("submit", (event) =>
+                handleRecalcSubmit(event, liabilityId)
+            );
+        }
+    });
+
+    const clearStatus = (liabilityId) => {
+        const entry = cards.get(liabilityId);
+        if (!entry || !entry.status) {
+            return;
+        }
+        if (entry.defaultStatus) {
+            entry.status.hidden = false;
+            entry.status.dataset.state = entry.defaultState;
+            entry.status.textContent = entry.defaultStatus;
+        } else {
+            entry.status.hidden = true;
+            entry.status.textContent = "";
+        }
+    };
+
+    const setStatus = (liabilityId, message, state = "info") => {
+        const entry = cards.get(liabilityId);
+        if (!entry || !entry.status) {
+            return;
+        }
+        if (!message) {
+            clearStatus(liabilityId);
+            return;
+        }
+        entry.status.hidden = false;
+        entry.status.dataset.state = state;
+        entry.status.textContent = message;
+    };
+
+    const clearInlineFlash = (liabilityId) => {
+        const entry = cards.get(liabilityId);
+        if (!entry || !entry.flash) {
+            return;
+        }
+        entry.flash.hidden = true;
+        entry.flash.textContent = "";
+        entry.flash.className = "liability-inline-flash";
+        const timer = flashTimers.get(liabilityId);
+        if (timer) {
+            clearTimeout(timer);
+            flashTimers.delete(liabilityId);
+        }
+    };
+
+    const showInlineFlash = (liabilityId, message, category = "info") => {
+        const entry = cards.get(liabilityId);
+        if (!entry || !entry.flash) {
+            return;
+        }
+        entry.flash.hidden = false;
+        entry.flash.textContent = message;
+        entry.flash.className = `liability-inline-flash liability-inline-flash-${category}`;
+
+        const timer = flashTimers.get(liabilityId);
+        if (timer) {
+            clearTimeout(timer);
+        }
+        const timeout = window.setTimeout(() => {
+            clearInlineFlash(liabilityId);
+        }, 6000);
+        flashTimers.set(liabilityId, timeout);
+    };
+
+    const trackJob = (job) => {
+        if (!job || !job.id) {
+            return;
+        }
+        jobs.set(job.id, job);
+        const metadata = job.metadata || {};
+        const liabilityId = Number(metadata.liability_id);
+        if (!Number.isFinite(liabilityId) || !cards.has(liabilityId)) {
+            return;
+        }
+
+        const entry = cards.get(liabilityId);
+        if (entry && entry.button) {
+            entry.button.disabled = !FINAL_JOB_STATUSES.has(job.status);
+        }
+
+        if (entry && FINAL_JOB_STATUSES.has(job.status)) {
+            const finished = job.finished_at
+                ? formatDate(job.finished_at)
+                : "just now";
+            if (job.status === "succeeded") {
+                setStatus(
+                    liabilityId,
+                    `Last recalculated ${finished}`,
+                    "success"
+                );
+                showInlineFlash(
+                    liabilityId,
+                    `${entry.name} payoff schedule refreshed successfully.`,
+                    "success"
+                );
+            } else {
+                const message = job.error || "Recalculation failed.";
+                setStatus(liabilityId, message, "warning");
+                showInlineFlash(liabilityId, message, "warning");
+            }
+        } else {
+            setStatus(liabilityId, "Recalculation running…", "pending");
+        }
+    };
+
+    const pollJob = async (jobId) => {
+        if (!jobId || !jobEndpointTemplate) {
+            return;
+        }
+        try {
+            const response = await fetch(
+                jobEndpointTemplate.replace("__JOB__", jobId),
+                {
+                    headers: { Accept: "application/json" },
+                }
+            );
+            if (!response.ok) {
+                return;
+            }
+            const payload = await response.json();
+            trackJob(payload);
+        } catch (error) {
+            console.warn("Failed to poll liability job", jobId, error);
+        }
+    };
+
+    const pollActiveJobs = () => {
+        Array.from(jobs.values())
+            .filter((job) => !FINAL_JOB_STATUSES.has(job.status))
+            .forEach((job) => pollJob(job.id));
+    };
+
+    const handleRecalcSubmit = async (event, liabilityId) => {
+        event.preventDefault();
+        const entry = cards.get(liabilityId);
+        if (!entry || !entry.form) {
+            return;
+        }
+
+        const { form, button } = entry;
+        const payload = safeParseJSON(form.dataset.payload) || {};
+
+        if (button) {
+            button.disabled = true;
+        }
+        clearInlineFlash(liabilityId);
+        setStatus(liabilityId, "Scheduling recalculation…", "pending");
+
+        try {
+            const response = await fetch(form.action, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const result = await response.json().catch(() => null);
+            if (!response.ok || !result || result.error) {
+                const message =
+                    (result && (result.message || result.error)) ||
+                    "Unable to schedule recalculation.";
+                showInlineFlash(liabilityId, message, "warning");
+                setStatus(liabilityId, message, "warning");
+                if (button) {
+                    button.disabled = false;
+                }
+                return;
+            }
+
+            showInlineFlash(liabilityId, "Recalculation started…", "info");
+            trackJob(result);
+            pollJob(result.id);
+        } catch (error) {
+            console.error("Recalculation submission failed", error);
+            if (button) {
+                button.disabled = false;
+            }
+            form.submit();
+        }
+    };
+
+    initialJobs.forEach((job) => {
+        trackJob(job);
+    });
+
+    pollActiveJobs();
+    setInterval(pollActiveJobs, 5000);
 }
 
 function safeParseJSON(value) {
