@@ -5,6 +5,7 @@ const FINAL_JOB_STATUSES = new Set(["succeeded", "failed"]);
 document.addEventListener("DOMContentLoaded", () => {
     initAdminDashboard();
     initPortfolioUpload();
+    initHabitVisualizations();
 });
 
 function initAdminDashboard() {
@@ -224,6 +225,45 @@ function initPortfolioUpload() {
     });
 }
 
+function initHabitVisualizations() {
+    const cards = document.querySelectorAll("[data-habit-visualization]");
+    if (!cards.length) {
+        return;
+    }
+
+    cards.forEach((card) => {
+        const history = safeParseJSON(card.dataset.history) || [];
+        if (!history.length) {
+            return;
+        }
+
+        const weekly = safeParseJSON(card.dataset.weekly) || [];
+        const habitName = card.dataset.habitName || "habit";
+        const chart = card.querySelector(".habit-chart");
+
+        if (!chart) {
+            return;
+        }
+
+        chart.innerHTML = "";
+
+        const heatmap = buildHabitHeatmap(history, habitName);
+        if (heatmap) {
+            chart.appendChild(heatmap);
+        }
+
+        const weeklyBars = buildHabitWeeklyBars(weekly, habitName);
+        if (weeklyBars) {
+            chart.appendChild(weeklyBars);
+        }
+
+        const fallback = card.querySelector("[data-fallback]");
+        if (fallback) {
+            fallback.classList.add("habit-fallback--hidden");
+        }
+    });
+}
+
 function safeParseJSON(value) {
     if (!value) {
         return null;
@@ -234,6 +274,95 @@ function safeParseJSON(value) {
         console.warn("Failed to parse JSON", error);
         return null;
     }
+}
+
+function buildHabitHeatmap(history, habitName) {
+    if (!Array.isArray(history) || history.length === 0) {
+        return null;
+    }
+
+    const container = document.createElement("div");
+    container.className = "habit-heatmap";
+    container.setAttribute(
+        "aria-label",
+        `${history.length}-day completion history for ${habitName}`,
+    );
+    container.setAttribute("role", "img");
+
+    history.forEach((day, index) => {
+        const cell = document.createElement("span");
+        cell.className = "habit-heatmap__day";
+        const recency = history.length - index - 1;
+        let level = 0;
+        if (day && day.completed) {
+            if (recency <= 6) {
+                level = 3;
+            } else if (recency <= 13) {
+                level = 2;
+            } else {
+                level = 1;
+            }
+        }
+        cell.dataset.level = String(level);
+        const label = day && day.label ? day.label : day.date;
+        const weekday = day && day.weekday ? day.weekday : "";
+        const status = day && day.completed ? "Completed" : "Missed";
+        cell.title = `${weekday ? `${weekday} · ` : ""}${label} — ${status}`;
+        cell.setAttribute("aria-label", cell.title);
+        container.appendChild(cell);
+    });
+
+    return container;
+}
+
+function buildHabitWeeklyBars(weekly, habitName) {
+    if (!Array.isArray(weekly) || weekly.length === 0) {
+        return null;
+    }
+
+    const container = document.createElement("div");
+    container.className = "habit-weekly-bars";
+    container.setAttribute(
+        "aria-label",
+        `Weekly completion totals for ${habitName}`,
+    );
+    container.setAttribute("role", "group");
+
+    weekly.forEach((week) => {
+        const row = document.createElement("div");
+        row.className = "habit-weekly-bars__row";
+
+        const label = document.createElement("div");
+        label.className = "habit-weekly-bars__label";
+        label.textContent = week && week.label ? week.label : week.start_date;
+
+        const track = document.createElement("div");
+        track.className = "habit-weekly-bars__track";
+        track.setAttribute("aria-hidden", "true");
+
+        const fill = document.createElement("span");
+        fill.className = "habit-weekly-bars__fill";
+        const totalDays = week && typeof week.total === "number" ? week.total : 0;
+        const completed = week && typeof week.completed === "number" ? week.completed : 0;
+        const ratio = totalDays > 0 ? Math.min(completed / totalDays, 1) : 0;
+        fill.style.setProperty("--habit-weekly-progress", (ratio * 100).toFixed(2));
+        track.appendChild(fill);
+
+        const value = document.createElement("div");
+        value.className = "habit-weekly-bars__value";
+        value.textContent = `${completed}/${totalDays} days`;
+        value.setAttribute(
+            "aria-label",
+            `${label.textContent}: completed ${completed} of ${totalDays} days`,
+        );
+
+        row.appendChild(label);
+        row.appendChild(track);
+        row.appendChild(value);
+        container.appendChild(row);
+    });
+
+    return container;
 }
 
 function jobItemTemplate(job) {

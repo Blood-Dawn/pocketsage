@@ -1,6 +1,67 @@
 {% extends 'base.html' %}
 {% block title %}Habits · PocketSage{% endblock %}
 {% block content %}
-  <h1>Habits</h1>
-  <p class="todo">TODO(@habits-squad): render habits list with streak badges and toggle buttons.</p>
+  <section class="habits-dashboard">
+    <header class="habits-header">
+      <h1>Habits</h1>
+      <p>Track streaks and celebrate the progress you make each day.</p>
+    </header>
+
+    {% if habits %}
+      <ol class="habit-list" aria-live="polite">
+        {% for habit in habits %}
+          <li class="habit-card" data-habit-visualization data-habit-name="{{ habit.name }}" data-history='{{ habit.history|tojson }}' data-weekly='{{ habit.weekly_totals|tojson }}'>
+            <header class="habit-card__header">
+              <div class="habit-card__title">
+                <h2>{{ habit.name }}</h2>
+                {% if habit.description %}
+                  <p class="habit-card__description">{{ habit.description }}</p>
+                {% endif %}
+              </div>
+              <dl class="habit-card__metrics">
+                <div>
+                  <dt>Current streak</dt>
+                  <dd>{{ habit.streak }} days</dd>
+                </div>
+                <div>
+                  <dt>Completed</dt>
+                  <dd>{{ habit.completed_days }} of {{ history_days }} days</dd>
+                </div>
+                <div>
+                  <dt>Summary</dt>
+                  <dd>{{ habit.summary }}</dd>
+                </div>
+              </dl>
+            </header>
+
+            <div class="habit-card__body">
+              <div class="habit-chart" role="presentation"></div>
+              <div class="habit-fallback" data-fallback>
+                <p class="habit-fallback__summary">{{ habit.summary }}</p>
+                <table class="habit-fallback__table">
+                  <caption>Last 7 days</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Day</th>
+                      <th scope="col">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for day in habit.history[-7:] %}
+                      <tr>
+                        <th scope="row">{{ day.weekday }} · {{ day.label }}</th>
+                        <td>{{ 'Completed' if day.completed else 'Missed' }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p class="empty">No habits yet. Create your first habit to begin tracking.</p>
+    {% endif %}
+  </section>
 {% endblock %}
