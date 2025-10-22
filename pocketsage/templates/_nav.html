@@ -1,9 +1,54 @@
-<nav class="top-nav">
-  <ul>
-    <li><a href="{{ url_for('ledger.list_transactions') }}">Ledger</a></li>
-    <li><a href="{{ url_for('habits.list_habits') }}">Habits</a></li>
-    <li><a href="{{ url_for('liabilities.list_liabilities') }}">Liabilities</a></li>
-    <li><a href="{{ url_for('portfolio.list_portfolio') }}">Portfolio</a></li>
-    <li><a href="{{ url_for('admin.dashboard') }}">Admin</a></li>
+{% set current_endpoint = request.endpoint %}
+<nav class="top-nav" data-top-nav>
+  <button
+    type="button"
+    class="top-nav__toggle"
+    aria-controls="top-nav-links"
+    aria-expanded="false"
+    data-nav-toggle
+  >
+    <span class="top-nav__toggle-label">Menu</span>
+  </button>
+  <ul id="top-nav-links" class="top-nav__links" data-nav-links>
+    <li>
+      <a
+        href="{{ url_for('ledger.list_transactions') }}"
+        {% if current_endpoint == 'ledger.list_transactions' %}aria-current="page"{% endif %}
+      >
+        Ledger
+      </a>
+    </li>
+    <li>
+      <a
+        href="{{ url_for('habits.list_habits') }}"
+        {% if current_endpoint == 'habits.list_habits' %}aria-current="page"{% endif %}
+      >
+        Habits
+      </a>
+    </li>
+    <li>
+      <a
+        href="{{ url_for('liabilities.list_liabilities') }}"
+        {% if current_endpoint == 'liabilities.list_liabilities' %}aria-current="page"{% endif %}
+      >
+        Liabilities
+      </a>
+    </li>
+    <li>
+      <a
+        href="{{ url_for('portfolio.list_portfolio') }}"
+        {% if current_endpoint == 'portfolio.list_portfolio' %}aria-current="page"{% endif %}
+      >
+        Portfolio
+      </a>
+    </li>
+    <li>
+      <a
+        href="{{ url_for('admin.dashboard') }}"
+        {% if current_endpoint == 'admin.dashboard' %}aria-current="page"{% endif %}
+      >
+        Admin
+      </a>
+    </li>
   </ul>
 </nav>

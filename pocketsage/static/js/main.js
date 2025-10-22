@@ -3,9 +3,64 @@
 const FINAL_JOB_STATUSES = new Set(["succeeded", "failed"]);
 
 document.addEventListener("DOMContentLoaded", () => {
+    initTopNav();
     initAdminDashboard();
     initPortfolioUpload();
 });
+
+function initTopNav() {
+    const nav = document.querySelector("[data-top-nav]");
+    if (!nav) {
+        return;
+    }
+
+    const toggleButton = nav.querySelector("[data-nav-toggle]");
+    const navLinks = nav.querySelector("[data-nav-links]");
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+
+    const setNavOpen = (open) => {
+        nav.classList.toggle("top-nav--open", open);
+        if (toggleButton) {
+            toggleButton.setAttribute("aria-expanded", open ? "true" : "false");
+        }
+    };
+
+    const closeNav = () => setNavOpen(false);
+
+    if (toggleButton) {
+        toggleButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            const isOpen = nav.classList.contains("top-nav--open");
+            setNavOpen(!isOpen);
+        });
+    }
+
+    if (navLinks) {
+        navLinks.addEventListener("click", (event) => {
+            if (event.target instanceof Element && event.target.closest("a")) {
+                closeNav();
+            }
+        });
+    }
+
+    document.addEventListener("click", (event) => {
+        if (!nav.classList.contains("top-nav--open")) {
+            return;
+        }
+        if (event.target instanceof Node && !nav.contains(event.target)) {
+            closeNav();
+        }
+    });
+
+    const handleMediaChange = (mediaEvent) => {
+        if (mediaEvent.matches) {
+            closeNav();
+        }
+    };
+
+    handleMediaChange(mediaQuery);
+    mediaQuery.addEventListener("change", handleMediaChange);
+}
 
 function initAdminDashboard() {
     const adminRoot = document.querySelector("[data-admin-dashboard]");
