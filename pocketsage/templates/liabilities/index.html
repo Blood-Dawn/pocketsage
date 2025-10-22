@@ -1,6 +1,96 @@
 {% extends 'base.html' %}
 {% block title %}Liabilities · PocketSage{% endblock %}
 {% block content %}
-  <h1>Liabilities</h1>
-  <p class="todo">TODO(@debts-squad): visualize payoff strategies and payment schedules.</p>
+  <section
+    class="liabilities-dashboard"
+    data-liabilities-dashboard
+    data-balance-series="{{ overview.balance_timeline|tojson }}"
+    data-strategy-series="{{ overview.strategy_payments|tojson }}"
+    data-strategy-keys="{{ overview.strategy_keys|tojson }}"
+  >
+    <header class="dashboard-header">
+      <div>
+        <h1>Liabilities</h1>
+        <p class="dashboard-subtitle">
+          Explore current balances, interest exposure, and how your payoff strategies perform over time.
+        </p>
+      </div>
+      <dl class="liabilities-summary">
+        <div>
+          <dt>Starting balance</dt>
+          <dd>${{ "{:,.2f}".format(overview.totals.starting_balance) }}</dd>
+        </div>
+        <div>
+          <dt>Projected interest</dt>
+          <dd>${{ "{:,.2f}".format(overview.totals.projected_interest) }}</dd>
+        </div>
+      </dl>
+    </header>
+
+    <div class="liabilities-grid">
+      <figure class="chart-card">
+        <header>
+          <h2>Balance outlook</h2>
+        </header>
+        <div class="chart-wrapper">
+          <canvas data-balance-chart aria-describedby="balance-description"></canvas>
+        </div>
+        <figcaption id="balance-description">{{ overview.balance_description }}</figcaption>
+      </figure>
+
+      <figure class="chart-card">
+        <header>
+          <h2>Payments by strategy</h2>
+        </header>
+        <div class="chart-wrapper">
+          <canvas data-strategy-chart aria-describedby="strategy-description"></canvas>
+        </div>
+        <figcaption id="strategy-description">{{ overview.strategy_description }}</figcaption>
+      </figure>
+    </div>
+
+    <section class="liabilities-table-card">
+      <header>
+        <h2>Accounts</h2>
+        <p class="table-hint">Projected payoff metrics based on current balances and minimum payments.</p>
+      </header>
+      <div class="table-scroll">
+        <table class="liabilities-table">
+          <thead>
+            <tr>
+              <th scope="col">Account</th>
+              <th scope="col">Balance</th>
+              <th scope="col">APR</th>
+              <th scope="col">Minimum</th>
+              <th scope="col">Strategy</th>
+              <th scope="col">Months to payoff</th>
+              <th scope="col">Projected interest</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for liability in overview.liabilities %}
+              <tr>
+                <th scope="row">{{ liability.name }}</th>
+                <td>${{ "{:,.2f}".format(liability.balance) }}</td>
+                <td>{{ "{:,.2f}".format(liability.apr) }}%</td>
+                <td>${{ "{:,.2f}".format(liability.minimum_payment) }}</td>
+                <td class="strategy-label">{{ liability.payoff_strategy|capitalize }}</td>
+                <td>{{ liability.months_to_payoff }}</td>
+                <td>${{ "{:,.2f}".format(liability.total_interest) }}</td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="7" class="empty">No liabilities tracked yet.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" integrity="sha384-3pNFoQjTKduk7PZDj2YtMSdwXx4lxkszyU6gUWrDy4+Ota33oBhkfVcmq+l+IIZa" crossorigin="anonymous"></script>
 {% endblock %}
