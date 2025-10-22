@@ -1,6 +1,117 @@
 {% extends 'base.html' %}
 {% block title %}Liabilities · PocketSage{% endblock %}
 {% block content %}
-  <h1>Liabilities</h1>
-  <p class="todo">TODO(@debts-squad): visualize payoff strategies and payment schedules.</p>
+  <section class="liabilities-dashboard">
+    <header class="liabilities-header">
+      <div>
+        <h1>Liabilities</h1>
+        <p class="liabilities-subtitle">Track outstanding debts, monthly obligations, and payoff targets.</p>
+      </div>
+      <a class="btn-primary" href="{{ url_for('liabilities.new_liability') }}">Add liability</a>
+    </header>
+
+    <section class="liabilities-summary" aria-label="Liability totals">
+      <article class="summary-card">
+        <h2>Total Balance</h2>
+        <p class="summary-value">{{ summary.total_balance_display }}</p>
+      </article>
+      <article class="summary-card">
+        <h2>Monthly Minimums</h2>
+        <p class="summary-value">{{ summary.total_minimum_payment_display }}</p>
+      </article>
+      <article class="summary-card">
+        <h2>Average APR</h2>
+        <p class="summary-value">{{ summary.average_apr_display }}</p>
+      </article>
+      <article class="summary-card" data-state="warning">
+        <h2>Overdue This Month</h2>
+        <p class="summary-value">{{ summary.overdue_count }}</p>
+      </article>
+    </section>
+
+    {% if summary.strategies %}
+      <section class="liabilities-strategies" aria-label="Payoff strategy mix">
+        <h2>Payoff strategies</h2>
+        <div class="strategy-grid">
+          {% for strategy in summary.strategies %}
+            <article class="strategy-card">
+              <header>
+                <h3>{{ strategy.label }}</h3>
+                <span class="strategy-count">{{ strategy.count }} account{% if strategy.count != 1 %}s{% endif %}</span>
+              </header>
+              <dl>
+                <div>
+                  <dt>Balance</dt>
+                  <dd>{{ strategy.balance_display }}</dd>
+                </div>
+                <div>
+                  <dt>Minimum payments</dt>
+                  <dd>{{ strategy.minimum_payment_display }}</dd>
+                </div>
+              </dl>
+            </article>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+    <section class="liabilities-table-card" aria-label="Liability details">
+      <header>
+        <h2>Liability detail</h2>
+        <p class="table-hint">Next due dates are based on the statement day and today&rsquo;s date ({{ today.strftime('%b %d, %Y') }}).</p>
+      </header>
+
+      {% if liabilities %}
+        <div class="table-scroll">
+          <table class="liabilities-table">
+            <thead>
+              <tr>
+                <th scope="col">Debt</th>
+                <th scope="col">Balance</th>
+                <th scope="col">APR</th>
+                <th scope="col">Minimum payment</th>
+                <th scope="col">Payoff strategy</th>
+                <th scope="col">Next due</th>
+                <th scope="col">Target payoff</th>
+                <th scope="col">Progress</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for liability in liabilities %}
+                <tr class="{% if liability.is_overdue %}is-overdue{% endif %}">
+                  <th scope="row">
+                    <div class="liability-name">{{ liability.name }}</div>
+                  </th>
+                  <td data-label="Balance">{{ liability.balance_display }}</td>
+                  <td data-label="APR">{{ liability.apr_display }}</td>
+                  <td data-label="Minimum">{{ liability.minimum_payment_display }}</td>
+                  <td data-label="Strategy">
+                    <span class="strategy-chip">{{ liability.strategy_display }}</span>
+                  </td>
+                  <td data-label="Next due">
+                    <time datetime="{{ liability.next_due_date.isoformat() }}">{{ liability.next_due_display }}</time>
+                  </td>
+                  <td data-label="Target payoff">
+                    {% if liability.target_payoff_date %}
+                      <time datetime="{{ liability.target_payoff_date.isoformat() }}">{{ liability.target_payoff_display }}</time>
+                    {% else %}
+                      <span class="empty">—</span>
+                    {% endif %}
+                  </td>
+                  <td data-label="Progress">
+                    <div class="liability-progress" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ liability.progress_pct }}" aria-label="{{ liability.name }} payoff progress">
+                      <div class="liability-progress-bar" style="--progress: {{ liability.progress_pct }}%"></div>
+                    </div>
+                    <span class="progress-value">{{ liability.progress_display }}</span>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="empty">No liabilities recorded yet. Add your first debt to see payoff timelines.</p>
+      {% endif %}
+    </section>
+  </section>
 {% endblock %}

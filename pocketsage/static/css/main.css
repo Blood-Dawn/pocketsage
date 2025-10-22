@@ -388,4 +388,215 @@ body {
     flex-wrap: wrap;
 }
 
+.liabilities-dashboard {
+    display: grid;
+    gap: 2rem;
+}
+
+.liabilities-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.liabilities-subtitle {
+    margin: 0.25rem 0 0;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.liabilities-summary {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.summary-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.summary-card[data-state="warning"] {
+    border-color: rgba(248, 113, 113, 0.35);
+    background: rgba(248, 113, 113, 0.12);
+    color: #fecaca;
+}
+
+.summary-card h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.summary-value {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 700;
+    margin: 0;
+}
+
+.liabilities-strategies {
+    display: grid;
+    gap: 1rem;
+}
+
+.liabilities-strategies h2 {
+    margin: 0;
+}
+
+.strategy-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.strategy-card {
+    background: rgba(15, 23, 42, 0.45);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    display: grid;
+    gap: 0.75rem;
+}
+
+.strategy-card header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.strategy-card h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.strategy-count {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.strategy-card dl {
+    display: grid;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.strategy-card dt {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: rgba(148, 163, 184, 0.85);
+}
+
+.strategy-card dd {
+    margin: 0.25rem 0 0;
+    font-size: 1rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.liabilities-table-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    display: grid;
+    gap: 1.25rem;
+}
+
+.liabilities-table-card header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.liabilities-table-card h2 {
+    margin: 0;
+}
+
+.table-hint {
+    margin: 0;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.liabilities-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 46rem;
+}
+
+.liabilities-table th,
+.liabilities-table td {
+    padding: 0.85rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+    font-variant-numeric: tabular-nums;
+}
+
+.liabilities-table th {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgba(148, 163, 184, 0.9);
+}
+
+.liabilities-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.liabilities-table tr.is-overdue {
+    background: rgba(248, 113, 113, 0.08);
+}
+
+.liabilities-table tr.is-overdue td,
+.liabilities-table tr.is-overdue th {
+    border-bottom-color: rgba(248, 113, 113, 0.2);
+}
+
+.liability-name {
+    font-weight: 600;
+}
+
+.strategy-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.2);
+    color: #bfdbfe;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.liability-progress {
+    position: relative;
+    height: 0.6rem;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.2);
+    overflow: hidden;
+}
+
+.liability-progress-bar {
+    position: absolute;
+    inset: 0;
+    width: var(--progress, 0%);
+    background: linear-gradient(90deg, #22d3ee, #3b82f6);
+    transition: width 0.4s ease;
+}
+
+.progress-value {
+    display: inline-block;
+    margin-top: 0.35rem;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.75);
+}
+
 /* TODO(@ux-team): extend design tokens, typography scale, and dark/light mode palettes. */
