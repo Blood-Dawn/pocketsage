@@ -37,36 +37,52 @@
       {% endif %}
     </section>
 
-    <section class="portfolio-holdings" aria-label="Holdings table">
+    <section class="portfolio-holdings" aria-label="Holdings by account">
       <h2>Holdings</h2>
-      {% if holdings %}
-        <div class="table-scroll">
-          <table class="holdings-table" role="grid">
-            <thead>
-              <tr>
-                <th scope="col">Symbol</th>
-                <th scope="col">Quantity</th>
-                <th scope="col">Average price</th>
-                <th scope="col">Market value</th>
-                <th scope="col">Allocation</th>
-                <th scope="col">Account</th>
-                <th scope="col">Currency</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for holding in holdings %}
-                <tr>
-                  <td data-label="Symbol">{{ holding.symbol }}</td>
-                  <td data-label="Quantity">{{ holding.quantity_display }}</td>
-                  <td data-label="Average price">{{ holding.avg_price_display }}</td>
-                  <td data-label="Market value">{{ holding.value_display }}</td>
-                  <td data-label="Allocation">{{ holding.allocation_display }}</td>
-                  <td data-label="Account">{{ holding.account or "—" }}</td>
-                  <td data-label="Currency">{{ holding.currency }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+      {% if account_groups %}
+        <div class="account-groups" role="list">
+          {% for account in account_groups %}
+            <details class="account-group" role="listitem"{% if loop.first %} open{% endif %}>
+              <summary class="account-summary" aria-controls="holdings-{{ account.key }}">
+                <span class="account-summary-title">
+                  <span class="account-name">{{ account.name }}</span>
+                  <span class="account-meta">
+                    <span class="account-subtotal" aria-label="Market value">{{ account.total_value_display }}</span>
+                    <span class="account-share" aria-label="Allocation share">{{ account.allocation_display }}</span>
+                  </span>
+                </span>
+                <span class="account-summary-icon" aria-hidden="true"></span>
+              </summary>
+              <div class="account-holdings" id="holdings-{{ account.key }}">
+                <div class="table-scroll">
+                  <table class="holdings-table" role="grid" aria-label="{{ account.name }} holdings">
+                    <thead>
+                      <tr>
+                        <th scope="col">Symbol</th>
+                        <th scope="col">Quantity</th>
+                        <th scope="col">Average price</th>
+                        <th scope="col">Market value</th>
+                        <th scope="col">Allocation</th>
+                        <th scope="col">Currency</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for holding in account.holdings %}
+                        <tr>
+                          <td data-label="Symbol">{{ holding.symbol }}</td>
+                          <td data-label="Quantity">{{ holding.quantity_display }}</td>
+                          <td data-label="Average price">{{ holding.avg_price_display }}</td>
+                          <td data-label="Market value">{{ holding.value_display }}</td>
+                          <td data-label="Allocation">{{ holding.allocation_display }}</td>
+                          <td data-label="Currency">{{ holding.currency }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </details>
+          {% endfor %}
         </div>
       {% else %}
         <p class="empty">No holdings yet. Upload a CSV to see your portfolio here.</p>
