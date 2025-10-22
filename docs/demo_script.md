@@ -5,6 +5,12 @@
 - `pip install -e ".[dev]"`
 - Optional: install `watchdog` extra for auto-import demo (`pip install -e ".[watcher]"`).
 
+## Smoke / Sanity Checklist
+- Launch the dev server (`make dev` or `python run.py`) and load the Habits index at `http://127.0.0.1:5000/habits/`.
+  - Confirm the placeholder copy "TODO(@habits-squad): render habits list with streak badges and toggle buttons." still renders.
+  - If the UI has progressed past the placeholder, record the new behavior in the team log so this checklist and related docs stay accurate.
+- Skim other blueprint index pages to ensure they load without template errors.
+
 ## Suggested Narrative
 1. **App Launch**
    - Run `make dev` (Windows: `python run.py`).
