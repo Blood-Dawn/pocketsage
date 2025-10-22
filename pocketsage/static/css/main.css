@@ -388,4 +388,62 @@ body {
     flex-wrap: wrap;
 }
 
+.alert {
+    border-radius: 0.75rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.alert-danger {
+    background: rgba(248, 113, 113, 0.12);
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    color: #fca5a5;
+}
+
+.form-field {
+    display: grid;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.form-field label {
+    font-weight: 600;
+}
+
+.form-control {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0.5rem;
+    color: inherit;
+    font: inherit;
+    padding: 0.75rem 1rem;
+}
+
+.form-control:focus {
+    outline: 2px solid rgba(59, 130, 246, 0.75);
+    outline-offset: 2px;
+}
+
+.form-control.is-invalid {
+    border-color: rgba(248, 113, 113, 0.75);
+    outline: 2px solid rgba(248, 113, 113, 0.45);
+    outline-offset: 2px;
+}
+
+.field-error {
+    color: #f87171;
+    font-size: 0.9rem;
+}
+
+.field-error ul {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
 /* TODO(@ux-team): extend design tokens, typography scale, and dark/light mode palettes. */

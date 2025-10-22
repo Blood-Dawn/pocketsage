@@ -5,6 +5,7 @@ from __future__ import annotations
 from flask import flash, redirect, render_template, request, url_for
 
 from . import bp
+from .forms import LedgerEntryForm
 
 
 @bp.get("/")
@@ -19,15 +20,19 @@ def list_transactions():
 def new_transaction():
     """Render form for creating a transaction."""
 
-    # TODO(@ledger-squad): supply LedgerEntryForm with defaults (see forms.py).
-    return render_template("ledger/form.html")
+    form = LedgerEntryForm()
+    return render_template("ledger/form.html", form=form)
 
 
 @bp.post("/")
 def create_transaction():
     """Persist a new transaction from submitted form data."""
 
-    # TODO(@ledger-squad): validate form payloads and perform repository insert.
+    form = LedgerEntryForm.from_mapping(request.form)
+    if not form.validate():
+        return render_template("ledger/form.html", form=form), 400
+
+    # TODO(@ledger-squad): perform repository insert when backend is ready.
     flash("Ledger transaction creation not yet implemented", "warning")
     return redirect(url_for("ledger.list_transactions"))
 
@@ -37,12 +42,19 @@ def edit_transaction(transaction_id: int):
     """Render edit form for a specific transaction."""
 
     # TODO(@ledger-squad): fetch transaction + populate form state from repository.
-    return render_template("ledger/form.html", transaction_id=transaction_id)
+    form = LedgerEntryForm()
+    return render_template("ledger/form.html", transaction_id=transaction_id, form=form)
 
 
 @bp.post("/<int:transaction_id>")
 def update_transaction(transaction_id: int):
     """Handle update submissions for an existing transaction."""
+
+    form = LedgerEntryForm.from_mapping(request.form)
+    if not form.validate():
+        return render_template(
+            "ledger/form.html", transaction_id=transaction_id, form=form
+        ), 400
 
     # TODO(@ledger-squad): apply optimistic locking + repository update.
     flash("Ledger transaction update not yet implemented", "warning")
