@@ -6,7 +6,8 @@ import csv
 from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
-from typing import Dict, Iterable
+from typing import Callable, Dict, Iterable, TypedDict
+from urllib.parse import urlencode
 
 from flask import (
     current_app,
@@ -37,6 +38,41 @@ COLUMN_ALIASES: Dict[str, tuple[str, ...]] = {
     "memo": ("memo", "note", "description"),
     "external_id": ("external_id", "externalid", "id", "uid"),
 }
+
+class SortConfig(TypedDict):
+    label: str
+    key: Callable[[dict], object]
+    type: str
+
+
+SORTABLE_COLUMNS: dict[str, SortConfig] = {
+    "symbol": {"label": "Symbol", "key": lambda h: h["symbol"].lower(), "type": "text"},
+    "quantity": {"label": "Quantity", "key": lambda h: h["quantity"], "type": "numeric"},
+    "avg_price": {
+        "label": "Average price",
+        "key": lambda h: h["avg_price"],
+        "type": "numeric",
+    },
+    "value": {"label": "Market value", "key": lambda h: h["value"], "type": "numeric"},
+    "allocation_pct": {
+        "label": "Allocation",
+        "key": lambda h: h["allocation_pct"],
+        "type": "numeric",
+    },
+    "account": {
+        "label": "Account",
+        "key": lambda h: (h["account"] or "").lower(),
+        "type": "text",
+    },
+    "currency": {
+        "label": "Currency",
+        "key": lambda h: h["currency"].lower(),
+        "type": "text",
+    },
+}
+
+DEFAULT_SORT = "value"
+DEFAULT_DIRECTION = "desc"
 
 
 def _prefers_json() -> bool:
@@ -80,6 +116,16 @@ def _normalize_rows(rows: Iterable[dict], mapping: dict[str, str | None]) -> lis
 def list_portfolio():
     """Show current holdings and allocation summary."""
 
+    sort_param = request.args.get("sort", DEFAULT_SORT).lower()
+    sort_column = sort_param if sort_param in SORTABLE_COLUMNS else DEFAULT_SORT
+    direction_param = request.args.get("direction", DEFAULT_DIRECTION).lower()
+    sort_direction = "asc" if direction_param == "asc" else DEFAULT_DIRECTION
+    filters = {
+        "symbol": request.args.get("symbol", "").strip(),
+        "account": request.args.get("account", "").strip(),
+        "currency": request.args.get("currency", "").strip(),
+    }
+
     with session_scope() as session:
         repo = SqlModelPortfolioRepository(session)
         raw_holdings = list(repo.list_holdings())
@@ -115,12 +161,60 @@ def list_portfolio():
 
         total_value = summary.get("total_value", 0.0) or 0.0
 
-    holdings_view.sort(key=lambda h: h["value"], reverse=True)
+    active_filters = {key: value for key, value in filters.items() if value}
+    if active_filters:
+        filtered: list[dict] = []
+        symbol_filter = active_filters.get("symbol", "").lower()
+        account_filter = active_filters.get("account", "").lower()
+        currency_filter = active_filters.get("currency", "").lower()
+        for holding in holdings_view:
+            symbol = holding["symbol"].lower()
+            account_name = (holding["account"] or "").lower()
+            currency = holding["currency"].lower()
+
+            if symbol_filter and symbol_filter not in symbol:
+                continue
+            if account_filter and account_filter not in account_name:
+                continue
+            if currency_filter and currency_filter not in currency:
+                continue
+            filtered.append(holding)
+        holdings_view = filtered
+
+    sort_metadata = SORTABLE_COLUMNS[sort_column]
+    sort_key = sort_metadata["key"]
+    holdings_view.sort(key=sort_key, reverse=(sort_direction == "desc"))
     allocation_chart = [
         {"symbol": h["symbol"], "percentage": h["allocation_pct"]}
         for h in holdings_view
         if h["allocation_pct"] > 0
     ]
+
+    def _sort_url(column: str, next_direction: str) -> str:
+        params = {"sort": column, "direction": next_direction}
+        params.update({k: v for k, v in filters.items() if v})
+        query = urlencode(params)
+        base_url = url_for("portfolio.list_portfolio")
+        return f"{base_url}?{query}" if query else base_url
+
+    sort_options: list[dict[str, object]] = []
+    for column, metadata in SORTABLE_COLUMNS.items():
+        is_active = column == sort_column
+        current_direction = sort_direction if is_active else "none"
+        next_direction = "asc" if is_active and sort_direction == "desc" else "desc"
+        sort_options.append(
+            {
+                "id": column,
+                "label": metadata["label"],
+                "url": _sort_url(column, next_direction),
+                "active": is_active,
+                "direction": current_direction,
+                "next_direction": next_direction,
+                "type": metadata["type"],
+            }
+        )
+
+    filters_state = {key: filters[key] for key in filters}
 
     return render_template(
         "portfolio/index.html",
@@ -129,6 +223,10 @@ def list_portfolio():
         allocation=allocation_chart,
         upload_url=url_for("portfolio.upload_portfolio"),
         export_url=url_for("portfolio.export_holdings"),
+        sort_options=sort_options,
+        sort_column=sort_column,
+        sort_direction=sort_direction,
+        filters_state=filters_state,
     )
 
 
