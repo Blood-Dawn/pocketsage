@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
@@ -12,7 +12,7 @@ from sqlalchemy.exc import OperationalError
 from sqlmodel import select
 
 from pocketsage.extensions import session_scope
-from pocketsage.models import Transaction
+from pocketsage.models import Habit, HabitEntry, Liability, Transaction
 from pocketsage.services.export_csv import export_transactions_csv
 from pocketsage.services.reports import export_spending_png
 
@@ -25,16 +25,106 @@ def run_demo_seed() -> None:
     """
 
     with session_scope() as session:
-        # Avoid heavy dependencies; insert a couple of transactions if none exist.
-        count = len(list(session.exec(select(Transaction))))
-        if count > 0:
-            return
+        now = datetime.now(timezone.utc)
 
-        # Use timezone-aware UTC datetimes for persisted rows.
-        t1 = Transaction(occurred_at=datetime.now(timezone.utc), amount=-12.34, memo="Coffee")
-        t2 = Transaction(occurred_at=datetime.now(timezone.utc), amount=1500.0, memo="Salary")
-        session.add(t1)
-        session.add(t2)
+        # Avoid heavy dependencies; insert a couple of transactions if none exist.
+        transactions_present = session.exec(select(Transaction)).first() is not None
+        if not transactions_present:
+            t1 = Transaction(occurred_at=now, amount=-12.34, memo="Coffee")
+            t2 = Transaction(occurred_at=now, amount=1500.0, memo="Salary")
+            session.add(t1)
+            session.add(t2)
+
+        # Seed demo habits with a rolling two-week streak snapshot to highlight
+        # variance in completion for presenters.
+        habits_present = session.exec(select(Habit)).first() is not None
+        if not habits_present:
+            today = now.date()
+            two_week_history = 14
+            habits_payload = [
+                {
+                    "habit": Habit(
+                        name="Morning Walk",
+                        description="Get outside for 20 minutes before work.",
+                        cadence="daily",
+                    ),
+                    # Oldest -> newest; 11/14 completions for presenters to call out.
+                    "history": [1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1],
+                },
+                {
+                    "habit": Habit(
+                        name="Evening Journal",
+                        description="Reflect on the day with three bullet points.",
+                        cadence="daily",
+                    ),
+                    # Alternating successes: 7/14 completions to show comeback potential.
+                    "history": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+                },
+                {
+                    "habit": Habit(
+                        name="Sunday Meal Prep",
+                        description="Batch cook lunches for the upcoming week.",
+                        cadence="weekly",
+                    ),
+                    # Weekly cadence snapshot across two Sundays.
+                    "history": [1, 0],
+                    "weekly_offsets": [7, 0],
+                },
+            ]
+
+            for payload in habits_payload:
+                habit = payload["habit"]
+                session.add(habit)
+                session.flush()  # ensure habit.id populated for entries
+
+                history = payload.get("history", [])
+                if "weekly_offsets" in payload:
+                    offsets = payload["weekly_offsets"]
+                else:
+                    offsets = [two_week_history - 1 - idx for idx in range(len(history))]
+
+                for value, offset in zip(history, offsets):
+                    occurred_on = today - timedelta(days=offset)
+
+                    entry = HabitEntry(
+                        habit_id=habit.id,
+                        occurred_on=occurred_on,
+                        value=value,
+                    )
+                    session.add(entry)
+
+        # Seed liabilities to provide payoff comparison talking points.
+        liabilities_present = session.exec(select(Liability)).first() is not None
+        if not liabilities_present:
+            liabilities = [
+                Liability(
+                    name="Redwood Rewards Card",
+                    balance=5200.45,
+                    apr=19.99,
+                    minimum_payment=165.0,
+                    due_day=15,
+                    payoff_strategy="avalanche",
+                ),
+                Liability(
+                    name="State University Loan",
+                    balance=18250.0,
+                    apr=5.45,
+                    minimum_payment=205.72,
+                    due_day=5,
+                    payoff_strategy="snowball",
+                ),
+                Liability(
+                    name="Canyon Auto Loan",
+                    balance=11400.0,
+                    apr=6.9,
+                    minimum_payment=340.0,
+                    due_day=22,
+                    payoff_strategy="snowball",
+                ),
+            ]
+
+            for liability in liabilities:
+                session.add(liability)
 
 
 EXPORT_RETENTION = 5
