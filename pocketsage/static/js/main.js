@@ -5,6 +5,7 @@ const FINAL_JOB_STATUSES = new Set(["succeeded", "failed"]);
 document.addEventListener("DOMContentLoaded", () => {
     initAdminDashboard();
     initPortfolioUpload();
+    initHabitToggles();
 });
 
 function initAdminDashboard() {
@@ -221,6 +222,124 @@ function initPortfolioUpload() {
                 submitButton.disabled = false;
             }
         }
+    });
+}
+
+function initHabitToggles() {
+    const habitList = document.querySelector("[data-habit-list]");
+    if (!habitList) {
+        return;
+    }
+
+    const flashAnchor = document.querySelector("[data-habit-flash-anchor]");
+    let globalFlash = document.querySelector(".flash-messages");
+    if (!globalFlash && flashAnchor) {
+        globalFlash = document.createElement("section");
+        globalFlash.className = "flash-messages";
+        flashAnchor.appendChild(globalFlash);
+    } else if (flashAnchor && globalFlash && flashAnchor !== globalFlash.parentElement) {
+        flashAnchor.appendChild(globalFlash);
+    }
+
+    const showLocalFlash = (message, category = "info") => {
+        const container = document.querySelector(".flash-messages");
+        if (!container) {
+            return;
+        }
+        const element = document.createElement("div");
+        element.className = `flash flash-${category}`;
+        element.textContent = message;
+        container.appendChild(element);
+        setTimeout(() => {
+            element.remove();
+        }, 5000);
+    };
+
+    const parseCount = (value) => {
+        const parsed = Number.parseInt(value, 10);
+        return Number.isNaN(parsed) ? 0 : parsed;
+    };
+
+    habitList.querySelectorAll("form[data-habit-toggle]").forEach((form) => {
+        form.addEventListener("submit", async (event) => {
+            if (!window.fetch) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const card = form.closest("[data-habit]");
+            const button = form.querySelector("[data-habit-toggle-button]");
+            const hiddenState = form.querySelector("input[name='target_state']");
+            const streakDisplay = card?.querySelector("[data-habit-streak-count]");
+            const originalState = card?.dataset.completedToday === "true";
+            const requestedState = hiddenState?.value || "complete";
+            const willComplete = requestedState !== "undo";
+            const previousStreak = streakDisplay ? parseCount(streakDisplay.textContent || "0") : 0;
+            const optimisticStreak = Math.max(0, previousStreak + (willComplete ? 1 : -1));
+
+            if (streakDisplay) {
+                streakDisplay.textContent = optimisticStreak;
+            }
+
+            if (card) {
+                card.dataset.completedToday = willComplete ? "true" : "false";
+            }
+
+            if (button) {
+                button.disabled = true;
+                button.textContent = willComplete ? "Undo today" : "Mark complete";
+            }
+
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch(form.action, {
+                    method: form.method || "POST",
+                    body: formData,
+                    headers: { "X-Requested-With": "fetch" },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Request failed with status ${response.status}`);
+                }
+
+                if (hiddenState) {
+                    hiddenState.value = willComplete ? "undo" : "complete";
+                }
+
+                if (button) {
+                    button.disabled = false;
+                }
+
+                showLocalFlash(
+                    willComplete
+                        ? "Marked habit as complete for today."
+                        : "Reopened today's habit entry.",
+                    "success"
+                );
+            } catch (error) {
+                if (streakDisplay) {
+                    streakDisplay.textContent = previousStreak;
+                }
+
+                if (card) {
+                    card.dataset.completedToday = originalState ? "true" : "false";
+                }
+
+                if (hiddenState) {
+                    hiddenState.value = requestedState;
+                }
+
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = originalState ? "Undo today" : "Mark complete";
+                }
+
+                showLocalFlash("We couldn't update that habit. Reloading…", "warning");
+                form.submit();
+            }
+        });
     });
 }
 
