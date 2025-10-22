@@ -27,6 +27,7 @@ def _resolve_config(name: str | None) -> type[BaseConfig]:
 def _blueprint_paths() -> Iterable[str]:
     """Yield blueprint import paths registered by the framework owner."""
 
+    yield "pocketsage.blueprints.overview"
     yield "pocketsage.blueprints.home"
     yield "pocketsage.blueprints.ledger"
     yield "pocketsage.blueprints.habits"
@@ -72,6 +73,9 @@ def _register_blueprints(app: Flask) -> None:
     for dotted_path in _blueprint_paths():
         module = import_module(dotted_path)
         blueprint = getattr(module, "bp")
+        init_hook = getattr(module, "init_app", None)
+        if callable(init_hook):
+            init_hook(app)
         app.register_blueprint(blueprint)
     # TODO(@qa-team): add coverage ensuring blueprint endpoints respond with 200
     #   and include expected template context variables.
