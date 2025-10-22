@@ -5,6 +5,7 @@ const FINAL_JOB_STATUSES = new Set(["succeeded", "failed"]);
 document.addEventListener("DOMContentLoaded", () => {
     initAdminDashboard();
     initPortfolioUpload();
+    initPortfolioSorting();
 });
 
 function initAdminDashboard() {
@@ -221,6 +222,118 @@ function initPortfolioUpload() {
                 submitButton.disabled = false;
             }
         }
+    });
+}
+
+function initPortfolioSorting() {
+    const table = document.querySelector(".holdings-table");
+    if (!table) {
+        return;
+    }
+
+    const tbody = table.querySelector("tbody");
+    const headerRow = table.querySelector("thead tr");
+    if (!tbody || !headerRow) {
+        return;
+    }
+
+    const sortLinks = table.querySelectorAll(".sort-link");
+    if (!sortLinks.length) {
+        return;
+    }
+
+    const sortInput = document.querySelector(".portfolio-controls input[name='sort']");
+    const directionInput = document.querySelector(".portfolio-controls input[name='direction']");
+
+    const parseValue = (cell, type) => {
+        if (!cell) {
+            return "";
+        }
+        const rawValue = cell.dataset.sortValue ?? cell.textContent ?? "";
+        if (type === "numeric") {
+            const numeric = Number(rawValue);
+            return Number.isNaN(numeric) ? 0 : numeric;
+        }
+        return String(rawValue).toLowerCase();
+    };
+
+    const updateHeaderState = (activeHeader, direction) => {
+        headerRow.querySelectorAll("th").forEach((th) => {
+            th.setAttribute(
+                "aria-sort",
+                th === activeHeader
+                    ? direction === "asc"
+                        ? "ascending"
+                        : "descending"
+                    : "none"
+            );
+        });
+    };
+
+    sortLinks.forEach((link) => {
+        link.addEventListener("click", (event) => {
+            event.preventDefault();
+            const headerCell = link.closest("th");
+            if (!headerCell) {
+                window.location.href = link.href;
+                return;
+            }
+
+            const columnIndex = Array.from(headerRow.children).indexOf(headerCell);
+            if (columnIndex < 0) {
+                window.location.href = link.href;
+                return;
+            }
+
+            const sortType = link.dataset.sortType || "text";
+            const nextDirection = link.dataset.nextDirection || "asc";
+            const rows = Array.from(tbody.querySelectorAll("tr"));
+            rows
+                .sort((rowA, rowB) => {
+                    const cellA = rowA.children.item(columnIndex);
+                    const cellB = rowB.children.item(columnIndex);
+                    const valueA = parseValue(cellA, sortType);
+                    const valueB = parseValue(cellB, sortType);
+                    if (valueA === valueB) {
+                        return 0;
+                    }
+                    if (sortType === "numeric") {
+                        return nextDirection === "asc" ? valueA - valueB : valueB - valueA;
+                    }
+                    return nextDirection === "asc"
+                        ? String(valueA).localeCompare(String(valueB))
+                        : String(valueB).localeCompare(String(valueA));
+                })
+                .forEach((row) => tbody.appendChild(row));
+
+            sortLinks.forEach((candidate) => {
+                if (candidate === link) {
+                    candidate.dataset.activeDirection = nextDirection;
+                    candidate.dataset.nextDirection = nextDirection === "asc" ? "desc" : "asc";
+                    candidate.classList.add("is-active");
+                } else {
+                    candidate.dataset.activeDirection = "none";
+                    candidate.dataset.nextDirection = "desc";
+                    candidate.classList.remove("is-active");
+                }
+            });
+
+            updateHeaderState(headerCell, nextDirection);
+
+            if (sortInput && link.dataset.sort) {
+                sortInput.value = link.dataset.sort;
+            }
+            if (directionInput) {
+                directionInput.value = nextDirection;
+            }
+
+            const url = new URL(window.location.href);
+            if (link.dataset.sort) {
+                url.searchParams.set("sort", link.dataset.sort);
+            }
+            url.searchParams.set("direction", nextDirection);
+            window.history.replaceState(null, "", url);
+        });
     });
 }
 
