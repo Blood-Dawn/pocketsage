@@ -14,7 +14,15 @@ def list_habits():
     """Show habits overview and current streaks."""
 
     # TODO(@habits-squad): populate context with repository results + streak calculations.
-    return render_template("habits/index.html")
+    habits: list = []
+
+    show_empty_state = len(habits) == 0
+
+    return render_template(
+        "habits/index.html",
+        habits=habits,
+        show_empty_state=show_empty_state,
+    )
 
 
 @bp.post("/<int:habit_id>/toggle")
