@@ -12,6 +12,18 @@ PocketSage uses the Campus Board pattern: Framework Owner seeds scaffolding + TO
 ## Workflow
 1. Branch naming: `feature/<slug>`, `fix/<slug>`, or `docs/<slug>`.
 2. Run `make lint` and `make test` before pushing.
+   - If `make` is unavailable, run the lint commands directly:
+
+     ```sh
+     ruff check .
+     black --check .
+     ```
+
+     Both commands exit with `0` when the codebase satisfies the configured rules.
+     `ruff check .` returns a non-zero exit code when it finds lint violations; run
+     `ruff check . --fix` to apply automatic fixes or address the reported issues
+     manually. `black --check .` exits with `1` when files need formatting; resolve
+     by running `black .` to rewrite the files, then re-run the check.
 3. Update docs (`README.md`, `docs/`, `TODO.md`) whenever functionality shifts.
 4. Pull Request checklist:
 	- Reference addressed TODO items.
