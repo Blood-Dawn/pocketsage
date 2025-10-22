@@ -107,7 +107,13 @@ def seed_demo():
     if _prefers_json_response():
         return jsonify(job.to_dict()), 202
 
-    flash("Demo data seeding scheduled", "success")
+    flash(
+        "Demo data seeding scheduled: habits include Morning Walk (11/14), "
+        "Evening Journal (7/14), and Sunday Meal Prep (1/2) streak snapshots; "
+        "liabilities cover Redwood Rewards Card ($5,200 @ 19.99% APR), State "
+        "University Loan ($18,250 @ 5.45%), and Canyon Auto Loan ($11,400 @ 6.9%).",
+        "success",
+    )
     return redirect(url_for("admin.dashboard"))
 
 
