@@ -47,7 +47,7 @@ This roadmap distills the outstanding work in [`TODO.md`](../TODO.md) into a seq
 - Habit repository with streak recalculation and validated form flows.
 - Visualization of weekly/monthly habit completion (heatmaps) and reminder options.
 - Liabilities repository with payoff schedules plus snowball/avalanche calculators.
-- Payoff timeline chart, payment reconciliation, and debt-free date projections in the UI.
+- Payoff timeline chart, payment reconciliation, and debt-free date projections in the UI (current `/liabilities/` view still shows a TODO placeholder).
 
 **Relevant TODO Items**
 - `Habits - Dossell Sinclair` backlog items.
