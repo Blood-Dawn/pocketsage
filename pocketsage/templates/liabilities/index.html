@@ -1,6 +1,199 @@
 {% extends 'base.html' %}
 {% block title %}Liabilities · PocketSage{% endblock %}
 {% block content %}
-  <h1>Liabilities</h1>
-  <p class="todo">TODO(@debts-squad): visualize payoff strategies and payment schedules.</p>
+  <section class="liabilities-dashboard" data-liabilities-dashboard>
+    <header class="liabilities-header">
+      <div class="liabilities-title">
+        <h1>Liabilities</h1>
+        <p class="liabilities-subtitle">Overview refreshed on {{ today_label }}.</p>
+      </div>
+      <dl class="liabilities-summary">
+        <div class="summary-card">
+          <dt>Total balance</dt>
+          <dd>{{ totals.balance }}</dd>
+        </div>
+        <div class="summary-card">
+          <dt>Minimum due</dt>
+          <dd>{{ totals.minimum }}</dd>
+        </div>
+        <div class="summary-card">
+          <dt>Accounts tracked</dt>
+          <dd><span data-liability-count>{{ totals.count }}</span></dd>
+        </div>
+      </dl>
+    </header>
+
+    {% if liabilities %}
+      <section class="liabilities-controls">
+        <label class="control">
+          <span>Search</span>
+          <input type="search" placeholder="Search liabilities" data-liability-search>
+        </label>
+        <label class="control">
+          <span>Strategy</span>
+          <select data-liability-strategy>
+            <option value="all">All strategies</option>
+            {% for option in strategies %}
+              <option value="{{ option }}">{{ option|title }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="control">
+          <span>Sort by</span>
+          <select data-liability-sort>
+            <option value="next_due">Next due date</option>
+            <option value="balance">Balance (high to low)</option>
+            <option value="name">Name (A–Z)</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="upcoming-section">
+        <header class="upcoming-header">
+          <div>
+            <h2>Upcoming payments</h2>
+            <p>Keep an eye on your next obligations across all liabilities.</p>
+          </div>
+          <label class="control">
+            <span>Show within</span>
+            <select data-upcoming-range>
+              <option value="90">90 days</option>
+              <option value="180" selected>6 months</option>
+              <option value="365">12 months</option>
+              <option value="-1">All scheduled</option>
+            </select>
+          </label>
+        </header>
+        <div class="schedule-table-wrapper">
+          <table class="schedule-table" data-upcoming-table>
+            <thead>
+              <tr>
+                <th scope="col">Liability</th>
+                <th scope="col">Strategy</th>
+                <th scope="col">Due</th>
+                <th scope="col">Amount</th>
+                <th scope="col">Days</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if upcoming_payments %}
+                {% for payment in upcoming_payments %}
+                  <tr
+                    data-upcoming-row
+                    data-liability-name="{{ payment.liability_name|lower }}"
+                    data-liability-strategy="{{ payment.strategy }}"
+                    data-upcoming-date="{{ payment.due_iso }}"
+                    data-upcoming-days="{{ payment.days_until }}"
+                  >
+                    <td data-label="Liability">{{ payment.liability_name }}</td>
+                    <td data-label="Strategy" class="strategy">{{ payment.strategy|title }}</td>
+                    <td data-label="Due">{{ payment.due_display }}</td>
+                    <td data-label="Amount" class="numeric">{{ payment.payment_display }}</td>
+                    <td data-label="Days" class="numeric">{{ payment.days_until }}</td>
+                  </tr>
+                {% endfor %}
+                <tr data-upcoming-empty hidden>
+                  <td colspan="5" class="empty">No scheduled payments.</td>
+                </tr>
+              {% else %}
+                <tr data-upcoming-empty>
+                  <td colspan="5" class="empty">No scheduled payments.</td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="liability-list" data-liability-list>
+        {% for liability in liabilities %}
+          <article
+            class="liability-card"
+            data-liability
+            data-liability-name="{{ liability.name }}"
+            data-liability-strategy="{{ liability.payoff_strategy }}"
+            data-liability-balance="{{ '%.2f'|format(liability.balance) }}"
+            data-liability-next-due="{{ liability.next_payment.due_iso if liability.next_payment }}"
+          >
+            <details class="liability-details" {% if loop.first %}open{% endif %}>
+              <summary class="liability-summary">
+                <div>
+                  <h2>{{ liability.name }}</h2>
+                  <p class="meta">
+                    Strategy: <span class="badge">{{ liability.payoff_strategy|title }}</span>
+                    · Due day {{ liability.due_day }}
+                  </p>
+                </div>
+                <dl class="liability-metrics">
+                  <div>
+                    <dt>Balance</dt>
+                    <dd>{{ liability.balance_display }}</dd>
+                  </div>
+                  <div>
+                    <dt>APR</dt>
+                    <dd>{{ liability.apr_display }}</dd>
+                  </div>
+                  <div>
+                    <dt>Minimum</dt>
+                    <dd>{{ liability.minimum_payment_display }}</dd>
+                  </div>
+                  <div>
+                    <dt>Next payment</dt>
+                    <dd>
+                      {% if liability.next_payment %}
+                        <strong>{{ liability.next_payment.payment_display }}</strong>
+                        on {{ liability.next_payment.due_display }}
+                      {% else %}
+                        <span class="empty">No schedule</span>
+                      {% endif %}
+                    </dd>
+                  </div>
+                </dl>
+              </summary>
+
+              <div class="liability-body">
+                <p class="schedule-summary">
+                  Payoff horizon: {{ liability.months_to_payoff }} month{{ 's' if liability.months_to_payoff != 1 }} ·
+                  Total payments {{ liability.total_payment_display }} ·
+                  Interest projected {{ liability.total_interest_display }}
+                </p>
+
+                <div class="schedule-table-wrapper">
+                  <table class="schedule-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Due date</th>
+                        <th scope="col">Payment</th>
+                        <th scope="col">Principal</th>
+                        <th scope="col">Interest</th>
+                        <th scope="col">Balance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for row in liability.schedule %}
+                        <tr>
+                          <td data-label="Due date">{{ row.due_display }}</td>
+                          <td data-label="Payment" class="numeric">{{ row.payment_display }}</td>
+                          <td data-label="Principal" class="numeric">{{ row.principal_display }}</td>
+                          <td data-label="Interest" class="numeric">{{ row.interest_display }}</td>
+                          <td data-label="Balance" class="numeric">{{ row.remaining_display }}</td>
+                        </tr>
+                      {% else %}
+                        <tr>
+                          <td colspan="5" class="empty">No payment projections yet.</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </details>
+          </article>
+        {% endfor %}
+      </div>
+      <p class="empty" data-liability-empty hidden>No liabilities match the selected filters.</p>
+    {% else %}
+      <p class="empty">No liabilities have been recorded yet. Add your first liability to see payoff projections.</p>
+    {% endif %}
+  </section>
 {% endblock %}
