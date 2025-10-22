@@ -98,6 +98,54 @@ body {
     flex-wrap: wrap;
 }
 
+.exports-table-wrapper {
+    margin-top: 1rem;
+    overflow-x: auto;
+}
+
+.exports-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 24rem;
+    font-size: 0.95rem;
+}
+
+.exports-table th,
+.exports-table td {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.exports-table thead th {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.exports-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.exports-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.exports-table code {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 0.35rem;
+    padding: 0.125rem 0.35rem;
+}
+
+.exports-actions,
+.exports-action-cell {
+    white-space: nowrap;
+    text-align: right;
+}
+
+.exports-empty {
+    margin: 0.5rem 0 0;
+}
+
 .btn-primary,
 .btn-secondary,
 .btn-link {
