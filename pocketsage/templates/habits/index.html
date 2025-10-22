@@ -1,6 +1,46 @@
 {% extends 'base.html' %}
 {% block title %}Habits · PocketSage{% endblock %}
 {% block content %}
-  <h1>Habits</h1>
-  <p class="todo">TODO(@habits-squad): render habits list with streak badges and toggle buttons.</p>
+  <section class="habits-page">
+    <header class="habits-header">
+      <h1>Habits</h1>
+    </header>
+
+    {% if show_empty_state %}
+      <section class="empty-state-card" aria-labelledby="habits-empty-title">
+        <div class="empty-state-illustration" aria-hidden="true">
+          <svg viewBox="0 0 160 160" role="img" focusable="false">
+            <defs>
+              <linearGradient id="emptyStateGradient" x1="0%" x2="100%" y1="0%" y2="100%">
+                <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.95" />
+                <stop offset="100%" stop-color="#22c55e" stop-opacity="0.85" />
+              </linearGradient>
+            </defs>
+            <rect width="160" height="160" rx="24" fill="url(#emptyStateGradient)" opacity="0.25" />
+            <g stroke="#38bdf8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.85">
+              <path d="M44 88c12 18 28 28 48 28 10 0 18-3 24-8" />
+              <path d="M44 72l12-12 12 12 24-24 24 24" />
+            </g>
+            <circle cx="112" cy="52" r="12" fill="#22c55e" opacity="0.9" />
+            <path d="M108 52l4 4 8-8" stroke="#0f172a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+          </svg>
+        </div>
+        <div class="empty-state-content">
+          <h2 id="habits-empty-title">Track your progress, one habit at a time</h2>
+          <p>
+            Consistent routines compound into meaningful change. PocketSage highlights your streaks
+            so you can celebrate wins and stay motivated.
+          </p>
+          <ul class="empty-state-benefits">
+            <li><strong>Spot trends:</strong> review your daily check-ins to see momentum build.</li>
+            <li><strong>Stay accountable:</strong> streak reminders keep your commitments top of mind.</li>
+            <li><strong>Focus with intention:</strong> prioritize habits that align with your goals.</li>
+          </ul>
+          <a href="{{ url_for('habits.new_habit') }}" class="btn-primary">Create your first habit</a>
+        </div>
+      </section>
+    {% else %}
+      <p class="todo">TODO(@habits-squad): render habits list with streak badges and toggle buttons.</p>
+    {% endif %}
+  </section>
 {% endblock %}
