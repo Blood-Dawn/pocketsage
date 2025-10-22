@@ -32,6 +32,19 @@ Framework Owner checkpoint for the PocketSage desktop-first Flask app. Focus are
 - `make package` → PyInstaller stub build
 - `make demo-seed` → placeholder seeding script (raises TODO)
 
+#### No GNU Make? Use the setup script
+Teams on platforms without GNU Make can run the equivalent bootstrap steps with the provided shell script:
+
+```bash
+# optional: override PYTHON or PIP to mirror the Makefile defaults
+export PYTHON="python3"          # defaults to "python" if unset
+export PIP="${PYTHON} -m pip"    # defaults to "$PYTHON -m pip" if unset
+
+scripts/setup.sh
+```
+
+The script upgrades `pip`, installs the editable project with the `dev` extras (`pip install -e ".[dev]"`), and registers the repository hooks via `pre-commit install`, matching the `make setup` target.
+
 ## Configuration Flags
 - `.env` values prefixed with `POCKETSAGE_`
 - `POCKETSAGE_USE_SQLCIPHER=true` switches DB URL builder (SQLCipher driver TODO)
