@@ -28,7 +28,7 @@ def list_liabilities():
     with session_scope() as session:
         repo = SqlModelLiabilitiesRepository(session)
         liabilities = list(repo.list_liabilities())
-        schedule_map = repo.build_schedules(liabilities=liabilities, horizon_months=12)
+        schedule_map = repo.build_schedules(liabilities=liabilities)
 
     liability_views: list[dict[str, Any]] = []
     upcoming_rows: list[dict[str, Any]] = []
@@ -47,7 +47,7 @@ def list_liabilities():
         months_to_payoff = len(schedule)
 
         view_schedule: list[dict[str, Any]] = []
-        for row in schedule:
+        for index, row in enumerate(schedule):
             days_until = (row.due_date - today).days
             view_schedule.append(
                 {
@@ -64,7 +64,7 @@ def list_liabilities():
                     "days_until": days_until,
                 }
             )
-            if liability_id is not None:
+            if liability_id is not None and index < 12:
                 upcoming_rows.append(
                     {
                         "liability_id": liability_id,

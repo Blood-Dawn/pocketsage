@@ -23,7 +23,10 @@ class LiabilitiesRepository(Protocol):
         ...
 
     def build_schedules(
-        self, *, liabilities: Iterable[Liability], horizon_months: int = 12
+        self,
+        *,
+        liabilities: Iterable[Liability],
+        horizon_months: int | None = None,
     ) -> dict[int, list[PaymentProjection]]:  # pragma: no cover - interface
         ...
 
@@ -48,7 +51,10 @@ class SqlModelLiabilitiesRepository(LiabilitiesRepository):
         raise NotImplementedError("Payoff scheduling requires background job integration")
 
     def build_schedules(
-        self, *, liabilities: Iterable[Liability], horizon_months: int = 12
+        self,
+        *,
+        liabilities: Iterable[Liability],
+        horizon_months: int | None = None,
     ) -> dict[int, list[PaymentProjection]]:
         return flatten_schedules(liabilities=liabilities, months=horizon_months)
 

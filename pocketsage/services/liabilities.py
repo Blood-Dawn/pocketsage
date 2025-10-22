@@ -49,13 +49,16 @@ def _normalize_currency(amount: float) -> float:
 
 
 def generate_payment_schedule(
-    *, liability: Liability, months: int = 12, today: date | None = None
+    *, liability: Liability, months: int | None = None, today: date | None = None
 ) -> list[PaymentProjection]:
     """Generate a simple amortization schedule for a liability.
 
     This helper intentionally favors determinism and readability over
     mathematical precision. The interest calculation assumes a fixed APR
     applied monthly and ensures that every row reduces the remaining balance.
+    When ``months`` is ``None`` the schedule continues until the balance
+    reaches zero; otherwise a preview capped at the requested number of rows
+    is returned.
     """
 
     if liability.balance is None or liability.balance <= 0:
@@ -70,9 +73,12 @@ def generate_payment_schedule(
     schedule: list[PaymentProjection] = []
     next_due = _initial_due_date(today=current_date, due_day=due_day)
 
-    for _ in range(max(1, months)):
-        if balance <= 0:
-            break
+    if months is not None and months <= 0:
+        return schedule
+
+    iterations = 0
+    while balance > 0 and (months is None or iterations < months):
+        iterations += 1
 
         interest = _normalize_currency(balance * monthly_rate)
         # Ensure we always reduce the balance even when minimum payment is low.
@@ -102,7 +108,10 @@ def generate_payment_schedule(
 
 
 def flatten_schedules(
-    *, liabilities: Iterable[Liability], months: int = 12, today: date | None = None
+    *,
+    liabilities: Iterable[Liability],
+    months: int | None = None,
+    today: date | None = None,
 ) -> dict[int, list[PaymentProjection]]:
     """Return payment schedules keyed by liability id."""
 
