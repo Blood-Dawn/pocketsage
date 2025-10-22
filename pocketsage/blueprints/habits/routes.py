@@ -30,73 +30,73 @@ def list_habits():
         habit_ids = [habit.id for habit in raw_habits if habit.id is not None]
         entries = repo.recent_entries(habit_ids=habit_ids, since=fetch_since)
 
-    entries_by_habit: dict[int, list] = {habit_id: [] for habit_id in habit_ids}
-    for entry in entries:
-        entries_by_habit.setdefault(entry.habit_id, []).append(entry)
-    for habit_entries in entries_by_habit.values():
-        habit_entries.sort(key=lambda item: item.occurred_on)
+        entries_by_habit: dict[int, list] = {habit_id: [] for habit_id in habit_ids}
+        for entry in entries:
+            entries_by_habit.setdefault(entry.habit_id, []).append(entry)
+        for habit_entries in entries_by_habit.values():
+            habit_entries.sort(key=lambda item: item.occurred_on)
 
-    habits_view: list[dict] = []
-    for habit in raw_habits:
-        if habit.id is None:
-            continue
-
-        habit_entries = entries_by_habit.get(habit.id, [])
-        completion_dates = {entry.occurred_on for entry in habit_entries}
-        history: list[dict] = []
-        for index in range(HISTORY_DAYS):
-            day = history_start + timedelta(days=index)
-            history.append(
-                {
-                    "date": day.isoformat(),
-                    "label": day.strftime("%b %d").replace(" 0", " "),
-                    "weekday": day.strftime("%a"),
-                    "completed": day in completion_dates,
-                }
-            )
-
-        weekly_totals: list[dict] = []
-        for offset in range(0, len(history), 7):
-            bucket = history[offset : offset + 7]
-            if not bucket:
+        habits_view: list[dict] = []
+        for habit in raw_habits:
+            if habit.id is None:
                 continue
-            week_start = date.fromisoformat(bucket[0]["date"])
-            completed = sum(1 for day in bucket if day["completed"])
-            weekly_totals.append(
-                {
-                    "label": f"Week of {week_start.strftime('%b %d').replace(' 0', ' ')}",
-                    "start_date": bucket[0]["date"],
-                    "completed": completed,
-                    "total": len(bucket),
-                }
+
+            habit_entries = entries_by_habit.get(habit.id, [])
+            completion_dates = {entry.occurred_on for entry in habit_entries}
+            history: list[dict] = []
+            for index in range(HISTORY_DAYS):
+                day = history_start + timedelta(days=index)
+                history.append(
+                    {
+                        "date": day.isoformat(),
+                        "label": day.strftime("%b %d").replace(" 0", " "),
+                        "weekday": day.strftime("%a"),
+                        "completed": day in completion_dates,
+                    }
+                )
+
+            weekly_totals: list[dict] = []
+            for offset in range(0, len(history), 7):
+                bucket = history[offset : offset + 7]
+                if not bucket:
+                    continue
+                week_start = date.fromisoformat(bucket[0]["date"])
+                completed = sum(1 for day in bucket if day["completed"])
+                weekly_totals.append(
+                    {
+                        "label": f"Week of {week_start.strftime('%b %d').replace(' 0', ' ')}",
+                        "start_date": bucket[0]["date"],
+                        "completed": completed,
+                        "total": len(bucket),
+                    }
+                )
+
+            streak = 0
+            check_day = today
+            while check_day >= fetch_since and check_day in completion_dates:
+                streak += 1
+                check_day -= timedelta(days=1)
+
+            last_week = history[-7:]
+            completed_last_week = sum(1 for day in last_week if day["completed"])
+            summary = (
+                f"{streak} day streak · {completed_last_week} of last 7 days completed"
             )
 
-        streak = 0
-        check_day = today
-        while check_day >= fetch_since and check_day in completion_dates:
-            streak += 1
-            check_day -= timedelta(days=1)
-
-        last_week = history[-7:]
-        completed_last_week = sum(1 for day in last_week if day["completed"])
-        summary = (
-            f"{streak} day streak · {completed_last_week} of last 7 days completed"
-        )
-
-        habits_view.append(
-            {
-                "id": habit.id,
-                "name": habit.name,
-                "description": habit.description,
-                "streak": streak,
-                "history": history,
-                "weekly_totals": weekly_totals,
-                "summary": summary,
-                "completed_days": sum(1 for day in history if day["completed"]),
-                "history_start": history_start.isoformat(),
-                "history_end": today.isoformat(),
-            }
-        )
+            habits_view.append(
+                {
+                    "id": habit.id,
+                    "name": habit.name,
+                    "description": habit.description,
+                    "streak": streak,
+                    "history": history,
+                    "weekly_totals": weekly_totals,
+                    "summary": summary,
+                    "completed_days": sum(1 for day in history if day["completed"]),
+                    "history_start": history_start.isoformat(),
+                    "history_end": today.isoformat(),
+                }
+            )
 
     return render_template(
         "habits/index.html",
