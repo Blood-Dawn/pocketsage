@@ -1,6 +1,147 @@
 {% extends 'base.html' %}
 {% block title %}New Liability · PocketSage{% endblock %}
 {% block content %}
-  <h1>Create Liability</h1>
-  <p class="todo">TODO(@debts-squad): build APR/minimum payment form with validation copy.</p>
+  <section class="form-card">
+    <header class="form-header">
+      <h1>Create Liability</h1>
+      <p>Capture the details we need to project payoff timelines and prioritize this debt.</p>
+    </header>
+
+    <form method="post" class="form-grid" novalidate>
+      {% if form.errors %}
+        <div class="form-errors" role="alert" aria-live="assertive">
+          <h2>We need a bit more information</h2>
+          <ul>
+            {% for field, messages in form.errors.items() %}
+              {% for message in messages %}
+                <li><a href="#{{ field }}">{{ message }}</a></li>
+              {% endfor %}
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      <div class="form-field{% if form.errors.name %} has-error{% endif %}">
+        <label for="name">Creditor name</label>
+        <input
+          id="name"
+          name="name"
+          type="text"
+          class="form-control"
+          value="{{ form.name | e }}"
+          autocomplete="organization"
+          aria-required="true"
+          aria-invalid="{{ 'true' if form.errors.name else 'false' }}"
+          aria-describedby="name-hint{% if form.errors.name %} name-error{% endif %}"
+        >
+        <p class="form-hint" id="name-hint">Examples: Capital One Venture, Great Lakes Student Loan</p>
+        {% if form.errors.name %}
+          <p class="field-error" id="name-error">{{ form.errors.name | join(' ') }}</p>
+        {% endif %}
+      </div>
+
+      <div class="form-row">
+        <div class="form-field{% if form.errors.balance %} has-error{% endif %}">
+          <label for="balance">Balance</label>
+          <div class="form-control-prefix">
+            <span class="prefix" aria-hidden="true">$</span>
+            <input
+              id="balance"
+              name="balance"
+              type="number"
+              step="0.01"
+              min="0"
+              class="form-control"
+              value="{{ form.balance if form.balance is not none else '' }}"
+              inputmode="decimal"
+              aria-required="true"
+              aria-invalid="{{ 'true' if form.errors.balance else 'false' }}"
+              aria-describedby="balance-hint{% if form.errors.balance %} balance-error{% endif %}"
+            >
+          </div>
+          <p class="form-hint" id="balance-hint">Current payoff amount including any accrued interest.</p>
+          {% if form.errors.balance %}
+            <p class="field-error" id="balance-error">{{ form.errors.balance | join(' ') }}</p>
+          {% endif %}
+        </div>
+
+        <div class="form-field{% if form.errors.apr %} has-error{% endif %}">
+          <label for="apr">APR</label>
+          <div class="form-control-suffix">
+            <input
+              id="apr"
+              name="apr"
+              type="number"
+              step="0.01"
+              min="0"
+              max="100"
+              class="form-control"
+              value="{{ form.apr if form.apr is not none else '' }}"
+              inputmode="decimal"
+              aria-required="true"
+              aria-invalid="{{ 'true' if form.errors.apr else 'false' }}"
+              aria-describedby="apr-hint{% if form.errors.apr %} apr-error{% endif %}"
+            >
+            <span class="suffix" aria-hidden="true">%</span>
+          </div>
+          <p class="form-hint" id="apr-hint">Annual percentage rate (0-100%).</p>
+          {% if form.errors.apr %}
+            <p class="field-error" id="apr-error">{{ form.errors.apr | join(' ') }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-field{% if form.errors.minimum_payment %} has-error{% endif %}">
+          <label for="minimum_payment">Minimum payment</label>
+          <div class="form-control-prefix">
+            <span class="prefix" aria-hidden="true">$</span>
+            <input
+              id="minimum_payment"
+              name="minimum_payment"
+              type="number"
+              step="0.01"
+              min="0"
+              class="form-control"
+              value="{{ form.minimum_payment if form.minimum_payment is not none else '' }}"
+              inputmode="decimal"
+              aria-required="true"
+              aria-invalid="{{ 'true' if form.errors.minimum_payment else 'false' }}"
+              aria-describedby="minimum_payment-hint{% if form.errors.minimum_payment %} minimum_payment-error{% endif %}"
+            >
+          </div>
+          <p class="form-hint" id="minimum_payment-hint">Required monthly payment amount.</p>
+          {% if form.errors.minimum_payment %}
+            <p class="field-error" id="minimum_payment-error">{{ form.errors.minimum_payment | join(' ') }}</p>
+          {% endif %}
+        </div>
+
+        <div class="form-field{% if form.errors.target_strategy %} has-error{% endif %}">
+          <label for="target_strategy">Target strategy</label>
+          <select
+            id="target_strategy"
+            name="target_strategy"
+            class="form-control"
+            aria-required="true"
+            aria-invalid="{{ 'true' if form.errors.target_strategy else 'false' }}"
+            aria-describedby="target_strategy-hint{% if form.errors.target_strategy %} target_strategy-error{% endif %}"
+          >
+            <option value="" disabled {% if not form.target_strategy %}selected{% endif %}>Select a payoff focus</option>
+            {% for value, label in strategy_choices.items() %}
+              <option value="{{ value }}" {% if form.target_strategy == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <p class="form-hint" id="target_strategy-hint">Choose how PocketSage prioritizes this debt in the payoff roadmap.</p>
+          {% if form.errors.target_strategy %}
+            <p class="field-error" id="target_strategy-error">{{ form.errors.target_strategy | join(' ') }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">Save liability</button>
+        <a class="btn-link" href="{{ url_for('liabilities.list_liabilities') }}">Cancel</a>
+      </div>
+    </form>
+  </section>
 {% endblock %}

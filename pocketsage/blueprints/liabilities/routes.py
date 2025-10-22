@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from flask import flash, redirect, render_template, url_for
 
 from . import bp
+from .forms import DEFAULT_STRATEGIES, LiabilityForm
 
 
 @bp.get("/")
@@ -28,5 +31,15 @@ def recalc_liability(liability_id: int):
 def new_liability():
     """Render creation form for a liability."""
 
-    # TODO(@debts-squad): supply LiabilityForm defaults via forms module.
-    return render_template("liabilities/form.html")
+    form = LiabilityForm(
+        name="Capital One Venture",
+        balance=Decimal("6240.18"),
+        apr=Decimal("23.99"),
+        minimum_payment=Decimal("160.00"),
+        target_strategy="avalanche",
+    )
+    return render_template(
+        "liabilities/form.html",
+        form=form,
+        strategy_choices=DEFAULT_STRATEGIES,
+    )
