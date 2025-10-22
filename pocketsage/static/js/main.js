@@ -23,6 +23,17 @@ function initTopNav() {
         if (toggleButton) {
             toggleButton.setAttribute("aria-expanded", open ? "true" : "false");
         }
+        if (navLinks) {
+            const shouldDisable = !open && !mediaQuery.matches;
+            if (shouldDisable) {
+                navLinks.setAttribute("aria-hidden", "true");
+            } else {
+                navLinks.removeAttribute("aria-hidden");
+            }
+            if ("inert" in navLinks) {
+                navLinks.inert = shouldDisable;
+            }
+        }
     };
 
     const closeNav = () => setNavOpen(false);
@@ -56,8 +67,10 @@ function initTopNav() {
         if (mediaEvent.matches) {
             closeNav();
         }
+        setNavOpen(nav.classList.contains("top-nav--open"));
     };
 
+    setNavOpen(nav.classList.contains("top-nav--open"));
     handleMediaChange(mediaQuery);
     mediaQuery.addEventListener("change", handleMediaChange);
 }

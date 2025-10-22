@@ -103,6 +103,10 @@ body {
         opacity: 0;
         pointer-events: none;
         transform: translateY(-0.5rem);
+        visibility: hidden;
+        overflow: hidden;
+        transition: opacity 0.25s ease, max-height 0.3s ease, transform 0.25s ease,
+            visibility 0s linear 0.3s;
     }
 
     .top-nav__links li {
@@ -115,6 +119,9 @@ body {
         opacity: 1;
         pointer-events: auto;
         transform: translateY(0);
+        visibility: visible;
+        transition: opacity 0.25s ease, max-height 0.3s ease, transform 0.25s ease,
+            visibility 0s linear 0s;
     }
 
     .top-nav--open .top-nav__links li {
