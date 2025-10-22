@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import json
 from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
@@ -132,6 +133,38 @@ def list_portfolio():
     )
 
 
+def _apply_mapping_overrides(
+    mapping: dict[str, str | None],
+    overrides: dict[str, str | None],
+    *,
+    available_columns: Iterable[str],
+) -> dict[str, str | None]:
+    """Merge mapping overrides with detected mapping."""
+
+    columns = {column.strip().lower() for column in available_columns}
+    merged = mapping.copy()
+    for canonical, column in overrides.items():
+        if canonical not in merged:
+            continue
+        if column in (None, ""):
+            merged[canonical] = None
+            continue
+        normalized_column = str(column).strip().lower()
+        if normalized_column in columns:
+            merged[canonical] = normalized_column
+    return merged
+
+
+def _preview_rows(rows: list[dict], mapping: dict[str, str | None], limit: int = 5) -> list[dict]:
+    """Return a lightweight preview of the normalized rows."""
+
+    preview_columns = [key for key, column in mapping.items() if column]
+    samples: list[dict] = []
+    for row in rows[:limit]:
+        samples.append({column: row.get(column, "") for column in preview_columns})
+    return samples
+
+
 @bp.post("/import")
 def import_portfolio():
     """Handle CSV upload for portfolio positions."""
@@ -145,6 +178,21 @@ def import_portfolio():
         flash(message, "warning")
         return redirect(url_for("portfolio.upload_portfolio"))
 
+    is_preview = request.form.get("preview") in {"1", "true", "yes"}
+
+    mapping_overrides_raw = request.form.get("mapping")
+    mapping_overrides: dict[str, str | None] = {}
+    if mapping_overrides_raw:
+        try:
+            loaded = json.loads(mapping_overrides_raw)
+        except (TypeError, ValueError):
+            loaded = {}
+        if isinstance(loaded, dict):
+            mapping_overrides = {
+                str(key): (value if value not in (None, "") else None)
+                for key, value in loaded.items()
+            }
+
     upload_dir = Path(current_app.instance_path) / "uploads"
     upload_dir.mkdir(parents=True, exist_ok=True)
     filename = secure_filename(file_storage.filename or "portfolio.csv")
@@ -153,6 +201,7 @@ def import_portfolio():
 
     rows: list[dict]
     mapping: dict[str, str | None] = {}
+    normalized_headers: list[str] = []
     try:
         with file_path.open("r", encoding="utf-8", newline="") as handle:
             reader = csv.DictReader(handle)
@@ -161,6 +210,12 @@ def import_portfolio():
             normalized_headers = [header.strip().lower() for header in reader.fieldnames]
             reader.fieldnames = normalized_headers
             mapping = _suggest_mapping(normalized_headers)
+            if mapping_overrides:
+                mapping = _apply_mapping_overrides(
+                    mapping,
+                    mapping_overrides,
+                    available_columns=normalized_headers,
+                )
             rows = _normalize_rows(reader, mapping)
     except Exception:  # pragma: no cover - surfaced via user feedback
         file_path.unlink(missing_ok=True)
@@ -171,6 +226,20 @@ def import_portfolio():
         return redirect(url_for("portfolio.upload_portfolio"))
 
     file_path.unlink(missing_ok=True)
+
+    if is_preview:
+        samples = _preview_rows(rows, mapping)
+        payload = {
+            "message": "Preview generated.",
+            "mapping": mapping,
+            "source_columns": normalized_headers,
+            "samples": samples,
+            "total_rows": len(rows),
+        }
+        if wants_json:
+            return jsonify(payload)
+        flash("Preview generated.", "info")
+        return redirect(url_for("portfolio.upload_portfolio"))
 
     with session_scope() as session:
         repo = SqlModelPortfolioRepository(session)
