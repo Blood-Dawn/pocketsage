@@ -60,7 +60,7 @@ Expand habit tracking and debt payoff tooling to drive user retention.
 - Habit repository with streak recalculation and validated form flows.
 - Visualization of weekly/monthly habit completion (heatmaps) and reminder options.
 - Liabilities repository with payoff schedules plus snowball/avalanche calculators.
-- Payoff timeline chart, payment reconciliation, and debt-free date projections in the UI.
+- Payoff timeline chart, payment reconciliation, and debt-free date projections in the UI (current `/liabilities/` view still shows a TODO placeholder).
 
 ### Relevant TODO Items — Milestone 3
 
