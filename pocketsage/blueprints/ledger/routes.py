@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from flask import flash, redirect, render_template, request, url_for
 
 from . import bp
+from .forms import LedgerEntryForm
 
 
 @bp.get("/")
@@ -19,8 +22,13 @@ def list_transactions():
 def new_transaction():
     """Render form for creating a transaction."""
 
-    # TODO(@ledger-squad): supply LedgerEntryForm with defaults (see forms.py).
-    return render_template("ledger/form.html")
+    form = LedgerEntryForm(
+        occurred_at=datetime.now().replace(second=0, microsecond=0),
+        amount=None,
+        memo="",
+        category_id=None,
+    )
+    return render_template("ledger/form.html", form=form)
 
 
 @bp.post("/")
