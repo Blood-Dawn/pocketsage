@@ -9,6 +9,28 @@ body {
     color: var(--text, #f5f5f5);
 }
 
+.skip-link {
+    position: absolute;
+    left: 1rem;
+    top: 1rem;
+    transform: translateY(-150%);
+    padding: 0.75rem 1rem;
+    background: #0f172a;
+    color: #f8fafc;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform 0.2s ease-in-out;
+    z-index: 1000;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+    transform: translateY(0);
+    outline: 2px solid #38bdf8;
+    outline-offset: 4px;
+}
+
 .top-nav {
     background: #1f1f1f;
     padding: 0.75rem 1.5rem;
@@ -30,6 +52,24 @@ body {
 
 .container {
     padding: 2rem;
+}
+
+.site-footer {
+    margin-top: 3rem;
+    padding: 2rem;
+    background: rgba(15, 23, 42, 0.85);
+    color: #e2e8f0;
+    text-align: center;
+}
+
+.site-footer a {
+    color: #38bdf8;
+    text-decoration: none;
+}
+
+.site-footer a:focus,
+.site-footer a:hover {
+    text-decoration: underline;
 }
 
 .flash-messages {
