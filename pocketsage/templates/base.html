@@ -11,7 +11,7 @@
     <a class="skip-link" href="#main-content">Skip to main content</a>
     {% include '_nav.html' %}
     {% block breadcrumb %}{% endblock %}
-    <main id="main-content" class="container">
+    <main id="main-content" class="container" tabindex="-1">
       {% include '_flash.html' %}
       {% block content %}{% endblock %}
     </main>
