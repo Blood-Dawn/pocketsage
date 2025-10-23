@@ -26,6 +26,10 @@ lint:
 
 
 package:
+	@if [ ! -f PocketSage.spec ]; then \
+		echo "PocketSage.spec is missing. Restore it from version control or regenerate with 'pyinstaller run.py --name PocketSage --specpath .'"; \
+		exit 1; \
+	fi
 	pyinstaller PocketSage.spec --clean
 	# TODO(@release): customize spec and add post-build smoke test.
 
