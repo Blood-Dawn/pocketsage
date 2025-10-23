@@ -58,11 +58,12 @@ class BaseConfig:
         """Expose engine kwargs for SQLModel to consume."""
 
         connect_args: dict[str, Any] = {"check_same_thread": False, "uri": False}
+        engine_options: dict[str, Any] = {"connect_args": connect_args}
         if self.USE_SQLCIPHER:
             connect_args["uri"] = True
-            connect_args.setdefault("execution_options", {})
+            engine_options.setdefault("execution_options", {})
             # TODO(@db-team): add SQLCipher pragma key handshake using env key material.
-        return {"connect_args": connect_args}
+        return engine_options
 
 
 class DevConfig(BaseConfig):
