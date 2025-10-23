@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from flask import flash, redirect, render_template, url_for
 
+from ...services import liabilities as liabilities_service
+
 from . import bp
 
 
@@ -11,8 +13,8 @@ from . import bp
 def list_liabilities():
     """Display liabilities overview with payoff projections."""
 
-    # TODO(@debts-squad): hydrate context with repository data + payoff analytics.
-    return render_template("liabilities/index.html")
+    overview = liabilities_service.compute_overview()
+    return render_template("liabilities/index.html", overview=overview)
 
 
 @bp.post("/<int:liability_id>/recalculate")

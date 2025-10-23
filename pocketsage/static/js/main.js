@@ -5,6 +5,7 @@ const FINAL_JOB_STATUSES = new Set(["succeeded", "failed"]);
 document.addEventListener("DOMContentLoaded", () => {
     initAdminDashboard();
     initPortfolioUpload();
+    initLiabilitiesDashboard();
 });
 
 function initAdminDashboard() {
@@ -224,6 +225,108 @@ function initPortfolioUpload() {
     });
 }
 
+function initLiabilitiesDashboard() {
+    const dashboard = document.querySelector("[data-liabilities-dashboard]");
+    if (!dashboard) {
+        return;
+    }
+
+    if (typeof Chart === "undefined") {
+        console.warn("Chart.js is required for liabilities visualizations.");
+        return;
+    }
+
+    const balanceSeries = safeParseJSON(dashboard.dataset.balanceSeries) || [];
+    const strategySeries = safeParseJSON(dashboard.dataset.strategySeries) || [];
+    const strategyKeys = safeParseJSON(dashboard.dataset.strategyKeys) || [];
+
+    const palette = ["#38bdf8", "#22c55e", "#f97316", "#a855f7", "#facc15"];
+
+    const balanceCanvas = dashboard.querySelector("[data-balance-chart]");
+    if (balanceCanvas && balanceSeries.length > 0) {
+        const balanceCtx = balanceCanvas.getContext("2d");
+        new Chart(balanceCtx, {
+            type: "line",
+            data: {
+                labels: balanceSeries.map((row) => row.label),
+                datasets: [
+                    {
+                        label: "Total balance",
+                        data: balanceSeries.map((row) => row.total_balance),
+                        borderColor: palette[0],
+                        backgroundColor: "rgba(56, 189, 248, 0.25)",
+                        tension: 0.35,
+                        fill: true,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => formatCurrency(context.parsed.y),
+                        },
+                    },
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: (value) => formatCurrency(value),
+                        },
+                    },
+                },
+            },
+        });
+    }
+
+    const strategyCanvas = dashboard.querySelector("[data-strategy-chart]");
+    if (strategyCanvas && strategySeries.length > 0 && strategyKeys.length > 0) {
+        const datasets = strategyKeys.map((key, index) => ({
+            label: titleCase(key),
+            data: strategySeries.map((row) => {
+                const totals = row.strategies || {};
+                return totals[key] || 0;
+            }),
+            backgroundColor: palette[index % palette.length],
+            stack: "payments",
+            borderRadius: 6,
+        }));
+
+        const strategyCtx = strategyCanvas.getContext("2d");
+        new Chart(strategyCtx, {
+            type: "bar",
+            data: {
+                labels: strategySeries.map((row) => row.label),
+                datasets,
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true },
+                    y: {
+                        stacked: true,
+                        ticks: {
+                            callback: (value) => formatCurrency(value),
+                        },
+                    },
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: (context) =>
+                                `${context.dataset.label}: ${formatCurrency(context.parsed.y)}`,
+                        },
+                    },
+                },
+            },
+        });
+    }
+}
+
 function safeParseJSON(value) {
     if (!value) {
         return null;
@@ -234,6 +337,27 @@ function safeParseJSON(value) {
         console.warn("Failed to parse JSON", error);
         return null;
     }
+}
+
+function titleCase(value) {
+    if (!value) {
+        return "";
+    }
+    return value
+        .toString()
+        .split(/[_\s-]+/)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ");
+}
+
+function formatCurrency(value) {
+    const number = Number(value) || 0;
+    return new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 0,
+        minimumFractionDigits: 0,
+    }).format(number);
 }
 
 function jobItemTemplate(job) {
