@@ -4,9 +4,9 @@
   <section
     class="liabilities-dashboard"
     data-liabilities-dashboard
-    data-balance-series="{{ overview.balance_timeline|tojson }}"
-    data-strategy-series="{{ overview.strategy_payments|tojson }}"
-    data-strategy-keys="{{ overview.strategy_keys|tojson }}"
+    data-balance-series="{{ overview.balance_timeline|tojson|e }}"
+    data-strategy-series="{{ overview.strategy_payments|tojson|e }}"
+    data-strategy-keys="{{ overview.strategy_keys|tojson|e }}"
   >
     <header class="dashboard-header">
       <div>
