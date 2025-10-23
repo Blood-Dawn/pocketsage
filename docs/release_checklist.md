@@ -5,7 +5,7 @@
 >
 > - `make package` → PyInstaller stub build
 
-1. Ensure the working tree is clean and dependencies are installed (`pip install -e ".[dev]"`).
+1. Ensure the working tree is clean and dependencies are installed, including PyInstaller (`pip install -e ".[dev]" && pip install pyinstaller`).
 2. Run `make package` to invoke the PyInstaller stub build and produce the onefile binary.
 3. Verify the generated executable is present under `out/` and launches without crashing.
 
