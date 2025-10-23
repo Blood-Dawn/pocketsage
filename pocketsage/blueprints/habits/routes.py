@@ -18,8 +18,14 @@ def _compute_streak(entries: list[HabitEntry]) -> int:
     if not entries:
         return 0
 
+    today = date.today()
+    latest_entry = entries[0].occurred_on
+
+    if today - latest_entry > timedelta(days=1):
+        return 0
+
     streak = 1
-    previous_day = entries[0].occurred_on
+    previous_day = latest_entry
     for entry in entries[1:]:
         if entry.occurred_on == previous_day - timedelta(days=1):
             streak += 1
