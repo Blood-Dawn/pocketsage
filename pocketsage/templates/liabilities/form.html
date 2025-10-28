@@ -2,5 +2,57 @@
 {% block title %}New Liability · PocketSage{% endblock %}
 {% block content %}
   <h1>Create Liability</h1>
-  <p class="todo">TODO(@debts-squad): build APR/minimum payment form with validation copy.</p>
+  <form action="{{ url_for('liabilities.create_liability') }}" method="post">
+    {{ form.hidden_tag() }}
+    
+    <div class="form-group">
+      {{ form.name.label }}
+      {{ form.name(class="form-control", placeholder="e.g., Credit Card A") }}
+      {% if form.name.errors %}
+        <div class="invalid-feedback d-block">
+          {% for error in form.name.errors %}
+            <span>{{ error }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="form-group">
+      {{ form.balance.label }}
+      {{ form.balance(class="form-control", type="number", step="0.01", placeholder="0.00") }}
+      {% if form.balance.errors %}
+        <div class="invalid-feedback d-block">
+          {% for error in form.balance.errors %}
+            <span>{{ error }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="form-group">
+      {{ form.apr.label }}
+      {{ form.apr(class="form-control", type="number", step="0.01", placeholder="5.99") }}
+      {% if form.apr.errors %}
+        <div class="invalid-feedback d-block">
+          {% for error in form.apr.errors %}
+            <span>{{ error }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="form-group">
+      {{ form.minimum_payment.label }}
+      {{ form.minimum_payment(class="form-control", type="number", step="0.01", placeholder="25.00") }}
+      {% if form.minimum_payment.errors %}
+        <div class="invalid-feedback d-block">
+          {% for error in form.minimum_payment.errors %}
+            <span>{{ error }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+    <button type="submit" class="btn btn-primary">Create Liability</button>
+  </form>
 {% endblock %}
