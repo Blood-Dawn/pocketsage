@@ -2,5 +2,392 @@
 {% block title %}Liabilities · PocketSage{% endblock %}
 {% block content %}
   <h1>Liabilities</h1>
-  <p class="todo">TODO(@debts-squad): visualize payoff strategies and payment schedules.</p>
+
+  {% if not liabilities %}
+    <div class="empty-state">
+      <p>No liabilities tracked yet. <a href="{{ url_for('liabilities.new_liability') }}">Add your first liability</a> to visualize payoff strategies.</p>
+    </div>
+  {% else %}
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+      <div class="card">
+        <h3>Total Debt</h3>
+        <p class="amount">${{ "%.2f"|format(total_balance) }}</p>
+      </div>
+      <div class="card">
+        <h3>Monthly Payment</h3>
+        <p class="amount">${{ "%.2f"|format(total_minimum_payment) }}</p>
+      </div>
+      <div class="card">
+        <h3>Debt-Free Date</h3>
+        <p class="date">{{ debt_free_date }}</p>
+      </div>
+    </div>
+
+    <!-- Payoff Strategy Comparison -->
+    <section class="strategy-section">
+      <h2>Payoff Strategies</h2>
+      
+      <div class="strategy-controls">
+        <label>Extra Monthly Payment:
+          <input type="number" id="extra-payment" value="0" min="0" step="50">
+        </label>
+        <button id="recalculate-btn">Recalculate</button>
+      </div>
+
+      <div class="strategy-comparison">
+        <div class="strategy-card">
+          <h3>Snowball Method</h3>
+          <p class="strategy-description">Pay off smallest balance first</p>
+          <div class="strategy-stats">
+            <p><strong>Total Interest:</strong> $<span id="snowball-interest">{{ "%.2f"|format(snowball.total_interest) }}</span></p>
+            <p><strong>Payoff Date:</strong> <span id="snowball-date">{{ snowball.payoff_date }}</span></p>
+            <p><strong>Time to Debt-Free:</strong> <span id="snowball-months">{{ snowball.months }}</span> months</p>
+          </div>
+        </div>
+
+        <div class="strategy-card">
+          <h3>Avalanche Method</h3>
+          <p class="strategy-description">Pay off highest interest rate first</p>
+          <div class="strategy-stats">
+            <p><strong>Total Interest:</strong> $<span id="avalanche-interest">{{ "%.2f"|format(avalanche.total_interest) }}</span></p>
+            <p><strong>Payoff Date:</strong> <span id="avalanche-date">{{ avalanche.payoff_date }}</span></p>
+            <p><strong>Time to Debt-Free:</strong> <span id="avalanche-months">{{ avalanche.months }}</span> months</p>
+          </div>
+          {% if avalanche.total_interest < snowball.total_interest %}
+            <p class="savings-badge">Save ${{ "%.2f"|format(snowball.total_interest - avalanche.total_interest) }}</p>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Payoff Timeline -->
+    <section class="timeline-section">
+      <h2>Payment Schedule</h2>
+      <div class="timeline-controls">
+        <label>View Strategy:
+          <select id="strategy-select">
+            <option value="snowball">Snowball</option>
+            <option value="avalanche">Avalanche</option>
+          </select>
+        </label>
+      </div>
+      <canvas id="payoff-chart"></canvas>
+    </section>
+
+    <!-- Individual Liabilities -->
+    <section class="liabilities-list">
+      <h2>Your Liabilities</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Balance</th>
+            <th>APR</th>
+            <th>Min Payment</th>
+            <th>Progress</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for liability in liabilities %}
+          <tr>
+            <td>{{ liability.name }}</td>
+            <td>${{ "%.2f"|format(liability.balance) }}</td>
+            <td>{{ "%.2f"|format(liability.apr) }}%</td>
+            <td>${{ "%.2f"|format(liability.minimum_payment) }}</td>
+            <td>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ (1 - liability.balance / liability.original_balance) * 100 }}%"></div>
+              </div>
+            </td>
+            <td>
+              <a href="{{ url_for('liabilities.edit_liability', liability_id=liability.id) }}">Edit</a>
+              <a href="{{ url_for('liabilities.schedule_payoff', liability_id=liability.id) }}">Schedule</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  {% endif %}
+
+  <style>
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: #666;
+    }
+
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background: #f8f9fa;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border-left: 4px solid #007bff;
+    }
+
+    .card h3 {
+      margin: 0 0 0.5rem 0;
+      font-size: 0.9rem;
+      color: #666;
+      text-transform: uppercase;
+    }
+
+    .card .amount, .card .date {
+      font-size: 1.8rem;
+      font-weight: bold;
+      margin: 0;
+      color: #333;
+    }
+
+    .strategy-section, .timeline-section, .liabilities-list {
+      margin-bottom: 3rem;
+    }
+
+    .strategy-controls {
+      margin-bottom: 1.5rem;
+    }
+
+    .strategy-controls label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-right: 1rem;
+    }
+
+    .strategy-controls input {
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      width: 120px;
+    }
+
+    .strategy-controls button {
+      padding: 0.5rem 1rem;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .strategy-controls button:hover {
+      background: #0056b3;
+    }
+
+    .strategy-comparison {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .strategy-card {
+      background: white;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 1.5rem;
+      position: relative;
+    }
+
+    .strategy-card h3 {
+      margin-top: 0;
+      color: #333;
+    }
+
+    .strategy-description {
+      color: #666;
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+
+    .strategy-stats p {
+      margin: 0.5rem 0;
+    }
+
+    .savings-badge {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: #28a745;
+      color: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: bold;
+    }
+
+    .timeline-controls {
+      margin-bottom: 1rem;
+    }
+
+    .timeline-controls select {
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+
+    #payoff-chart {
+      max-height: 400px;
+    }
+
+    .liabilities-list table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .liabilities-list th,
+    .liabilities-list td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .liabilities-list th {
+      background: #f8f9fa;
+      font-weight: bold;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 20px;
+      background: #e0e0e0;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #28a745, #20c997);
+      transition: width 0.3s ease;
+    }
+
+    .liabilities-list a {
+      color: #007bff;
+      text-decoration: none;
+      margin-right: 0.5rem;
+    }
+
+    .liabilities-list a:hover {
+      text-decoration: underline;
+    }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+    let payoffChart = null;
+    const scheduleData = {{ schedule_data|tojson }};
+
+    function initChart(strategy = 'snowball') {
+      const ctx = document.getElementById('payoff-chart');
+      if (!ctx) return;
+
+      const data = scheduleData[strategy];
+      
+      if (payoffChart) {
+        payoffChart.destroy();
+      }
+
+      payoffChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.months,
+          datasets: [{
+            label: 'Total Balance',
+            data: data.balances,
+            borderColor: '#007bff',
+            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+            fill: true,
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: {
+              display: true,
+              text: `${strategy.charAt(0).toUpperCase() + strategy.slice(1)} Method - Balance Over Time`
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return '$' + context.parsed.y.toFixed(2);
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return '$' + value.toLocaleString();
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize chart with default strategy
+      if (scheduleData) {
+        initChart('snowball');
+      }
+
+      // Strategy selector
+      const strategySelect = document.getElementById('strategy-select');
+      if (strategySelect) {
+        strategySelect.addEventListener('change', function(e) {
+          initChart(e.target.value);
+        });
+      }
+
+      // Recalculate with extra payment
+      const recalculateBtn = document.getElementById('recalculate-btn');
+      const extraPaymentInput = document.getElementById('extra-payment');
+      
+      if (recalculateBtn && extraPaymentInput) {
+        recalculateBtn.addEventListener('click', function() {
+          const extraPayment = parseFloat(extraPaymentInput.value) || 0;
+          
+          // Make AJAX request to recalculate
+          fetch('{{ url_for("liabilities.recalculate") }}', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ extra_payment: extraPayment })
+          })
+          .then(response => response.json())
+          .then(data => {
+            // Update snowball stats
+            document.getElementById('snowball-interest').textContent = data.snowball.total_interest.toFixed(2);
+            document.getElementById('snowball-date').textContent = data.snowball.payoff_date;
+            document.getElementById('snowball-months').textContent = data.snowball.months;
+            
+            // Update avalanche stats
+            document.getElementById('avalanche-interest').textContent = data.avalanche.total_interest.toFixed(2);
+            document.getElementById('avalanche-date').textContent = data.avalanche.payoff_date;
+            document.getElementById('avalanche-months').textContent = data.avalanche.months;
+            
+            // Refresh chart
+            const currentStrategy = document.getElementById('strategy-select').value;
+            scheduleData.snowball = data.schedule_data.snowball;
+            scheduleData.avalanche = data.schedule_data.avalanche;
+            initChart(currentStrategy);
+          })
+          .catch(error => console.error('Error:', error));
+        });
+      }
+    });
+  </script>
 {% endblock %}
