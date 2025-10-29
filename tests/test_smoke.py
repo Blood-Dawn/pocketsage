@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-import pytest
 from pocketsage import create_app
 
 
-@pytest.mark.skip(
-    reason="TODO(@qa-team): replace with entrypoint redirect test under new blueprint layout."
-)
-def test_home_redirect():
+def test_home_page_renders():
     app = create_app("development")
     client = app.test_client()
     response = client.get("/")
-    assert response.status_code in (301, 302)
+    assert response.status_code == 200
+    assert b"Welcome to PocketSage" in response.data
