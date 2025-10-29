@@ -25,6 +25,11 @@
 - Highlight pre-commit, tests, and PyInstaller packaging targets.
 - Reinforce Campus Board TODO assignments for teammates.
 
+## Test & QA Reminders
+- The `make test` target is a thin wrapper that executes plain `pytest` with no extra arguments.
+- You can also invoke tests directly by running `pytest` from the repository root to mirror CI behaviour.
+- Several test modules are currently marked with `@pytest.mark.skip` placeholders; seeing `s`/`SKIPPED` entries in the output is expected until the related TODOs are implemented.
+
 ## TODO Risks for Demo
 - Seeder not implemented; manual DB state may be required.
 - Charts and CSV imports pending.
