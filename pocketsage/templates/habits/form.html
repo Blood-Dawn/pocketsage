@@ -2,5 +2,113 @@
 {% block title %}New Habit · PocketSage{% endblock %}
 {% block content %}
   <h1>Create Habit</h1>
-  <p class="todo">TODO(@habits-squad): design form for cadence selection and reminders.</p>
+  {% set errors = errors if errors is defined else {} %}
+  <form method="post" action="{{ url_for('habits.new_habit') }}" class="form-card">
+    <div class="form-grid">
+      <div class="field">
+        <label for="name">Habit name</label>
+        <input
+          class="input-control"
+          type="text"
+          id="name"
+          name="name"
+          placeholder="Drink water"
+          value="{{ form.name }}"
+          required
+        >
+        {% if errors.get('name') %}
+          <p class="field-error">{{ errors['name'][0] }}</p>
+        {% endif %}
+      </div>
+
+      <div class="field">
+        <span id="cadence-label" class="field-label">Cadence</span>
+        <div class="option-group" role="radiogroup" aria-labelledby="cadence-label">
+          {% for option in cadence_options %}
+            <label class="option">
+              <input
+                type="radio"
+                name="cadence"
+                value="{{ option.value }}"
+                {% if form.cadence == option or form.cadence == option.value %}checked{% endif %}
+              >
+              <span>{{ option.value|capitalize }}</span>
+            </label>
+          {% endfor %}
+        </div>
+        {% if errors.get('cadence') %}
+          <p class="field-error">{{ errors['cadence'][0] }}</p>
+        {% endif %}
+      </div>
+
+      <div class="field">
+        <label for="custom_interval_days">Custom cadence</label>
+        <div class="field-inline">
+          <input
+            class="input-control input-small"
+            type="number"
+            id="custom_interval_days"
+            name="custom_interval_days"
+            min="1"
+            max="365"
+            placeholder="7"
+            value="{{ form.custom_interval_days if form.custom_interval_days is not none else '' }}"
+          >
+          <span class="field-hint">Days between completions when cadence is set to custom.</span>
+        </div>
+        {% if errors.get('custom_interval_days') %}
+          <p class="field-error">{{ errors['custom_interval_days'][0] }}</p>
+        {% elif errors.get('__root__') %}
+          <p class="field-error">{{ errors['__root__'][0] }}</p>
+        {% endif %}
+      </div>
+
+      <fieldset class="field">
+        <legend class="field-label">Reminders</legend>
+        <div class="reminder-controls">
+          <label class="option option-checkbox">
+            <input
+              type="checkbox"
+              name="reminders_enabled"
+              value="1"
+              {% if form.reminders_enabled %}checked{% endif %}
+            >
+            <span>Send reminders</span>
+          </label>
+          <label for="reminder_time" class="time-label">at</label>
+          <input
+            class="input-control input-time"
+            type="time"
+            id="reminder_time"
+            name="reminder_time"
+            value="{{ form.reminder_time.strftime('%H:%M') if form.reminder_time else '' }}"
+          >
+        </div>
+        {% if errors.get('reminder_time') %}
+          <p class="field-error">{{ errors['reminder_time'][0] }}</p>
+        {% endif %}
+      </fieldset>
+
+      <div class="field">
+        <label for="tags">Tags</label>
+        <input
+          class="input-control"
+          type="text"
+          id="tags"
+          name="tags"
+          placeholder="health, morning routine"
+          value="{{ form.tags | join(', ') }}"
+        >
+        <p class="field-hint">Separate tags with commas to group related habits.</p>
+        {% if errors.get('tags') %}
+          <p class="field-error">{{ errors['tags'][0] }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">Save habit</button>
+      <a href="{{ url_for('habits.list_habits') }}" class="btn-link">Cancel</a>
+    </div>
+  </form>
 {% endblock %}
