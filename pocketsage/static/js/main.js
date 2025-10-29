@@ -17,13 +17,18 @@ function initAdminDashboard() {
     const jobList = adminRoot.querySelector("[data-job-list]");
     const initialJobs = safeParseJSON(adminRoot.dataset.initialJobs) || [];
     const jobs = new Map(initialJobs.map((job) => [job.id, job]));
+    const announcer = adminRoot.querySelector("[data-job-announcer]");
+    let hasRenderedOnce = false;
 
     const renderJobs = () => {
         if (!jobList) {
             return;
         }
         if (jobs.size === 0) {
-            jobList.innerHTML = `<li class="job-item"><span class="empty">No background jobs yet.</span></li>`;
+            jobList.innerHTML = `<li class="job-item job-item--empty"><span class="empty">No background jobs yet.</span></li>`;
+            jobList.dataset.state = "idle";
+            jobList.removeAttribute("aria-busy");
+            hasRenderedOnce = true;
             return;
         }
 
@@ -32,14 +37,36 @@ function initAdminDashboard() {
             .map((job) => jobItemTemplate(job))
             .join("");
         jobList.innerHTML = items;
+
+        const hasPendingJobs = Array.from(jobs.values()).some(
+            (job) => !FINAL_JOB_STATUSES.has(job.status)
+        );
+        if (hasPendingJobs) {
+            jobList.dataset.state = "loading";
+            jobList.setAttribute("aria-busy", "true");
+        } else {
+            jobList.dataset.state = "idle";
+            jobList.removeAttribute("aria-busy");
+        }
+
+        hasRenderedOnce = true;
     };
 
     const trackJob = (job) => {
         if (!job || !job.id) {
             return;
         }
+        const previous = jobs.get(job.id);
         jobs.set(job.id, job);
         renderJobs();
+
+        if (
+            announcer &&
+            hasRenderedOnce &&
+            (!previous || previous.status !== job.status)
+        ) {
+            announceJobStatus(announcer, job);
+        }
     };
 
     const pollJob = async (jobId) => {
@@ -237,25 +264,46 @@ function safeParseJSON(value) {
 }
 
 function jobItemTemplate(job) {
-    const created = formatDate(job.created_at);
-    const started = job.started_at ? formatDate(job.started_at) : "—";
-    const finished = job.finished_at ? formatDate(job.finished_at) : "—";
-    const error = job.error ? `<div class="job-error">${job.error}</div>` : "";
+    const status = job.status || "queued";
+    const statusLabel = formatStatusLabel(status);
+    const isPending = !FINAL_JOB_STATUSES.has(status);
+    const createdMarkup = formatJobTime(job.created_at);
+    const startedMarkup = formatJobTime(job.started_at);
+    const finishedMarkup = formatJobTime(job.finished_at);
+    const errorMarkup = job.error
+        ? `<div class="job-error" role="status">${formatJobError(job.error)}</div>`
+        : "";
 
     return `
-		<li class="job-item">
-			<header>
-				<span class="job-name">${job.name}</span>
-				<span class="job-status" data-status="${job.status}">${job.status}</span>
-			</header>
-			<div class="job-meta">
-				<span>Created: ${created}</span>
-				<span>Started: ${started}</span>
-				<span>Finished: ${finished}</span>
-			</div>
-			${error}
-		</li>
-	`;
+        <li class="job-item" data-job-id="${escapeHTML(job.id)}" data-job-status="${escapeHTML(status)}">
+            <header class="job-item__header">
+                <span class="job-item__name">${escapeHTML(job.name || "Untitled job")}</span>
+                <span
+                    class="job-status-badge job-status-badge--${escapeHTML(status)}${isPending ? " is-loading" : ""}"
+                    data-status="${escapeHTML(status)}"
+                    aria-label="Job status: ${escapeHTML(statusLabel)}"
+                >
+                    ${isPending ? '<span class="job-status-badge__spinner" aria-hidden="true"></span>' : ""}
+                    <span class="job-status-badge__label">${escapeHTML(statusLabel)}</span>
+                </span>
+            </header>
+            <dl class="job-timestamps">
+                <div>
+                    <dt>Created</dt>
+                    <dd>${createdMarkup}</dd>
+                </div>
+                <div>
+                    <dt>Started</dt>
+                    <dd>${startedMarkup}</dd>
+                </div>
+                <div>
+                    <dt>Finished</dt>
+                    <dd>${finishedMarkup}</dd>
+                </div>
+            </dl>
+            ${errorMarkup}
+        </li>
+    `;
 }
 
 function formatDate(value) {
@@ -267,6 +315,64 @@ function formatDate(value) {
         return value;
     }
     return date.toLocaleString();
+}
+
+function formatStatusLabel(status) {
+    const statusLabels = {
+        queued: "Queued",
+        running: "Running",
+        succeeded: "Succeeded",
+        failed: "Failed",
+    };
+    return statusLabels[status] || status;
+}
+
+function formatJobTime(value) {
+    if (!value) {
+        return '<span class="empty">—</span>';
+    }
+    const formatted = formatDate(value);
+    if (!formatted || formatted === "—") {
+        return '<span class="empty">—</span>';
+    }
+    return `<time datetime="${escapeHTML(value)}">${escapeHTML(formatted)}</time>`;
+}
+
+function formatJobError(message) {
+    return escapeHTML(String(message)).replace(/\n/g, "<br>");
+}
+
+function escapeHTML(value) {
+    if (value === null || value === undefined) {
+        return "";
+    }
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+function announceJobStatus(announcer, job) {
+    if (!announcer) {
+        return;
+    }
+    const statusMessages = {
+        queued: "queued",
+        running: "in progress",
+        succeeded: "complete",
+        failed: "failed",
+    };
+    const status = job.status || "queued";
+    const suffix = statusMessages[status] || status;
+    const name = job.name ? job.name.trim() : job.id;
+    const message = status === "succeeded"
+        ? `Job ${name} completed successfully.`
+        : status === "failed"
+        ? `Job ${name} failed. Check the details below.`
+        : `Job ${name} is ${suffix}.`;
+    announcer.textContent = message;
 }
 
 function showFlash(message, category) {
