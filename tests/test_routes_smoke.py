@@ -17,6 +17,7 @@ def client():
 @pytest.mark.parametrize(
     "path",
     [
+        "/overview/",
         "/",
         "/ledger/",
         "/ledger/new",
