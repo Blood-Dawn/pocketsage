@@ -388,4 +388,220 @@ body {
     flex-wrap: wrap;
 }
 
+.ledger-header {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.ledger-heading h1 {
+    margin: 0;
+}
+
+.ledger-subtitle {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.ledger-summary {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    margin: 0;
+    padding: 0;
+}
+
+.ledger-summary-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    display: grid;
+    gap: 0.35rem;
+}
+
+.ledger-summary-card dt {
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.65);
+    margin: 0;
+}
+
+.ledger-summary-card dd {
+    margin: 0;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 700;
+}
+
+.ledger-summary-card--inflow dd,
+.ledger-amount--inflow {
+    color: #22c55e;
+}
+
+.ledger-summary-card--outflow dd,
+.ledger-amount--outflow {
+    color: #ef4444;
+}
+
+.ledger-summary-card--net dd {
+    color: #38bdf8;
+}
+
+.ledger-table {
+    display: grid;
+    gap: 1rem;
+}
+
+.ledger-table-wrapper {
+    overflow-x: auto;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.ledger-transactions {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 640px;
+}
+
+.ledger-transactions th,
+.ledger-transactions td {
+    padding: 0.85rem 1.25rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ledger-transactions thead th {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.ledger-transactions tbody tr:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.ledger-transactions tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.ledger-amount-heading,
+.ledger-amount {
+    text-align: right;
+}
+
+.ledger-amount {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.ledger-cell-empty {
+    opacity: 0.55;
+    font-style: italic;
+}
+
+.ledger-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.ledger-pagination-count {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.ledger-pagination-controls {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.ledger-pagination-button {
+    border-radius: 0.5rem;
+    border: 1px solid rgba(56, 189, 248, 0.6);
+    padding: 0.5rem 1.25rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.08);
+    transition: background 150ms ease, border-color 150ms ease;
+}
+
+.ledger-pagination-button:hover {
+    background: rgba(56, 189, 248, 0.18);
+    border-color: rgba(56, 189, 248, 0.9);
+}
+
+.ledger-pagination-button.is-disabled {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+.ledger-empty {
+    border: 1px dashed rgba(148, 163, 184, 0.4);
+    border-radius: 0.75rem;
+    padding: 2.5rem 2rem;
+    text-align: center;
+    display: grid;
+    gap: 0.75rem;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.ledger-empty h2 {
+    margin: 0;
+}
+
+.ledger-empty p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+@media (max-width: 720px) {
+    .ledger-summary {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+
+    .ledger-transactions {
+        min-width: 100%;
+    }
+
+    .ledger-transactions thead {
+        display: none;
+    }
+
+    .ledger-transactions tbody tr {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem 1rem;
+        padding: 1rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .ledger-transactions td {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        padding: 0;
+        border: none;
+    }
+
+    .ledger-transactions td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.65);
+        margin-right: 1rem;
+    }
+
+    .ledger-transactions td.ledger-amount {
+        justify-content: flex-end;
+    }
+}
+
 /* TODO(@ux-team): extend design tokens, typography scale, and dark/light mode palettes. */

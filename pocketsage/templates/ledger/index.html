@@ -1,6 +1,111 @@
 {% extends 'base.html' %}
 {% block title %}Ledger · PocketSage{% endblock %}
+
+{% macro pagination_controls(pagination, prev_url, next_url) %}
+  {% if pagination.total > 0 %}
+    <div class="ledger-pagination" aria-label="Pagination controls">
+      <p class="ledger-pagination-count">
+        Showing {{ pagination.first_item }}–{{ pagination.last_item }} of {{ pagination.total }} transactions
+      </p>
+      <div class="ledger-pagination-controls">
+        <a
+          class="ledger-pagination-button{% if not prev_url %} is-disabled{% endif %}"
+          {% if prev_url %}href="{{ prev_url }}" rel="prev"{% else %}aria-disabled="true" tabindex="-1"{% endif %}
+        >
+          Previous
+        </a>
+        <a
+          class="ledger-pagination-button{% if not next_url %} is-disabled{% endif %}"
+          {% if next_url %}href="{{ next_url }}" rel="next"{% else %}aria-disabled="true" tabindex="-1"{% endif %}
+        >
+          Next
+        </a>
+      </div>
+    </div>
+  {% endif %}
+{% endmacro %}
+
 {% block content %}
-  <h1>Ledger</h1>
-  <p class="todo">TODO(@ledger-squad): render transaction table, filters, and rollups.</p>
+  <section class="ledger-header">
+    <div class="ledger-heading">
+      <h1>Ledger</h1>
+      <p class="ledger-subtitle">Track inflows and outflows across your accounts.</p>
+    </div>
+    <dl class="ledger-summary" aria-label="Ledger summary">
+      <div class="ledger-summary-card ledger-summary-card--inflow">
+        <dt>Inflow</dt>
+        <dd>{{ '${:,.2f}'.format(summary.inflow) }}</dd>
+      </div>
+      <div class="ledger-summary-card ledger-summary-card--outflow">
+        <dt>Outflow</dt>
+        <dd>{{ '${:,.2f}'.format(summary.outflow) }}</dd>
+      </div>
+      <div class="ledger-summary-card ledger-summary-card--net">
+        <dt>Net</dt>
+        <dd>{{ '${:,.2f}'.format(summary.net) }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="ledger-table" aria-label="Ledger transactions">
+    {% if transactions %}
+      {{ pagination_controls(pagination, prev_url, next_url) }}
+      <div class="ledger-table-wrapper">
+        <table class="ledger-transactions">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Memo</th>
+              <th scope="col">Account</th>
+              <th scope="col">Category</th>
+              <th scope="col" class="ledger-amount-heading">Amount</th>
+              <th scope="col">Currency</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for txn in transactions %}
+              {% set amount_class = 'ledger-amount ledger-amount--inflow' if txn.amount >= 0 else 'ledger-amount ledger-amount--outflow' %}
+              <tr>
+                <td data-label="Date">
+                  <time datetime="{{ txn.occurred_at.isoformat() }}">{{ txn.occurred_at.strftime('%b %d, %Y') }}</time>
+                </td>
+                <td data-label="Memo">
+                  {% if txn.memo %}
+                    {{ txn.memo }}
+                  {% else %}
+                    <span class="ledger-cell-empty">—</span>
+                  {% endif %}
+                </td>
+                <td data-label="Account">
+                  {% if txn.account_name %}
+                    {{ txn.account_name }}
+                  {% else %}
+                    <span class="ledger-cell-empty">—</span>
+                  {% endif %}
+                </td>
+                <td data-label="Category">
+                  {% if txn.category_name %}
+                    {{ txn.category_name }}
+                  {% else %}
+                    <span class="ledger-cell-empty">—</span>
+                  {% endif %}
+                </td>
+                <td class="{{ amount_class }}" data-label="Amount">
+                  {{ '${:,.2f}'.format(txn.amount) }}
+                </td>
+                <td data-label="Currency">{{ txn.currency }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {{ pagination_controls(pagination, prev_url, next_url) }}
+    {% else %}
+      <div class="ledger-empty">
+        <h2>No transactions yet</h2>
+        <p>Once you add or import transactions, cashflow activity will appear here.</p>
+        <a href="{{ url_for('ledger.new_transaction') }}" class="btn-secondary">Add a transaction</a>
+      </div>
+    {% endif %}
+  </section>
 {% endblock %}
