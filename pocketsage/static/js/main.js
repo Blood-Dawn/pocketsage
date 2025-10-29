@@ -1,11 +1,76 @@
 // PocketSage frontend bootstrapping
 
 const FINAL_JOB_STATUSES = new Set(["succeeded", "failed"]);
+const THEME_STORAGE_KEY = "pocketsage:theme";
+const VALID_THEMES = new Set(["light", "dark"]);
+const DEFAULT_THEME = "dark";
 
 document.addEventListener("DOMContentLoaded", () => {
+    initTheme();
     initAdminDashboard();
     initPortfolioUpload();
 });
+
+function initTheme() {
+    const initialTheme = getStoredTheme() || DEFAULT_THEME;
+    applyTheme(initialTheme);
+
+    const toggle = document.querySelector("[data-theme-toggle]");
+    if (!toggle) {
+        return;
+    }
+
+    toggle.addEventListener("click", () => {
+        const body = document.body;
+        const currentTheme = body ? body.dataset.theme : null;
+        const nextTheme = currentTheme === "light" ? "dark" : "light";
+        applyTheme(nextTheme);
+    });
+}
+
+function applyTheme(theme) {
+    const body = document.body;
+    if (!body) {
+        return;
+    }
+
+    const normalizedTheme = VALID_THEMES.has(theme) ? theme : DEFAULT_THEME;
+    body.dataset.theme = normalizedTheme;
+    document.documentElement.style.colorScheme = normalizedTheme;
+    setStoredTheme(normalizedTheme);
+    updateThemeToggle(normalizedTheme);
+}
+
+function getStoredTheme() {
+    try {
+        const stored = localStorage.getItem(THEME_STORAGE_KEY);
+        return stored && VALID_THEMES.has(stored) ? stored : null;
+    } catch (error) {
+        console.warn("Unable to access theme preference", error);
+        return null;
+    }
+}
+
+function setStoredTheme(theme) {
+    try {
+        localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch (error) {
+        console.warn("Unable to persist theme preference", error);
+    }
+}
+
+function updateThemeToggle(theme) {
+    const toggle = document.querySelector("[data-theme-toggle]");
+    if (!toggle) {
+        return;
+    }
+
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    const nextLabel = `Switch to ${nextTheme} mode`;
+    toggle.textContent = `${nextTheme.charAt(0).toUpperCase()}${nextTheme.slice(1)} mode`;
+    toggle.setAttribute("aria-label", nextLabel);
+    toggle.setAttribute("aria-pressed", theme === "dark" ? "true" : "false");
+}
 
 function initAdminDashboard() {
     const adminRoot = document.querySelector("[data-admin-dashboard]");
