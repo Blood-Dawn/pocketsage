@@ -2,5 +2,60 @@
 {% block title %}Ledger · PocketSage{% endblock %}
 {% block content %}
   <h1>Ledger</h1>
-  <p class="todo">TODO(@ledger-squad): render transaction table, filters, and rollups.</p>
+  {% set selected_category = filter_state.category %}
+  <form method="get" class="filter-toolbar">
+    <fieldset>
+      <legend class="sr-only">Filter transactions</legend>
+      <div class="filter-row">
+        <label>
+          From
+          <input type="date" name="start_date" value="{{ filter_state.start_date }}">
+        </label>
+        <label>
+          To
+          <input type="date" name="end_date" value="{{ filter_state.end_date }}">
+        </label>
+        <label>
+          Category
+          <select name="category">
+            <option value="">All categories</option>
+            {% for category in categories %}
+              <option value="{{ category.id }}" {% if selected_category and selected_category|int == category.id %}selected{% endif %}>{{ category.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Search
+          <input type="search" name="search" value="{{ filter_state.search }}" placeholder="Memo contains…">
+        </label>
+        <button type="submit">Apply</button>
+        <a class="button button-secondary" href="{{ url_for('ledger.list_transactions') }}">Reset</a>
+      </div>
+    </fieldset>
+  </form>
+
+  {% if transactions %}
+    <table class="ledger-table">
+      <thead>
+        <tr>
+          <th scope="col">Date</th>
+          <th scope="col">Category</th>
+          <th scope="col">Memo</th>
+          <th scope="col" class="numeric">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for transaction in transactions %}
+          <tr>
+            <td>{{ transaction.occurred_at.strftime('%Y-%m-%d') }}</td>
+            <td>{{ transaction.category.name if transaction.category else 'Uncategorized' }}</td>
+            <td>{{ transaction.memo }}</td>
+            <td class="numeric">{{ '%.2f'|format(transaction.amount) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty-state">No transactions match the current filters.</p>
+  {% endif %}
 {% endblock %}
