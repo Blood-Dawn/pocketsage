@@ -15,20 +15,26 @@ def client():
 
 
 @pytest.mark.parametrize(
-    "path",
+    "path, expected_snippet",
     [
-        "/",
-        "/ledger/",
-        "/ledger/new",
-        "/habits/",
-        "/habits/new",
-        "/liabilities/",
-        "/liabilities/new",
-        "/portfolio/",
-        "/portfolio/upload",
-        "/admin/",
+        ("/", None),
+        ("/ledger/", None),
+        ("/ledger/new", None),
+        (
+            "/habits/",
+            "TODO(@habits-squad): render habits list with streak badges and toggle buttons.",
+        ),
+        ("/habits/new", None),
+        ("/liabilities/", None),
+        ("/liabilities/new", None),
+        ("/portfolio/", None),
+        ("/portfolio/upload", None),
+        ("/admin/", None),
     ],
 )
-def test_routes_render(path, client):
+def test_routes_render(path, expected_snippet, client):
     response = client.get(path)
     assert response.status_code == 200
+    if expected_snippet:
+        body = response.get_data(as_text=True)
+        assert expected_snippet in body
