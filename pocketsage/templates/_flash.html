@@ -1,8 +1,37 @@
+{% macro flash_icon(category) %}
+  {% if category == "success" %}
+    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.707a1 1 0 00-1.414-1.414L9 10.172 7.707 8.879a1 1 0 10-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+    </svg>
+  {% elif category in ["danger", "error"] %}
+    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-9-3a1 1 0 112 0v4a1 1 0 11-2 0V7zm1 8a1.25 1.25 0 100-2.5A1.25 1.25 0 0010 15z" clip-rule="evenodd"></path>
+    </svg>
+  {% elif category == "warning" %}
+    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l6.518 11.59c.75 1.333-.214 2.99-1.742 2.99H3.48c-1.528 0-2.492-1.657-1.742-2.99l6.52-11.59zM11 14a1 1 0 10-2 0 1 1 0 002 0zm-1-2a1 1 0 01-1-1V8a1 1 0 112 0v3a1 1 0 01-1 1z"></path>
+    </svg>
+  {% else %}
+    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM9 9a1 1 0 112 0v5a1 1 0 11-2 0V9zm1-4a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd"></path>
+    </svg>
+  {% endif %}
+{% endmacro %}
+
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
     <section class="flash-messages">
       {% for category, message in messages %}
-        <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% set role = "alert" if category in ["danger", "warning", "error"] else "status" %}
+        <div class="flash flash-{{ category }}" role="{{ role }}">
+          <span class="flash-icon" aria-hidden="true">{{ flash_icon(category)|safe }}</span>
+          <div class="flash-message">{{ message }}</div>
+          <button type="button" class="flash-dismiss" data-flash-dismiss aria-label="Dismiss notification">
+            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+            </svg>
+          </button>
+        </div>
       {% endfor %}
     </section>
   {% endif %}
