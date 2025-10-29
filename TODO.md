@@ -66,3 +66,4 @@
 - [x] # TODO(@qa-team) Add route smoke tests verifying template context variables.
 - [x] # TODO(@qa-team) Add CSV import idempotency regression tests using fixtures.
 - [x] # TODO(@qa-team) Configure CI workflow (GitHub Actions) running lint + tests + packaging dry run.
+- [ ] # TODO(@qa-team) Remove route smoke test skip once shared base templates render successfully.
