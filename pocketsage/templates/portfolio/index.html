@@ -23,7 +23,7 @@
       {% if allocation %}
         <div class="allocation-chart" role="list">
           {% for item in allocation %}
-            <div class="allocation-row" role="listitem">
+            <div class="allocation-row" role="listitem" style="--allocation: {{ item.percentage }}">
               <div class="allocation-symbol">{{ item.symbol }}</div>
               <div class="allocation-bar" aria-hidden="true">
                 <div class="allocation-bar-fill" data-allocation="{{ item.percentage }}"></div>
