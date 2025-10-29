@@ -7,6 +7,9 @@ block_cipher = None
 
 project_root = Path(__file__).resolve().parent if "__file__" in globals() else Path.cwd()
 
+# Mirror the local runner entry point used by `python run.py`.
+entry_script = project_root / "run.py"
+
 pocketsage_pkg = project_root / "pocketsage"
 
 data_files = [
@@ -23,7 +26,7 @@ hidden_imports = [
 ]
 
 analysis = Analysis(
-    [str(project_root / "run.py")],
+    [str(entry_script)],
     pathex=[str(project_root)],
     binaries=[],
     datas=data_files,
