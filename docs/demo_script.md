@@ -3,7 +3,9 @@
 ## Preconditions
 - Python 3.11 installed
 - `pip install -e ".[dev]"`
-- Optional: install `watchdog` extra for auto-import demo (`pip install -e ".[watcher]"`).
+
+### Optional Tooling
+- **Watcher extra** – install with `pip install -e ".[watcher]"` to enable filesystem observers that support future watchdog-based background import workflows outlined in the README.
 
 ## Smoke / Sanity Checklist
 - Launch the dev server (`make dev` or `python run.py`) and load the Habits index at `http://127.0.0.1:5000/habits/`.
