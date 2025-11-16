@@ -845,218 +845,62 @@ textarea.form-input {
     flex-wrap: wrap;
 }
 
-.ledger-layout {
-    display: grid;
-    gap: 1.5rem;
-}
-
-.ledger-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-
-.ledger-subtitle {
-    margin: 0.25rem 0 0;
-    color: rgba(255, 255, 255, 0.6);
-    max-width: 40ch;
-}
-
-.ledger-filters {
-    display: grid;
-    gap: 1rem;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    align-items: end;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 0.75rem;
-    padding: 1.25rem;
-}
-
-.filter-field label {
-    display: block;
-    margin-bottom: 0.35rem;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.85);
-}
-
-.filter-field input,
-.filter-field select {
-    width: 100%;
-    border-radius: 0.5rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(15, 23, 42, 0.6);
-    color: inherit;
-    padding: 0.6rem 0.75rem;
-    font-size: 0.95rem;
-}
-
-.filter-field input:focus,
-.filter-field select:focus {
-    outline: 2px solid rgba(59, 130, 246, 0.6);
-    outline-offset: 1px;
-}
-
-.filter-actions {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-}
-
-.ledger-summary {
-    font-size: 0.95rem;
-    color: rgba(255, 255, 255, 0.75);
-}
-
-.ledger-table-wrapper {
-    overflow-x: auto;
-    border-radius: 0.75rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(15, 23, 42, 0.45);
-}
-
-.ledger-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 600px;
-}
-
-.ledger-table th,
-.ledger-table td {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    vertical-align: top;
-}
-
-.ledger-table thead th {
-    text-align: left;
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.ledger-amount-header,
-.ledger-amount {
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-}
-
-.ledger-amount[data-amount='inflow'] {
-    color: #22c55e;
-}
-
-.ledger-amount[data-amount='outflow'] {
-    color: #f97316;
-}
-
-.ledger-memo {
-    font-weight: 600;
-}
-
-.ledger-reference {
-    margin-top: 0.25rem;
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.ledger-pagination {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+.alert {
     border-radius: 0.75rem;
     padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.alert-danger {
+    background: rgba(248, 113, 113, 0.12);
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    color: #fca5a5;
+}
+
+.form-field {
     display: grid;
-    gap: 0.75rem;
-}
-
-.pagination-controls {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-
-.pagination-pages {
-    list-style: none;
-    display: flex;
     gap: 0.5rem;
-    padding: 0;
-    margin: 0;
+    margin-bottom: 1.25rem;
 }
 
-.pagination-page {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 999px;
-    background: rgba(59, 130, 246, 0.15);
-    color: rgba(255, 255, 255, 0.9);
-    text-decoration: none;
+.form-field label {
     font-weight: 600;
-    padding: 0 0.75rem;
 }
 
-.pagination-page.is-active {
-    background: #3b82f6;
-    color: #0f172a;
+.form-control {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0.5rem;
+    color: inherit;
+    font: inherit;
+    padding: 0.75rem 1rem;
 }
 
-.pagination-ellipsis {
-    opacity: 0.6;
-    padding: 0 0.5rem;
+.form-control:focus {
+    outline: 2px solid rgba(59, 130, 246, 0.75);
+    outline-offset: 2px;
 }
 
-.pagination-prev.is-disabled,
-.pagination-next.is-disabled {
-    opacity: 0.45;
-    pointer-events: none;
+.form-control.is-invalid {
+    border-color: rgba(248, 113, 113, 0.75);
+    outline: 2px solid rgba(248, 113, 113, 0.45);
+    outline-offset: 2px;
 }
 
-.pagination-hint,
-.pagination-noscript {
-    margin: 0;
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.ledger-sentinel {
-    display: grid;
-    gap: 0.75rem;
-    justify-items: start;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 0.75rem;
-    padding: 1rem 1.25rem;
-}
-
-.ledger-sentinel-status {
-    margin: 0;
+.field-error {
+    color: #f87171;
     font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.75);
 }
 
-.ledger-sentinel[data-inactive="true"] {
-    opacity: 0.7;
+.field-error ul {
+    margin: 0;
+    padding-left: 1.25rem;
 }
 
-@media (max-width: 720px) {
-    .ledger-table {
-        min-width: 100%;
-    }
-
-    .ledger-filters {
-        grid-template-columns: 1fr;
-    }
-
-    .pagination-controls {
-        flex-direction: column;
-        align-items: stretch;
-    }
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
 }
 
 /* TODO(@ux-team): extend design tokens, typography scale, and dark/light mode palettes. */
