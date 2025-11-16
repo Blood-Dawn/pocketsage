@@ -916,121 +916,146 @@ textarea.form-input {
     flex-wrap: wrap;
 }
 
-/* TODO(@ux-team): extend design tokens, typography scale, and dark/light mode palettes. */
-.liabilities-dashboard {
-    display: grid;
-    gap: 2rem;
-}
-
-.dashboard-header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 1.5rem;
-}
-
-.dashboard-subtitle {
-    margin: 0.5rem 0 0;
-    color: rgba(255, 255, 255, 0.7);
-    max-width: 48ch;
-}
-
-.liabilities-summary {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-    gap: 0.75rem 1.5rem;
-    margin: 0;
-}
-
-.liabilities-summary dt {
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.liabilities-summary dd {
-    margin: 0.25rem 0 0;
-    font-size: 1.35rem;
-    font-weight: 600;
-}
-
-.liabilities-grid {
-    display: grid;
-    gap: 1.5rem;
-    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-}
-
-.chart-card,
-.liabilities-table-card {
+.form-card {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 0.75rem;
-    padding: 1.5rem;
+    padding: 1.75rem;
     display: grid;
-    gap: 0.75rem;
+    gap: 1.5rem;
+    max-width: 48rem;
 }
 
-.chart-card header h2,
-.liabilities-table-card header h2 {
+.form-header h1 {
     margin: 0;
-    font-size: 1.15rem;
 }
 
-.chart-wrapper {
-    position: relative;
-    min-height: 240px;
-}
-
-.chart-wrapper canvas {
-    width: 100%;
-    height: 100%;
-}
-
-.chart-card figcaption {
-    font-size: 0.9rem;
+.form-header p {
+    margin: 0.35rem 0 0;
     color: rgba(255, 255, 255, 0.7);
 }
 
-.table-hint {
-    margin: 0.25rem 0 0;
-    font-size: 0.9rem;
+.form-grid {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.form-row {
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.form-field {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.form-field label {
+    font-weight: 600;
+}
+
+.form-control {
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 0.65rem;
+    background: rgba(15, 23, 42, 0.45);
+    color: inherit;
+    padding: 0.75rem 1rem;
+    font: inherit;
+}
+
+.form-control:focus {
+    outline: 2px solid rgba(56, 189, 248, 0.65);
+    outline-offset: 1px;
+    border-color: rgba(56, 189, 248, 0.85);
+}
+
+.form-control-prefix,
+.form-control-suffix {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.form-control-prefix .form-control,
+.form-control-suffix .form-control {
+    width: 100%;
+    padding-left: 2.25rem;
+}
+
+.form-control-suffix .form-control {
+    padding-left: 1rem;
+    padding-right: 2.25rem;
+}
+
+.form-control-prefix .prefix,
+.form-control-suffix .suffix {
+    position: absolute;
+    left: 0.85rem;
+    font-weight: 600;
+    opacity: 0.7;
+}
+
+.form-control-suffix .suffix {
+    left: auto;
+    right: 0.85rem;
+}
+
+.form-hint {
+    margin: 0;
+    font-size: 0.85rem;
     color: rgba(255, 255, 255, 0.65);
 }
 
-.table-scroll {
-    overflow-x: auto;
-}
-
-.liabilities-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 640px;
-}
-
-.liabilities-table th,
-.liabilities-table td {
-    padding: 0.75rem 1rem;
-    text-align: left;
-}
-
-.liabilities-table thead th {
+.field-error {
+    margin: 0;
     font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: rgba(255, 255, 255, 0.6);
+    color: #f97316;
 }
 
-.liabilities-table tbody tr:nth-child(even) {
-    background: rgba(255, 255, 255, 0.02);
+.has-error .form-control {
+    border-color: rgba(249, 115, 22, 0.85);
+    box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.55);
 }
 
-.liabilities-table tbody th {
-    font-weight: 600;
+.has-error label {
+    color: #f97316;
 }
 
-.strategy-label {
-    font-weight: 600;
-    text-transform: capitalize;
+.form-errors {
+    border: 1px solid rgba(249, 115, 22, 0.35);
+    background: rgba(249, 115, 22, 0.08);
+    color: #f97316;
+    border-radius: 0.75rem;
+    padding: 1rem 1.25rem;
 }
+
+.form-errors h2 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.form-errors ul {
+    margin: 0.75rem 0 0;
+    padding-left: 1.25rem;
+    display: grid;
+    gap: 0.35rem;
+}
+
+.form-errors a {
+    color: inherit;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.form-actions .btn-link {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* TODO(@ux-team): extend design tokens, typography scale, and dark/light mode palettes. */
