@@ -39,11 +39,16 @@ Framework Owner checkpoint for the PocketSage desktop-first Flask app. Focus are
 
 ## Configuration Flags
 - `.env` values prefixed with `POCKETSAGE_`
+- `POCKETSAGE_DATA_DIR=./instance` ships as the default entry in `.env.example`; leave it in place if you want PocketSage to manage the bundled `instance/` folder out of the box.
 - `POCKETSAGE_USE_SQLCIPHER=true` switches DB URL builder (SQLCipher driver TODO)
 - `POCKETSAGE_DATABASE_URL` overrides computed path if needed
 - `_resolve_data_dir` respects `POCKETSAGE_DATA_DIR` and defaults to `instance/`; the directory is created during app factory
   initialization so the resolved path exists immediately afterwards. Use this location for SQLite files, local backup jobs,
   or cleanup scripts that prune historical exports.
+
+`BaseConfig._resolve_data_dir()` expands the configured data path, creates the directory with `parents=True, exist_ok=True`, and then caches the resolved `Path` during startup. This means the `instance/` folder—and any custom directory you point to—will be created automatically before the database URL is built.【F:pocketsage/config.py†L25-L45】
+
+To store data somewhere else, override `POCKETSAGE_DATA_DIR` in your `.env` file with an absolute or relative path. Ensure the PocketSage process can read from and write to that location (for example, set directory permissions appropriately on Unix with `chmod`/`chown`, or run the app under a user that owns the target folder on Windows) so SQLite/SQLCipher files can be created successfully.【F:pocketsage/config.py†L35-L45】
 
 ## Privacy & Offline Notes
 - All data stored locally under `instance/`
