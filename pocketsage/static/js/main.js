@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initFlashDismissal();
     initAdminDashboard();
     initPortfolioUpload();
-    initLiabilitiesDashboard();
+    initPortfolioSorting();
 });
 
 function initFlashDismissal() {
@@ -257,106 +257,116 @@ function initPortfolioUpload() {
     });
 }
 
-function initLiabilitiesDashboard() {
-    const dashboard = document.querySelector("[data-liabilities-dashboard]");
-    if (!dashboard) {
+function initPortfolioSorting() {
+    const table = document.querySelector(".holdings-table");
+    if (!table) {
         return;
     }
 
-    if (typeof Chart === "undefined") {
-        console.warn("Chart.js is required for liabilities visualizations.");
+    const tbody = table.querySelector("tbody");
+    const headerRow = table.querySelector("thead tr");
+    if (!tbody || !headerRow) {
         return;
     }
 
-    const balanceSeries = safeParseJSON(dashboard.dataset.balanceSeries) || [];
-    const strategySeries = safeParseJSON(dashboard.dataset.strategySeries) || [];
-    const strategyKeys = safeParseJSON(dashboard.dataset.strategyKeys) || [];
-
-    const palette = ["#38bdf8", "#22c55e", "#f97316", "#a855f7", "#facc15"];
-
-    const balanceCanvas = dashboard.querySelector("[data-balance-chart]");
-    if (balanceCanvas && balanceSeries.length > 0) {
-        const balanceCtx = balanceCanvas.getContext("2d");
-        new Chart(balanceCtx, {
-            type: "line",
-            data: {
-                labels: balanceSeries.map((row) => row.label),
-                datasets: [
-                    {
-                        label: "Total balance",
-                        data: balanceSeries.map((row) => row.total_balance),
-                        borderColor: palette[0],
-                        backgroundColor: "rgba(56, 189, 248, 0.25)",
-                        tension: 0.35,
-                        fill: true,
-                    },
-                ],
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => formatCurrency(context.parsed.y),
-                        },
-                    },
-                },
-                scales: {
-                    y: {
-                        ticks: {
-                            callback: (value) => formatCurrency(value),
-                        },
-                    },
-                },
-            },
-        });
+    const sortLinks = table.querySelectorAll(".sort-link");
+    if (!sortLinks.length) {
+        return;
     }
 
-    const strategyCanvas = dashboard.querySelector("[data-strategy-chart]");
-    if (strategyCanvas && strategySeries.length > 0 && strategyKeys.length > 0) {
-        const datasets = strategyKeys.map((key, index) => ({
-            label: titleCase(key),
-            data: strategySeries.map((row) => {
-                const totals = row.strategies || {};
-                return totals[key] || 0;
-            }),
-            backgroundColor: palette[index % palette.length],
-            stack: "payments",
-            borderRadius: 6,
-        }));
+    const sortInput = document.querySelector(".portfolio-controls input[name='sort']");
+    const directionInput = document.querySelector(".portfolio-controls input[name='direction']");
 
-        const strategyCtx = strategyCanvas.getContext("2d");
-        new Chart(strategyCtx, {
-            type: "bar",
-            data: {
-                labels: strategySeries.map((row) => row.label),
-                datasets,
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: { stacked: true },
-                    y: {
-                        stacked: true,
-                        ticks: {
-                            callback: (value) => formatCurrency(value),
-                        },
-                    },
-                },
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: (context) =>
-                                `${context.dataset.label}: ${formatCurrency(context.parsed.y)}`,
-                        },
-                    },
-                },
-            },
+    const parseValue = (cell, type) => {
+        if (!cell) {
+            return "";
+        }
+        const rawValue = cell.dataset.sortValue ?? cell.textContent ?? "";
+        if (type === "numeric") {
+            const numeric = Number(rawValue);
+            return Number.isNaN(numeric) ? 0 : numeric;
+        }
+        return String(rawValue).toLowerCase();
+    };
+
+    const updateHeaderState = (activeHeader, direction) => {
+        headerRow.querySelectorAll("th").forEach((th) => {
+            th.setAttribute(
+                "aria-sort",
+                th === activeHeader
+                    ? direction === "asc"
+                        ? "ascending"
+                        : "descending"
+                    : "none"
+            );
         });
-    }
+    };
+
+    sortLinks.forEach((link) => {
+        link.addEventListener("click", (event) => {
+            event.preventDefault();
+            const headerCell = link.closest("th");
+            if (!headerCell) {
+                window.location.href = link.href;
+                return;
+            }
+
+            const columnIndex = Array.from(headerRow.children).indexOf(headerCell);
+            if (columnIndex < 0) {
+                window.location.href = link.href;
+                return;
+            }
+
+            const sortType = link.dataset.sortType || "text";
+            const nextDirection = link.dataset.nextDirection || "asc";
+            const rows = Array.from(tbody.querySelectorAll("tr"));
+            rows
+                .sort((rowA, rowB) => {
+                    const cellA = rowA.children.item(columnIndex);
+                    const cellB = rowB.children.item(columnIndex);
+                    const valueA = parseValue(cellA, sortType);
+                    const valueB = parseValue(cellB, sortType);
+                    if (valueA === valueB) {
+                        return 0;
+                    }
+                    if (sortType === "numeric") {
+                        return nextDirection === "asc" ? valueA - valueB : valueB - valueA;
+                    }
+                    return nextDirection === "asc"
+                        ? String(valueA).localeCompare(String(valueB))
+                        : String(valueB).localeCompare(String(valueA));
+                })
+                .forEach((row) => tbody.appendChild(row));
+
+            sortLinks.forEach((candidate) => {
+                if (candidate === link) {
+                    candidate.dataset.activeDirection = nextDirection;
+                    candidate.dataset.nextDirection = nextDirection === "asc" ? "desc" : "asc";
+                    candidate.classList.add("is-active");
+                } else {
+                    candidate.dataset.activeDirection = "none";
+                    candidate.dataset.nextDirection = "desc";
+                    candidate.classList.remove("is-active");
+                }
+            });
+
+            updateHeaderState(headerCell, nextDirection);
+
+            if (sortInput && link.dataset.sort) {
+                sortInput.value = link.dataset.sort;
+            }
+            if (directionInput) {
+                directionInput.value = nextDirection;
+            }
+
+            const url = new URL(window.location.href);
+            if (link.dataset.sort) {
+                url.searchParams.set("sort", link.dataset.sort);
+            }
+            url.searchParams.set("direction", nextDirection);
+            window.history.replaceState(null, "", url);
+        });
+    });
 }
 
 function safeParseJSON(value) {
