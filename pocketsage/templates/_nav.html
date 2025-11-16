@@ -5,5 +5,16 @@
     <li><a href="{{ url_for('liabilities.list_liabilities') }}">Liabilities</a></li>
     <li><a href="{{ url_for('portfolio.list_portfolio') }}">Portfolio</a></li>
     <li><a href="{{ url_for('admin.dashboard') }}">Admin</a></li>
+    <li>
+      <button
+        type="button"
+        class="theme-toggle"
+        data-theme-toggle
+        aria-label="Switch to light mode"
+        aria-pressed="true"
+      >
+        Light mode
+      </button>
+    </li>
   </ul>
 </nav>
