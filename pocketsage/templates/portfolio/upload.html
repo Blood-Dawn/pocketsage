@@ -15,6 +15,7 @@
       data-redirect="{{ url_for('portfolio.list_portfolio') }}"
       aria-label="Upload portfolio CSV"
     >
+      <input type="hidden" name="mapping" data-mapping-input>
       <div class="upload-input">
         <label class="file-picker">
           <span class="file-picker-label" data-file-label>Choose a CSV file</span>
@@ -23,8 +24,17 @@
         <p class="upload-hint">Accepted columns: <code>symbol</code>, <code>quantity</code>, <code>avg_price</code>. Extra columns are ignored.</p>
       </div>
       <p class="upload-progress" data-upload-progress hidden>Waiting for file…</p>
+      <section class="upload-preview" data-upload-preview hidden>
+        <h2>Preview import</h2>
+        <p class="upload-preview-summary" data-preview-summary>Review detected mappings before importing.</p>
+        <div class="preview-mapping" data-mapping-table></div>
+        <div class="preview-samples" data-sample-table></div>
+        <div class="upload-preview-actions">
+          <button type="button" class="btn-primary" data-confirm-import disabled hidden>Import holdings</button>
+        </div>
+      </section>
       <div class="upload-actions">
-        <button type="submit" class="btn-primary">Import CSV</button>
+        <button type="submit" class="btn-primary">Preview import</button>
         <a class="btn-secondary" href="{{ url_for('portfolio.list_portfolio') }}">Back to portfolio</a>
       </div>
       <noscript>
