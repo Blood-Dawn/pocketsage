@@ -1,46 +1,45 @@
 {% extends 'base.html' %}
 {% block title %}Habits · PocketSage{% endblock %}
 {% block content %}
-  <section class="habits-page">
+  <section class="habits-overview" data-habit-dashboard>
     <header class="habits-header">
       <h1>Habits</h1>
+      <p class="habits-subtitle">Track daily completions and keep your streaks alive.</p>
     </header>
 
-    {% if show_empty_state %}
-      <section class="empty-state-card" aria-labelledby="habits-empty-title">
-        <div class="empty-state-illustration" aria-hidden="true">
-          <svg viewBox="0 0 160 160" role="img" focusable="false">
-            <defs>
-              <linearGradient id="emptyStateGradient" x1="0%" x2="100%" y1="0%" y2="100%">
-                <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.95" />
-                <stop offset="100%" stop-color="#22c55e" stop-opacity="0.85" />
-              </linearGradient>
-            </defs>
-            <rect width="160" height="160" rx="24" fill="url(#emptyStateGradient)" opacity="0.25" />
-            <g stroke="#38bdf8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.85">
-              <path d="M44 88c12 18 28 28 48 28 10 0 18-3 24-8" />
-              <path d="M44 72l12-12 12 12 24-24 24 24" />
-            </g>
-            <circle cx="112" cy="52" r="12" fill="#22c55e" opacity="0.9" />
-            <path d="M108 52l4 4 8-8" stroke="#0f172a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-          </svg>
-        </div>
-        <div class="empty-state-content">
-          <h2 id="habits-empty-title">Track your progress, one habit at a time</h2>
-          <p>
-            Consistent routines compound into meaningful change. PocketSage highlights your streaks
-            so you can celebrate wins and stay motivated.
-          </p>
-          <ul class="empty-state-benefits">
-            <li><strong>Spot trends:</strong> review your daily check-ins to see momentum build.</li>
-            <li><strong>Stay accountable:</strong> streak reminders keep your commitments top of mind.</li>
-            <li><strong>Focus with intention:</strong> prioritize habits that align with your goals.</li>
-          </ul>
-          <a href="{{ url_for('habits.new_habit') }}" class="btn-primary">Create your first habit</a>
-        </div>
-      </section>
+    <div class="habit-feedback" data-habit-flash-anchor></div>
+
+    {% set habit_items = habits if habits is defined else [] %}
+    {% if habit_items %}
+      <ul class="habit-list" data-habit-list>
+        {% for habit in habit_items %}
+          {% set completed_today = habit.completed_today|default(false) %}
+          {% set streak = habit.streak|default(0, true) %}
+          <li class="habit-card" data-habit data-habit-id="{{ habit.id }}" data-completed-today="{{ 'true' if completed_today else 'false' }}">
+            <div class="habit-card__summary">
+              <h2 class="habit-card__title">{{ habit.name }}</h2>
+              {% if habit.description %}
+                <p class="habit-card__description">{{ habit.description }}</p>
+              {% endif %}
+            </div>
+            <div class="habit-card__meta">
+              <span class="habit-card__streak-label">Current streak</span>
+              <span class="habit-card__streak-count" data-habit-streak-count>{{ streak }}</span>
+            </div>
+            <form method="post" action="{{ url_for('habits.toggle_habit', habit_id=habit.id) }}" class="habit-toggle-form" data-habit-toggle>
+              {% if csrf_token is defined %}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              {% endif %}
+              <input type="hidden" name="target_state" value="{{ 'undo' if completed_today else 'complete' }}">
+              <button type="submit" class="habit-toggle-button" data-habit-toggle-button>
+                {{ 'Undo today' if completed_today else 'Mark complete' }}
+              </button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
     {% else %}
-      <p class="todo">TODO(@habits-squad): render habits list with streak badges and toggle buttons.</p>
+      <p class="empty-state">No habits yet. Create one to start tracking streaks.</p>
     {% endif %}
   </section>
 {% endblock %}

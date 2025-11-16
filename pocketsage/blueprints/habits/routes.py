@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from flask import flash, redirect, render_template, url_for
-from sqlmodel import select
+from flask import flash, redirect, render_template, request, url_for
 
 from . import bp
 from ...extensions import session_scope
@@ -57,7 +56,23 @@ def toggle_habit(habit_id: int):
 
     # TODO(@habits-squad): record HabitEntry for current date via repository layer.
     today = date.today()
-    flash(f"Habit toggle queued for {today:%Y-%m-%d}", "info")
+    target_state = request.form.get("target_state", "complete")
+
+    if target_state == "complete":
+        flash(
+            f"Marked habit #{habit_id} complete for {today:%Y-%m-%d}.",
+            "success",
+        )
+    elif target_state == "undo":
+        flash(
+            f"Reopened habit #{habit_id} for {today:%Y-%m-%d}.",
+            "info",
+        )
+    else:
+        flash(
+            "We couldn't process that habit update. Please try again.",
+            "warning",
+        )
     return redirect(url_for("habits.list_habits"))
 
 

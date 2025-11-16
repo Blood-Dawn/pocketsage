@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initFlashDismissal();
     initAdminDashboard();
     initPortfolioUpload();
-    initLedger();
+    initHabitToggles();
 });
 
 function initFlashDismissal() {
@@ -257,145 +257,122 @@ function initPortfolioUpload() {
     });
 }
 
-function initLedger() {
-    const ledgerRoot = document.querySelector("[data-ledger-root]");
-    if (!ledgerRoot) {
+function initHabitToggles() {
+    const habitList = document.querySelector("[data-habit-list]");
+    if (!habitList) {
         return;
     }
 
-    const tableBody = ledgerRoot.querySelector("[data-ledger-rows]");
-    const pagination = ledgerRoot.querySelector("[data-ledger-pagination]");
-    const sentinel = ledgerRoot.querySelector("[data-ledger-sentinel]");
-
-    if (!tableBody || !pagination) {
-        return;
+    const flashAnchor = document.querySelector("[data-habit-flash-anchor]");
+    let globalFlash = document.querySelector(".flash-messages");
+    if (!globalFlash && flashAnchor) {
+        globalFlash = document.createElement("section");
+        globalFlash.className = "flash-messages";
+        flashAnchor.appendChild(globalFlash);
+    } else if (flashAnchor && globalFlash && flashAnchor !== globalFlash.parentElement) {
+        flashAnchor.appendChild(globalFlash);
     }
 
-    if (sentinel) {
-        sentinel.hidden = false;
-    }
-
-    let nextUrl = null;
-    const nextAnchor = pagination.querySelector("[data-pagination-next]");
-    if (nextAnchor && nextAnchor.getAttribute("href")) {
-        nextUrl = nextAnchor.getAttribute("href");
-    }
-
-    if (!sentinel || !nextUrl) {
-        return;
-    }
-
-    const status = sentinel.querySelector("[data-ledger-status]");
-    const loadMoreButton = sentinel.querySelector("[data-ledger-load-more]");
-
-    const updateStatus = (message, state = "idle") => {
-        if (!status) {
+    const showLocalFlash = (message, category = "info") => {
+        const container = document.querySelector(".flash-messages");
+        if (!container) {
             return;
         }
-        status.textContent = message;
-        status.dataset.state = state;
+        const element = document.createElement("div");
+        element.className = `flash flash-${category}`;
+        element.textContent = message;
+        container.appendChild(element);
+        setTimeout(() => {
+            element.remove();
+        }, 5000);
     };
 
-    const refreshPagination = (doc) => {
-        const newPagination = doc.querySelector("[data-ledger-pagination]");
-        if (newPagination) {
-            pagination.innerHTML = newPagination.innerHTML;
-        }
-        const updatedNext = pagination.querySelector("[data-pagination-next]");
-        if (updatedNext && updatedNext.getAttribute("href")) {
-            nextUrl = updatedNext.getAttribute("href");
-        } else {
-            nextUrl = null;
-        }
+    const parseCount = (value) => {
+        const parsed = Number.parseInt(value, 10);
+        return Number.isNaN(parsed) ? 0 : parsed;
     };
 
-    let observer = null;
-    let loading = false;
-
-    const teardown = () => {
-        if (observer) {
-            observer.disconnect();
-            observer = null;
-        }
-        if (sentinel) {
-            sentinel.dataset.inactive = "true";
-        }
-    };
-
-    const fetchNextPage = async () => {
-        if (loading || !nextUrl) {
-            return;
-        }
-        loading = true;
-        ledgerRoot.dataset.loading = "true";
-        updateStatus("Loading more transactions…", "loading");
-        if (loadMoreButton) {
-            loadMoreButton.disabled = true;
-        }
-
-        try {
-            const response = await fetch(nextUrl, { headers: { Accept: "text/html" } });
-            if (!response.ok) {
-                throw new Error(`Request failed with status ${response.status}`);
-            }
-            const html = await response.text();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, "text/html");
-            const newRows = doc.querySelectorAll("[data-ledger-rows] tr");
-            if (newRows.length === 0) {
-                nextUrl = null;
-                updateStatus("No additional transactions found.", "done");
-                teardown();
+    habitList.querySelectorAll("form[data-habit-toggle]").forEach((form) => {
+        form.addEventListener("submit", async (event) => {
+            if (!window.fetch) {
                 return;
             }
-            newRows.forEach((row) => tableBody.appendChild(row));
 
-            const newSummary = doc.querySelector("[data-ledger-summary]");
-            const currentSummary = ledgerRoot.querySelector("[data-ledger-summary]");
-            if (newSummary && currentSummary) {
-                currentSummary.innerHTML = newSummary.innerHTML;
+            event.preventDefault();
+
+            const card = form.closest("[data-habit]");
+            const button = form.querySelector("[data-habit-toggle-button]");
+            const hiddenState = form.querySelector("input[name='target_state']");
+            const streakDisplay = card?.querySelector("[data-habit-streak-count]");
+            const originalState = card?.dataset.completedToday === "true";
+            const requestedState = hiddenState?.value || "complete";
+            const willComplete = requestedState !== "undo";
+            const previousStreak = streakDisplay ? parseCount(streakDisplay.textContent || "0") : 0;
+            const optimisticStreak = Math.max(0, previousStreak + (willComplete ? 1 : -1));
+
+            if (streakDisplay) {
+                streakDisplay.textContent = optimisticStreak;
             }
 
-            refreshPagination(doc);
-
-            if (nextUrl) {
-                updateStatus("Scroll to load more transactions.");
-            } else {
-                updateStatus("You’re all caught up.", "done");
-                teardown();
+            if (card) {
+                card.dataset.completedToday = willComplete ? "true" : "false";
             }
-        } catch (error) {
-            console.warn("Ledger infinite scroll failed", error);
-            updateStatus("Automatic loading paused. Use pagination links above.", "error");
-            teardown();
-        } finally {
-            ledgerRoot.dataset.loading = "false";
-            if (loadMoreButton) {
-                loadMoreButton.disabled = false;
+
+            if (button) {
+                button.disabled = true;
+                button.textContent = willComplete ? "Undo today" : "Mark complete";
             }
-            loading = false;
-        }
-    };
 
-    if (loadMoreButton) {
-        loadMoreButton.addEventListener("click", fetchNextPage);
-    }
+            const formData = new FormData(form);
 
-    observer = new IntersectionObserver(
-        (entries) => {
-            entries.forEach((entry) => {
-                if (entry.isIntersecting) {
-                    fetchNextPage();
+            try {
+                const response = await fetch(form.action, {
+                    method: form.method || "POST",
+                    body: formData,
+                    headers: { "X-Requested-With": "fetch" },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Request failed with status ${response.status}`);
                 }
-            });
-        },
-        { rootMargin: "0px 0px 200px 0px" }
-    );
 
-    observer.observe(sentinel);
+                if (hiddenState) {
+                    hiddenState.value = willComplete ? "undo" : "complete";
+                }
 
-    ledgerRoot.dataset.enhanced = "true";
-    updateStatus("Scroll to load more transactions.");
+                if (button) {
+                    button.disabled = false;
+                }
+
+                showLocalFlash(
+                    willComplete
+                        ? "Marked habit as complete for today."
+                        : "Reopened today's habit entry.",
+                    "success"
+                );
+            } catch (error) {
+                if (streakDisplay) {
+                    streakDisplay.textContent = previousStreak;
+                }
+
+                if (card) {
+                    card.dataset.completedToday = originalState ? "true" : "false";
+                }
+
+                if (hiddenState) {
+                    hiddenState.value = requestedState;
+                }
+
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = originalState ? "Undo today" : "Mark complete";
+                }
+
+                showLocalFlash("We couldn't update that habit. Reloading…", "warning");
+                form.submit();
+            }
+        });
+    });
 }
 
 function safeParseJSON(value) {
