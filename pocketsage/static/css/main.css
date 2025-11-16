@@ -330,6 +330,126 @@ textarea.form-input {
     }
 }
 
+.form-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    padding: 1.75rem;
+    display: grid;
+    gap: 1.75rem;
+    max-width: 720px;
+}
+
+.form-grid {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.field {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.field label,
+.field-label,
+.field legend {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.field-inline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.input-control {
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 0.6rem;
+    color: inherit;
+    font-size: 1rem;
+    padding: 0.75rem 0.9rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input-control:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+    border-color: transparent;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+}
+
+.input-control::placeholder {
+    color: rgba(148, 163, 184, 0.75);
+}
+
+.input-small {
+    max-width: 6rem;
+}
+
+.input-time {
+    max-width: 8.5rem;
+}
+
+.option-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.option {
+    align-items: center;
+    background: rgba(148, 163, 184, 0.1);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 0.65rem;
+    cursor: pointer;
+    display: inline-flex;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-weight: 500;
+}
+
+.option input {
+    accent-color: #22c55e;
+}
+
+.option-checkbox {
+    border-radius: 0.5rem;
+    padding: 0.35rem 0.75rem;
+}
+
+.reminder-controls {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.time-label {
+    font-weight: 500;
+    opacity: 0.75;
+}
+
+.field-hint {
+    font-size: 0.85rem;
+    color: rgba(148, 163, 184, 0.85);
+}
+
+.field-error {
+    color: #f97316;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.form-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
 .flash-messages {
     margin-bottom: var(--space-md);
 }
