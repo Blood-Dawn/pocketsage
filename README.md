@@ -24,23 +24,10 @@ Framework Owner checkpoint for the PocketSage desktop-first Flask app. Focus are
 4. `python run.py`
 5. Visit http://127.0.0.1:5000 to view the landing page and navigate to scaffolded blueprints
 
-### Dependency Pins
-| Package | Version | Purpose |
-| --- | --- | --- |
-| `argon2-cffi` | 23.1.0 | Password hashing utilities for user credential flows. |
-| `cryptography` | 43.0.1 | Encryption primitives that back future SQLCipher support and secrets management. |
-| `flask` | 3.0.0 | Core web framework powering the PocketSage app factory and blueprints. |
-| `jinja2` | 3.1.4 | HTML templating engine used by Flask views. |
-| `matplotlib` | 3.8.4 | Chart rendering for finance and habit dashboards. |
-| `pandas` | 2.2.2 | Data wrangling for CSV imports and analytical summaries. |
-| `pydantic` | 2.8.2 | Data validation for service layer schemas and config parsing. |
-| `python-dotenv` | 1.0.1 | Loads `.env` configuration into the Flask runtime. |
-| `sqlalchemy` | 2.0.32 | ORM and database toolkit underpinning SQLModel operations. |
-| `sqlmodel` | 0.0.16 | Typed ORM models for ledger, habits, and admin workflows. |
-
-**Platform prerequisites**
-- `argon2-cffi` may require native build tooling (e.g., `build-essential` on Debian/Ubuntu or Microsoft C++ Build Tools on Windows) when pre-built wheels are unavailable.
-- `cryptography` requires a Rust toolchain (1.56+) alongside standard build dependencies on platforms without compatible wheels.
+## Packaging
+- The PyInstaller build mirrors `run.py`, which calls `create_app()` and then `app.run(debug=True)` for a development-friendly binary entry point.
+- `make package` → run PyInstaller using `PocketSage.spec` (outputs to `dist/`).
+- Launch the bundled app the same way as the script (`./dist/PocketSage/PocketSage` on macOS/Linux, `dist\\PocketSage\\PocketSage.exe` on Windows) to confirm parity with local execution.
 
 ### Make Targets
 - `make setup` → install deps, enable pre-commit
