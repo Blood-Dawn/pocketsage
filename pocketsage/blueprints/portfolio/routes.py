@@ -91,6 +91,20 @@ def _format_quantity(amount: float) -> str:
     return f"{amount:,.4f}".rstrip("0").rstrip(".")
 
 
+def _slugify(text: str) -> str:
+    slug_chars: list[str] = []
+    previous_dash = False
+    for char in text.lower():
+        if char.isalnum():
+            slug_chars.append(char)
+            previous_dash = False
+        elif not previous_dash:
+            slug_chars.append("-")
+            previous_dash = True
+    slug = "".join(slug_chars).strip("-")
+    return slug or "account"
+
+
 def _suggest_mapping(columns: Iterable[str]) -> dict[str, str | None]:
     normalized = [c.strip().lower() for c in columns]
     mapping: dict[str, str | None] = {}
@@ -141,6 +155,7 @@ def list_portfolio():
 
         allocation_map = summary.get("allocation", {})
         holdings_view: list[dict] = []
+        grouped: dict[str, dict] = {}
         for holding in raw_holdings:
             quantity = float(holding.quantity or 0)
             avg_price = float(holding.avg_price or 0)
@@ -151,6 +166,17 @@ def list_portfolio():
                 account_name = holding.account.name
             elif holding.account_id is not None:
                 account_name = f"Account #{holding.account_id}"
+            account_identifier = None
+            if holding.account is not None and holding.account.id is not None:
+                account_identifier = holding.account.id
+            elif holding.account_id is not None:
+                account_identifier = holding.account_id
+            account_label = account_name or "Unassigned"
+            group_key: str
+            if account_identifier is not None:
+                group_key = f"account-{account_identifier}"
+            else:
+                group_key = f"unassigned-{_slugify(account_label)}"
             holdings_view.append(
                 {
                     "symbol": holding.symbol,
@@ -163,35 +189,36 @@ def list_portfolio():
                     "allocation_pct": allocation_pct,
                     "allocation_display": f"{allocation_pct:.2f}%",
                     "account": account_name,
+                    "account_label": account_label,
+                    "account_key": group_key,
                     "currency": (holding.currency or "USD").upper(),
                 }
             )
+            group = grouped.setdefault(
+                group_key,
+                {
+                    "name": account_label,
+                    "key": group_key,
+                    "holdings": [],
+                    "total_value": 0.0,
+                },
+            )
+            group["holdings"].append(holdings_view[-1])
+            group["total_value"] += value
+            if "currency" not in group:
+                group["currency"] = (holding.currency or "USD").upper()
 
         total_value = summary.get("total_value", 0.0) or 0.0
 
-    active_filters = {key: value for key, value in filters.items() if value}
-    if active_filters:
-        filtered: list[dict] = []
-        symbol_filter = active_filters.get("symbol", "").lower()
-        account_filter = active_filters.get("account", "").lower()
-        currency_filter = active_filters.get("currency", "").lower()
-        for holding in holdings_view:
-            symbol = holding["symbol"].lower()
-            account_name = (holding["account"] or "").lower()
-            currency = holding["currency"].lower()
-
-            if symbol_filter and symbol_filter not in symbol:
-                continue
-            if account_filter and account_filter not in account_name:
-                continue
-            if currency_filter and currency_filter not in currency:
-                continue
-            filtered.append(holding)
-        holdings_view = filtered
-
-    sort_metadata = SORTABLE_COLUMNS[sort_column]
-    sort_key = sort_metadata["key"]
-    holdings_view.sort(key=sort_key, reverse=(sort_direction == "desc"))
+    account_groups = list(grouped.values())
+    for group in account_groups:
+        group["holdings"].sort(key=lambda h: h["value"], reverse=True)
+        share = (group["total_value"] / total_value * 100) if total_value else 0.0
+        group["allocation_pct"] = share
+        group["allocation_display"] = f"{share:.2f}%"
+        group["total_value_display"] = f"${group['total_value']:,.2f}"
+    account_groups.sort(key=lambda g: g["total_value"], reverse=True)
+    holdings_view.sort(key=lambda h: h["value"], reverse=True)
     allocation_chart = [
         {"symbol": h["symbol"], "percentage": h["allocation_pct"]}
         for h in holdings_view
@@ -227,6 +254,7 @@ def list_portfolio():
     return render_template(
         "portfolio/index.html",
         holdings=holdings_view,
+        account_groups=account_groups,
         total_value=total_value,
         allocation=allocation_chart,
         upload_url=url_for("portfolio.upload_portfolio"),

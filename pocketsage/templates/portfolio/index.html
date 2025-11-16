@@ -37,67 +37,52 @@
       {% endif %}
     </section>
 
-    <section class="surface-card portfolio-holdings" aria-label="Holdings table">
+    <section class="portfolio-holdings" aria-label="Holdings by account">
       <h2>Holdings</h2>
-      {% set filters_active = filters_state.symbol or filters_state.account or filters_state.currency %}
-      {% if sort_options %}
-        <form class="portfolio-controls" method="get" aria-label="Filter holdings">
-          <input type="hidden" name="sort" value="{{ sort_column }}">
-          <input type="hidden" name="direction" value="{{ sort_direction }}">
-          <div class="filter-group">
-            <label class="filter-field">
-              <span>Symbol</span>
-              <input type="search" name="symbol" value="{{ filters_state.symbol }}" placeholder="e.g. AAPL" autocomplete="off">
-            </label>
-            <label class="filter-field">
-              <span>Account</span>
-              <input type="search" name="account" value="{{ filters_state.account }}" placeholder="Brokerage" autocomplete="off">
-            </label>
-            <label class="filter-field">
-              <span>Currency</span>
-              <input type="search" name="currency" value="{{ filters_state.currency }}" placeholder="USD" autocomplete="off">
-            </label>
-          </div>
-          <div class="filter-actions">
-            <button type="submit" class="btn-secondary">Apply filters</button>
-            {% if filters_active %}
-              <a class="btn-link" href="{{ url_for('portfolio.list_portfolio') }}">Clear</a>
-            {% endif %}
-          </div>
-        </form>
-      {% endif %}
-      {% if holdings %}
-        <div class="table-scroll">
-          <table class="holdings-table" role="grid">
-            <thead>
-              <tr>
-                {% for option in sort_options %}
-                  <th scope="col" aria-sort="{{ 'ascending' if option.active and sort_direction == 'asc' else 'descending' if option.active else 'none' }}">
-                    <a class="sort-link{% if option.active %} is-active{% endif %}" href="{{ option.url }}" data-sort="{{ option.id }}" data-next-direction="{{ option.next_direction }}" data-sort-type="{{ option.type }}" data-active-direction="{{ option.direction }}">
-                      <span class="sort-label">{{ option.label }}</span>
-                      <span class="sort-indicator" aria-hidden="true"></span>
-                      {% if option.active %}
-                        <span class="sr-only">Sorted {{ 'ascending' if sort_direction == 'asc' else 'descending' }}</span>
-                      {% endif %}
-                    </a>
-                  </th>
-                {% endfor %}
-              </tr>
-            </thead>
-            <tbody>
-              {% for holding in holdings %}
-                <tr>
-                  <td data-label="Symbol" data-sort-value="{{ holding.symbol }}">{{ holding.symbol }}</td>
-                  <td data-label="Quantity" data-sort-value="{{ holding.quantity }}">{{ holding.quantity_display }}</td>
-                  <td data-label="Average price" data-sort-value="{{ holding.avg_price }}">{{ holding.avg_price_display }}</td>
-                  <td data-label="Market value" data-sort-value="{{ holding.value }}">{{ holding.value_display }}</td>
-                  <td data-label="Allocation" data-sort-value="{{ holding.allocation_pct }}">{{ holding.allocation_display }}</td>
-                  <td data-label="Account" data-sort-value="{{ holding.account or '' }}">{{ holding.account or "—" }}</td>
-                  <td data-label="Currency" data-sort-value="{{ holding.currency }}">{{ holding.currency }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+      {% if account_groups %}
+        <div class="account-groups" role="list">
+          {% for account in account_groups %}
+            <details class="account-group" role="listitem"{% if loop.first %} open{% endif %}>
+              <summary class="account-summary" aria-controls="holdings-{{ account.key }}">
+                <span class="account-summary-title">
+                  <span class="account-name">{{ account.name }}</span>
+                  <span class="account-meta">
+                    <span class="account-subtotal" aria-label="Market value">{{ account.total_value_display }}</span>
+                    <span class="account-share" aria-label="Allocation share">{{ account.allocation_display }}</span>
+                  </span>
+                </span>
+                <span class="account-summary-icon" aria-hidden="true"></span>
+              </summary>
+              <div class="account-holdings" id="holdings-{{ account.key }}">
+                <div class="table-scroll">
+                  <table class="holdings-table" role="grid" aria-label="{{ account.name }} holdings">
+                    <thead>
+                      <tr>
+                        <th scope="col">Symbol</th>
+                        <th scope="col">Quantity</th>
+                        <th scope="col">Average price</th>
+                        <th scope="col">Market value</th>
+                        <th scope="col">Allocation</th>
+                        <th scope="col">Currency</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for holding in account.holdings %}
+                        <tr>
+                          <td data-label="Symbol">{{ holding.symbol }}</td>
+                          <td data-label="Quantity">{{ holding.quantity_display }}</td>
+                          <td data-label="Average price">{{ holding.avg_price_display }}</td>
+                          <td data-label="Market value">{{ holding.value_display }}</td>
+                          <td data-label="Allocation">{{ holding.allocation_display }}</td>
+                          <td data-label="Currency">{{ holding.currency }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </details>
+          {% endfor %}
         </div>
       {% elif filters_active %}
         <p class="empty">No holdings match your filters. Try adjusting or clearing them.</p>
