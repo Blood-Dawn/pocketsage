@@ -845,62 +845,107 @@ textarea.form-input {
     flex-wrap: wrap;
 }
 
-.alert {
+/* TODO(@ux-team): extend design tokens, typography scale, and dark/light mode palettes. */
+
+.habits-dashboard {
+    display: grid;
+    gap: 1.75rem;
+}
+
+.habits-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.habits-subtitle {
+    margin: 0.35rem 0 0;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.habit-grid {
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.habit-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 0.75rem;
-    padding: 1rem 1.25rem;
-    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 100%;
 }
 
-.alert-danger {
-    background: rgba(248, 113, 113, 0.12);
-    border: 1px solid rgba(248, 113, 113, 0.35);
-    color: #fca5a5;
+.habit-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.75rem;
 }
 
-.form-field {
+.habit-card h2 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.habit-goal {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.habit-meta {
     display: grid;
     gap: 0.5rem;
-    margin-bottom: 1.25rem;
 }
 
-.form-field label {
+.habit-meta div {
+    display: grid;
+    gap: 0.15rem;
+}
+
+.habit-meta dt {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.habit-meta dd {
+    margin: 0;
     font-weight: 600;
 }
 
-.form-control {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 0.5rem;
-    color: inherit;
-    font: inherit;
-    padding: 0.75rem 1rem;
+.streak-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    background: rgba(148, 163, 184, 0.25);
+    color: #e2e8f0;
 }
 
-.form-control:focus {
-    outline: 2px solid rgba(59, 130, 246, 0.75);
-    outline-offset: 2px;
+.streak-badge.is-success {
+    background: #065f46;
+    color: #6ee7b7;
 }
 
-.form-control.is-invalid {
-    border-color: rgba(248, 113, 113, 0.75);
-    outline: 2px solid rgba(248, 113, 113, 0.45);
-    outline-offset: 2px;
+.streak-badge.is-danger {
+    background: #7f1d1d;
+    color: #fca5a5;
 }
 
-.field-error {
-    color: #f87171;
-    font-size: 0.9rem;
+.streak-badge.is-muted {
+    background: rgba(148, 163, 184, 0.25);
+    color: #cbd5f5;
 }
-
-.field-error ul {
-    margin: 0;
-    padding-left: 1.25rem;
-}
-
-.form-actions {
-    display: flex;
-    gap: 1rem;
-    margin-top: 2rem;
-}
-
-/* TODO(@ux-team): extend design tokens, typography scale, and dark/light mode palettes. */

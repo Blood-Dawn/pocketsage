@@ -1,8 +1,43 @@
 {% extends 'base.html' %}
 {% block title %}Habits · PocketSage{% endblock %}
 {% block content %}
-  <section class="surface-card">
-    <h1>Habits</h1>
-    <p class="todo">TODO(@habits-squad): render habits list with streak badges and toggle buttons.</p>
+  <section class="habits-dashboard">
+    <header class="habits-header">
+      <div>
+        <h1>Habits</h1>
+        <p class="habits-subtitle">Track streaks and celebrate consistent wins.</p>
+      </div>
+      <a class="btn-secondary" href="{{ url_for('habits.new_habit') }}">New habit</a>
+    </header>
+
+    {% if habits %}
+      <div class="habit-grid" role="list">
+        {% for habit in habits %}
+          <article class="habit-card" role="listitem">
+            <header class="habit-card-header">
+              <h2>{{ habit.name }}</h2>
+              <span class="streak-badge{% if habit.streak_state %} is-{{ habit.streak_state }}{% endif %}">
+                {{ habit.streak }} day{% if habit.streak != 1 %}s{% endif %}
+              </span>
+            </header>
+
+            <p class="habit-goal">{{ habit.goal }}</p>
+
+            <dl class="habit-meta">
+              <div>
+                <dt>Cadence</dt>
+                <dd>{{ habit.cadence }}</dd>
+              </div>
+              <div>
+                <dt>Last completed</dt>
+                <dd>{{ habit.last_completed_display }}</dd>
+              </div>
+            </dl>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty">No habits to show yet. Create your first habit to start tracking streaks.</p>
+    {% endif %}
   </section>
 {% endblock %}
