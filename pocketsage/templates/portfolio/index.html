@@ -13,12 +13,12 @@
       </nav>
     </header>
 
-    <section class="portfolio-summary" aria-label="Portfolio summary">
+    <section class="surface-card portfolio-summary" aria-label="Portfolio summary">
       <h2>Total market value</h2>
       <p class="portfolio-total">{{ "$ {:,.2f}".format(total_value) }}</p>
     </section>
 
-    <section class="portfolio-allocation" aria-label="Allocation by symbol">
+    <section class="surface-card portfolio-allocation" aria-label="Allocation by symbol">
       <h2>Allocation</h2>
       {% if allocation %}
         <div class="allocation-chart" role="list">
@@ -37,7 +37,7 @@
       {% endif %}
     </section>
 
-    <section class="portfolio-holdings" aria-label="Holdings table">
+    <section class="surface-card portfolio-holdings" aria-label="Holdings table">
       <h2>Holdings</h2>
       {% if holdings %}
         <div class="table-scroll">
