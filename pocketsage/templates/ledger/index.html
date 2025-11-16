@@ -26,159 +26,42 @@
 {% endmacro %}
 
 {% block content %}
-  <section class="ledger-layout" data-ledger-root>
+  <section class="ledger-dashboard">
     <header class="ledger-header">
-      <div>
-        <h1>Ledger</h1>
-        <p class="ledger-subtitle">Review recent activity, refine results, and export insights.</p>
-      </div>
-      <a href="{{ url_for('admin.index') }}" class="btn-secondary">Exports &amp; reports</a>
+      <h1>Ledger</h1>
+      <p class="ledger-subtitle">Monitor cash flow and stay ahead of upcoming spending.</p>
     </header>
 
-    <form method="get" class="ledger-filters" data-ledger-filters aria-label="Ledger filters">
-      <div class="filter-field">
-        <label for="filter-q">Search</label>
-        <input
-          type="search"
-          id="filter-q"
-          name="q"
-          placeholder="Find by memo"
-          value="{{ filters.get('q', '') }}"
-        >
-      </div>
-      <div class="filter-field">
-        <label for="filter-start">From</label>
-        <input
-          type="date"
-          id="filter-start"
-          name="start"
-          value="{{ filters.get('start', '') }}"
-        >
-      </div>
-      <div class="filter-field">
-        <label for="filter-end">To</label>
-        <input
-          type="date"
-          id="filter-end"
-          name="end"
-          value="{{ filters.get('end', '') }}"
-        >
-      </div>
-      <div class="filter-field">
-        <label for="filter-per-page">Rows per page</label>
-        <select id="filter-per-page" name="per_page">
-          {% for option in per_page_options %}
-            <option value="{{ option }}"{% if option == pagination.per_page %} selected{% endif %}>{{ option }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="filter-actions">
-        <button type="submit" class="btn-primary">Apply filters</button>
-        {% if filters %}
-          <a href="{{ url_for('ledger.list_transactions') }}" class="btn-link">Reset</a>
-        {% endif %}
-      </div>
-    </form>
-
-    <div class="ledger-summary" data-ledger-summary>
-      {% if pagination.total %}
-        <p>Showing <strong>{{ pagination.start }}</strong>–<strong>{{ pagination.end }}</strong> of <strong>{{ pagination.total }}</strong> transactions.</p>
-      {% elif filters %}
-        <p>No transactions match your current filters.</p>
-      {% else %}
-        <p>No transactions yet — import data or add your first entry.</p>
-      {% endif %}
-    </div>
-
-    <div class="ledger-table-wrapper">
-      <table class="ledger-table" role="grid">
-        <thead>
-          <tr>
-            <th scope="col">Date</th>
-            <th scope="col">Description</th>
-            <th scope="col" class="ledger-amount-header">Amount</th>
-            <th scope="col">Currency</th>
-          </tr>
-        </thead>
-        <tbody data-ledger-rows>
-          {% if transactions %}
-            {% for tx in transactions %}
-              <tr>
-                <td data-header="Date">
-                  {% if tx.occurred_at %}
-                    {{ tx.occurred_at.strftime('%b %d, %Y %H:%M') }}
-                  {% else %}
-                    —
-                  {% endif %}
-                </td>
-                <td data-header="Description">
-                  <div class="ledger-memo">{{ tx.memo or '—' }}</div>
-                  {% if tx.external_id %}
-                    <div class="ledger-reference">Ref {{ tx.external_id }}</div>
-                  {% endif %}
-                </td>
-                {% set amount = "{:+,.2f}".format(tx.amount) %}
-                <td data-header="Amount" class="ledger-amount" data-amount="{{ 'inflow' if tx.amount >= 0 else 'outflow' }}">
-                  <span class="sr-only">{{ 'Inflow' if tx.amount >= 0 else 'Outflow' }} </span>{{ amount }}
-                </td>
-                <td data-header="Currency">{{ tx.currency or 'USD' }}</td>
-              </tr>
-            {% endfor %}
-          {% else %}
-            <tr>
-              <td colspan="4" class="empty">No transactions to display.</td>
-            </tr>
-          {% endif %}
-        </tbody>
-      </table>
-    </div>
-
-    <nav class="ledger-pagination" aria-label="Ledger pagination" data-ledger-pagination>
-      <div class="pagination-controls">
-        {% set prev_url = page_url(pagination.page - 1) %}
-        <a
-          class="btn-link pagination-prev{% if not pagination.has_prev %} is-disabled{% endif %}"
-          {% if pagination.has_prev %}href="{{ prev_url }}"{% else %}aria-disabled="true" tabindex="-1"{% endif %}
-        >
-          Previous
-        </a>
-        <ul class="pagination-pages">
-          {% for number in pagination.window %}
-            {% if number %}
-              <li>
-                {% if number == pagination.page %}
-                  <span class="pagination-page is-active" aria-current="page">{{ number }}</span>
-                {% else %}
-                  <a href="{{ page_url(number) }}" class="pagination-page">{{ number }}</a>
-                {% endif %}
-              </li>
-            {% else %}
-              <li class="pagination-ellipsis" aria-hidden="true">…</li>
+    <section class="ledger-rollups" aria-label="Cash flow summary{% if current_period_label %} for {{ current_period_label }}{% endif %}">
+      {% for metric in rollups %}
+        <article class="card-surface ledger-rollup-card" role="group" aria-labelledby="rollup-{{ metric.key }}">
+          <header class="ledger-rollup-header">
+            <p class="ledger-rollup-label" id="rollup-{{ metric.key }}">{{ metric.label }}</p>
+            {% if current_period_label %}
+              <p class="ledger-rollup-period">Current period: {{ current_period_label }}</p>
             {% endif %}
-          {% endfor %}
-        </ul>
-        {% set next_url = page_url(pagination.page + 1) %}
-        <a
-          class="btn-link pagination-next{% if not pagination.has_next %} is-disabled{% endif %}"
-          data-pagination-next
-          {% if pagination.has_next %}href="{{ next_url }}"{% else %}aria-disabled="true" tabindex="-1"{% endif %}
-        >
-          Next
-        </a>
-      </div>
-      <p class="pagination-hint">Use the pagination controls or enable automatic loading below.</p>
-      <noscript>
-        <p class="pagination-noscript">JavaScript is disabled; use the links above to navigate pages.</p>
-      </noscript>
-    </nav>
+          </header>
+          <p class="ledger-rollup-amount">{{ metric.formatted_amount }}</p>
+          <p class="ledger-rollup-trend" data-direction="{{ metric.direction }}">
+            <span class="ledger-rollup-trend-icon" aria-hidden="true">
+              {% if metric.direction == 'up' %}
+                ▲
+              {% elif metric.direction == 'down' %}
+                ▼
+              {% else %}
+                ◆
+              {% endif %}
+            </span>
+            <span class="ledger-rollup-trend-value">{{ metric.trend_value }}</span>
+            {% if metric.trend_caption %}
+              <span class="ledger-rollup-trend-caption" aria-hidden="true">{{ metric.trend_caption }}</span>
+            {% endif %}
+            <span class="sr-only">{{ metric.trend_sr_text }}</span>
+          </p>
+        </article>
+      {% endfor %}
+    </section>
 
-    {% if pagination.has_next %}
-      <div class="ledger-sentinel" data-ledger-sentinel hidden>
-        <p class="ledger-sentinel-status" data-ledger-status aria-live="polite">
-          Scroll to load more transactions.
-        </p>
-        <button type="button" class="btn-secondary" data-ledger-load-more>Load more</button>
-      </div>
-    {% endif %}
+    <p class="todo">Transaction table coming soon.</p>
   </section>
 {% endblock %}
