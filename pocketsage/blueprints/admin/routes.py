@@ -38,27 +38,33 @@ def _resolve_exports_dir() -> Path:
     return Path(current_app.instance_path) / "exports"
 
 
-def _latest_export_metadata(exports_dir: Path) -> Optional[dict]:
+def _recent_exports_metadata(exports_dir: Path, *, limit: int = 5) -> list[dict]:
     if not exports_dir.exists():
-        return None
+        return []
 
     archives = sorted(
         exports_dir.glob("pocketsage_export_*.zip"),
         key=lambda file: file.stat().st_mtime,
         reverse=True,
     )
-    if not archives:
-        return None
+    exports: list[dict] = []
+    for archive in archives[:limit]:
+        stat = archive.stat()
+        exports.append(
+            {
+                "name": archive.name,
+                "path": str(archive),
+                "modified_at": datetime.fromtimestamp(
+                    stat.st_mtime, tz=timezone.utc
+                ).isoformat(),
+                "size": stat.st_size,
+                "download_url": url_for(
+                    "admin.export_download", filename=archive.name
+                ),
+            }
+        )
 
-    latest = archives[0]
-    stat = latest.stat()
-    return {
-        "name": latest.name,
-        "path": str(latest),
-        "modified_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
-        "size": stat.st_size,
-        "download_url": url_for("admin.export_download"),
-    }
+    return exports
 
 
 @bp.get("/")
@@ -77,12 +83,14 @@ def dashboard():
     last_tx_time = last_tx.occurred_at.isoformat() if last_tx is not None else None
 
     exports_dir = _resolve_exports_dir()
-    latest_export = _latest_export_metadata(exports_dir)
+    recent_exports = _recent_exports_metadata(exports_dir)
+    latest_export = recent_exports[0] if recent_exports else None
 
     return render_template(
         "admin/index.html",
         stats={"transactions": tx_count, "last_transaction": last_tx_time},
         latest_export=latest_export,
+        exports=recent_exports,
         jobs=list_jobs(limit=10),
         exports_available=latest_export is not None,
     )
@@ -140,7 +148,7 @@ def export_reports():
 
 @bp.get("/export/download")
 def export_download():
-    """Download the most recent export ZIP from the instance exports folder."""
+    """Download an export ZIP from the instance exports folder."""
     exports_dir = _resolve_exports_dir()
     if not exports_dir.exists():
         flash("No exports available", "warning")
@@ -154,8 +162,24 @@ def export_download():
         flash("No exports available", "warning")
         return redirect(url_for("admin.dashboard"))
 
-    latest = zips[0]
-    return send_file(latest, as_attachment=True)
+    requested_name = request.args.get("filename")
+    selected_path = zips[0]
+    if requested_name:
+        exports_root = exports_dir.resolve()
+        candidate = (exports_dir / requested_name).resolve(strict=False)
+        if (
+            candidate.exists()
+            and candidate.is_file()
+            and candidate.suffix == ".zip"
+            and candidate.parent == exports_root
+            and candidate.name.startswith("pocketsage_export_")
+        ):
+            selected_path = candidate
+        else:
+            flash("Requested export not found", "warning")
+            return redirect(url_for("admin.dashboard"))
+
+    return send_file(selected_path, as_attachment=True)
 
 
 @bp.get("/jobs/<job_id>")
