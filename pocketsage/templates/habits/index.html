@@ -1,45 +1,67 @@
 {% extends 'base.html' %}
 {% block title %}Habits · PocketSage{% endblock %}
 {% block content %}
-  <section class="habits-overview" data-habit-dashboard>
+  <section class="habits-dashboard">
     <header class="habits-header">
       <h1>Habits</h1>
-      <p class="habits-subtitle">Track daily completions and keep your streaks alive.</p>
+      <p>Track streaks and celebrate the progress you make each day.</p>
     </header>
 
-    <div class="habit-feedback" data-habit-flash-anchor></div>
+    {% if habits %}
+      <ol class="habit-list" aria-live="polite">
+        {% for habit in habits %}
+          <li class="habit-card" data-habit-visualization data-habit-name="{{ habit.name }}" data-history='{{ habit.history|tojson }}' data-weekly='{{ habit.weekly_totals|tojson }}'>
+            <header class="habit-card__header">
+              <div class="habit-card__title">
+                <h2>{{ habit.name }}</h2>
+                {% if habit.description %}
+                  <p class="habit-card__description">{{ habit.description }}</p>
+                {% endif %}
+              </div>
+              <dl class="habit-card__metrics">
+                <div>
+                  <dt>Current streak</dt>
+                  <dd>{{ habit.streak }} days</dd>
+                </div>
+                <div>
+                  <dt>Completed</dt>
+                  <dd>{{ habit.completed_days }} of {{ history_days }} days</dd>
+                </div>
+                <div>
+                  <dt>Summary</dt>
+                  <dd>{{ habit.summary }}</dd>
+                </div>
+              </dl>
+            </header>
 
-    {% set habit_items = habits if habits is defined else [] %}
-    {% if habit_items %}
-      <ul class="habit-list" data-habit-list>
-        {% for habit in habit_items %}
-          {% set completed_today = habit.completed_today|default(false) %}
-          {% set streak = habit.streak|default(0, true) %}
-          <li class="habit-card" data-habit data-habit-id="{{ habit.id }}" data-completed-today="{{ 'true' if completed_today else 'false' }}">
-            <div class="habit-card__summary">
-              <h2 class="habit-card__title">{{ habit.name }}</h2>
-              {% if habit.description %}
-                <p class="habit-card__description">{{ habit.description }}</p>
-              {% endif %}
+            <div class="habit-card__body">
+              <div class="habit-chart" role="presentation"></div>
+              <div class="habit-fallback" data-fallback>
+                <p class="habit-fallback__summary">{{ habit.summary }}</p>
+                <table class="habit-fallback__table">
+                  <caption>Last 7 days</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Day</th>
+                      <th scope="col">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for day in habit.history[-7:] %}
+                      <tr>
+                        <th scope="row">{{ day.weekday }} · {{ day.label }}</th>
+                        <td>{{ 'Completed' if day.completed else 'Missed' }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div class="habit-card__meta">
-              <span class="habit-card__streak-label">Current streak</span>
-              <span class="habit-card__streak-count" data-habit-streak-count>{{ streak }}</span>
-            </div>
-            <form method="post" action="{{ url_for('habits.toggle_habit', habit_id=habit.id) }}" class="habit-toggle-form" data-habit-toggle>
-              {% if csrf_token is defined %}
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              {% endif %}
-              <input type="hidden" name="target_state" value="{{ 'undo' if completed_today else 'complete' }}">
-              <button type="submit" class="habit-toggle-button" data-habit-toggle-button>
-                {{ 'Undo today' if completed_today else 'Mark complete' }}
-              </button>
-            </form>
           </li>
         {% endfor %}
-      </ul>
+      </ol>
     {% else %}
-      <p class="empty-state">No habits yet. Create one to start tracking streaks.</p>
+      <p class="empty">No habits yet. Create your first habit to begin tracking.</p>
     {% endif %}
   </section>
 {% endblock %}

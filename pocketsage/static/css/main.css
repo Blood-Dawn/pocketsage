@@ -1,65 +1,14 @@
 :root {
     color-scheme: light dark;
-    --font-family-base: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-    --font-weight-regular: 400;
-    --font-weight-medium: 500;
-    --font-weight-semibold: 600;
-    --font-weight-bold: 700;
-
-    --font-size-xs: 0.75rem;
-    --font-size-sm: 0.85rem;
-    --font-size-md: 0.9rem;
-    --font-size-button: 0.95rem;
-    --font-size-base: 1rem;
-    --font-size-meta: 0.8rem;
-
-    --line-height-relaxed: 1.5;
-
-    --space-2xs: 0.25rem;
-    --space-xs: 0.5rem;
-    --space-sm: 0.75rem;
-    --space-md: 1rem;
-    --space-lg: 1.5rem;
-    --space-xl: 2rem;
-    --space-2xl: 3rem;
-    --space-compact: 0.35rem;
-    --space-tight: 0.65rem;
-    --space-snug: 0.6rem;
-    --space-relaxed: 0.9rem;
-    --space-wide: 1.2rem;
-
-    --color-surface: #0f172a;
-    --color-surface-elevated: rgba(255, 255, 255, 0.03);
-    --color-surface-muted: rgba(148, 163, 184, 0.1);
-    --color-border: rgba(255, 255, 255, 0.08);
-    --color-border-strong: rgba(148, 163, 184, 0.15);
-    --color-nav-background: #1f1f1f;
-    --color-text: #f5f5f5;
-    --color-text-muted: rgba(255, 255, 255, 0.7);
-    --color-text-subtle: rgba(255, 255, 255, 0.65);
-    --color-admin-stats-term: rgba(255, 255, 255, 0.8);
-    --color-link: #38bdf8;
-    --color-primary: #22c55e;
-    --color-primary-text: #0f172a;
-    --color-secondary: #3b82f6;
-    --color-secondary-text: #f8fafc;
-    --color-link-strong: #38bdf8;
-    --color-success: #22c55e;
-    --color-success-soft: rgba(34, 197, 94, 0.15);
-    --color-warning: #fbbf24;
-    --color-warning-soft: rgba(251, 191, 36, 0.15);
-    --color-info: #3b82f6;
-    --color-info-soft: rgba(59, 130, 246, 0.15);
-    --color-danger: #f97316;
-    --color-job-background: rgba(148, 163, 184, 0.1);
-    --color-job-meta: rgba(255, 255, 255, 0.75);
-    --color-portfolio-subtitle: rgba(255, 255, 255, 0.65);
-    --color-hint: rgba(255, 255, 255, 0.7);
-    --color-file-picker-border: rgba(148, 163, 184, 0.45);
-    --color-file-picker-background: rgba(15, 23, 42, 0.35);
-    --color-allocation-track: rgba(148, 163, 184, 0.25);
-    --color-allocation-fill-start: #22d3ee;
-    --color-allocation-fill-end: #3b82f6;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --habit-surface: rgba(255, 255, 255, 0.04);
+    --habit-border: rgba(148, 163, 184, 0.22);
+    --habit-heatmap-0: rgba(148, 163, 184, 0.22);
+    --habit-heatmap-1: #166534;
+    --habit-heatmap-2: #15803d;
+    --habit-heatmap-3: #22c55e;
+    --habit-bar-track: rgba(148, 163, 184, 0.18);
+    --habit-bar-fill: linear-gradient(90deg, #15803d, #4ade80);
 }
 
 body {
@@ -1410,146 +1359,218 @@ textarea.form-input {
     flex-wrap: wrap;
 }
 
-.form-card {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 0.75rem;
-    padding: 1.75rem;
-    display: grid;
-    gap: 1.5rem;
-    max-width: 48rem;
-}
+/* TODO(@ux-team): extend design tokens, typography scale, and dark/light mode palettes. */
 
-.form-header h1 {
-    margin: 0;
-}
-
-.form-header p {
-    margin: 0.35rem 0 0;
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.form-grid {
+.habits-dashboard {
     display: grid;
     gap: 1.5rem;
 }
 
-.form-row {
-    display: grid;
-    gap: 1.25rem;
-    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-}
-
-.form-field {
-    display: grid;
-    gap: 0.5rem;
-}
-
-.form-field label {
-    font-weight: 600;
-}
-
-.form-control {
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    border-radius: 0.65rem;
-    background: rgba(15, 23, 42, 0.45);
-    color: inherit;
-    padding: 0.75rem 1rem;
-    font: inherit;
-}
-
-.form-control:focus {
-    outline: 2px solid rgba(56, 189, 248, 0.65);
-    outline-offset: 1px;
-    border-color: rgba(56, 189, 248, 0.85);
-}
-
-.form-control-prefix,
-.form-control-suffix {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.form-control-prefix .form-control,
-.form-control-suffix .form-control {
-    width: 100%;
-    padding-left: 2.25rem;
-}
-
-.form-control-suffix .form-control {
-    padding-left: 1rem;
-    padding-right: 2.25rem;
-}
-
-.form-control-prefix .prefix,
-.form-control-suffix .suffix {
-    position: absolute;
-    left: 0.85rem;
-    font-weight: 600;
-    opacity: 0.7;
-}
-
-.form-control-suffix .suffix {
-    left: auto;
-    right: 0.85rem;
-}
-
-.form-hint {
-    margin: 0;
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.65);
-}
-
-.field-error {
-    margin: 0;
-    font-size: 0.85rem;
-    color: #f97316;
-}
-
-.has-error .form-control {
-    border-color: rgba(249, 115, 22, 0.85);
-    box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.55);
-}
-
-.has-error label {
-    color: #f97316;
-}
-
-.form-errors {
-    border: 1px solid rgba(249, 115, 22, 0.35);
-    background: rgba(249, 115, 22, 0.08);
-    color: #f97316;
-    border-radius: 0.75rem;
-    padding: 1rem 1.25rem;
-}
-
-.form-errors h2 {
-    margin: 0;
-    font-size: 1rem;
-}
-
-.form-errors ul {
-    margin: 0.75rem 0 0;
-    padding-left: 1.25rem;
+.habits-header {
     display: grid;
     gap: 0.35rem;
 }
 
-.form-errors a {
-    color: inherit;
+.habits-header p {
+    color: rgba(255, 255, 255, 0.72);
+    margin: 0;
 }
 
-.form-actions {
+.habit-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 1.5rem;
+}
+
+.habit-card {
+    background: var(--habit-surface);
+    border: 1px solid var(--habit-border);
+    border-radius: 0.85rem;
+    padding: 1.5rem;
+    display: grid;
+    gap: 1.25rem;
+}
+
+.habit-card__header {
     display: flex;
-    gap: 1rem;
     flex-wrap: wrap;
-    align-items: center;
+    gap: 1.5rem;
+    justify-content: space-between;
+    align-items: flex-start;
 }
 
-.form-actions .btn-link {
-    padding-left: 0;
-    padding-right: 0;
+.habit-card__title {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 16rem;
 }
 
-/* TODO(@ux-team): extend design tokens, typography scale, and dark/light mode palettes. */
+.habit-card__title h2 {
+    margin: 0;
+}
+
+.habit-card__description {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.habit-card__metrics {
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.habit-card__metrics div {
+    background: rgba(148, 163, 184, 0.12);
+    padding: 0.6rem 0.85rem;
+    border-radius: 0.6rem;
+    min-width: 13rem;
+}
+
+.habit-card__metrics dt {
+    margin: 0;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.habit-card__metrics dd {
+    margin: 0.2rem 0 0;
+    font-weight: 600;
+}
+
+.habit-card__body {
+    display: grid;
+    gap: 1rem;
+}
+
+.habit-chart {
+    display: grid;
+    gap: 1.25rem;
+}
+
+.habit-heatmap {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.4rem;
+}
+
+.habit-heatmap__day {
+    aspect-ratio: 1;
+    border-radius: 0.4rem;
+    background: var(--habit-heatmap-0);
+    transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.habit-heatmap__day[data-level="1"] {
+    background: var(--habit-heatmap-1);
+}
+
+.habit-heatmap__day[data-level="2"] {
+    background: var(--habit-heatmap-2);
+}
+
+.habit-heatmap__day[data-level="3"] {
+    background: var(--habit-heatmap-3);
+}
+
+.habit-heatmap__day:hover,
+.habit-heatmap__day:focus-visible {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 4px 16px rgba(34, 197, 94, 0.35);
+}
+
+.habit-weekly-bars {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.habit-weekly-bars__row {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.habit-weekly-bars__label {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.habit-weekly-bars__track {
+    background: var(--habit-bar-track);
+    border-radius: 999px;
+    position: relative;
+    overflow: hidden;
+    height: 0.7rem;
+}
+
+.habit-weekly-bars__fill {
+    --habit-weekly-progress: 0;
+    position: absolute;
+    inset: 0;
+    width: calc(var(--habit-weekly-progress) * 1%);
+    background: var(--habit-bar-fill);
+    transition: width 200ms ease;
+}
+
+.habit-weekly-bars__value {
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.habit-fallback__summary {
+    margin: 0;
+    font-weight: 600;
+}
+
+.habit-fallback__table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.75rem;
+}
+
+.habit-fallback__table caption {
+    text-align: left;
+    margin-bottom: 0.4rem;
+    font-weight: 600;
+}
+
+.habit-fallback__table th,
+.habit-fallback__table td {
+    padding: 0.45rem 0.6rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.habit-fallback__table tbody tr:last-child th,
+.habit-fallback__table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.habit-fallback--hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+@media (max-width: 720px) {
+    .habit-card__header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .habit-card__metrics {
+        grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    }
+}

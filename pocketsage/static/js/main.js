@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initTopNav();
     initAdminDashboard();
     initPortfolioUpload();
-    initPortfolioSorting();
+    initHabitVisualizations();
 });
 
 function initTopNav() {
@@ -332,115 +332,42 @@ function initPortfolioUpload() {
     });
 }
 
-function initPortfolioSorting() {
-    const table = document.querySelector(".holdings-table");
-    if (!table) {
+function initHabitVisualizations() {
+    const cards = document.querySelectorAll("[data-habit-visualization]");
+    if (!cards.length) {
         return;
     }
 
-    const tbody = table.querySelector("tbody");
-    const headerRow = table.querySelector("thead tr");
-    if (!tbody || !headerRow) {
-        return;
-    }
-
-    const sortLinks = table.querySelectorAll(".sort-link");
-    if (!sortLinks.length) {
-        return;
-    }
-
-    const sortInput = document.querySelector(".portfolio-controls input[name='sort']");
-    const directionInput = document.querySelector(".portfolio-controls input[name='direction']");
-
-    const parseValue = (cell, type) => {
-        if (!cell) {
-            return "";
+    cards.forEach((card) => {
+        const history = safeParseJSON(card.dataset.history) || [];
+        if (!history.length) {
+            return;
         }
-        const rawValue = cell.dataset.sortValue ?? cell.textContent ?? "";
-        if (type === "numeric") {
-            const numeric = Number(rawValue);
-            return Number.isNaN(numeric) ? 0 : numeric;
+
+        const weekly = safeParseJSON(card.dataset.weekly) || [];
+        const habitName = card.dataset.habitName || "habit";
+        const chart = card.querySelector(".habit-chart");
+
+        if (!chart) {
+            return;
         }
-        return String(rawValue).toLowerCase();
-    };
 
-    const updateHeaderState = (activeHeader, direction) => {
-        headerRow.querySelectorAll("th").forEach((th) => {
-            th.setAttribute(
-                "aria-sort",
-                th === activeHeader
-                    ? direction === "asc"
-                        ? "ascending"
-                        : "descending"
-                    : "none"
-            );
-        });
-    };
+        chart.innerHTML = "";
 
-    sortLinks.forEach((link) => {
-        link.addEventListener("click", (event) => {
-            event.preventDefault();
-            const headerCell = link.closest("th");
-            if (!headerCell) {
-                window.location.href = link.href;
-                return;
-            }
+        const heatmap = buildHabitHeatmap(history, habitName);
+        if (heatmap) {
+            chart.appendChild(heatmap);
+        }
 
-            const columnIndex = Array.from(headerRow.children).indexOf(headerCell);
-            if (columnIndex < 0) {
-                window.location.href = link.href;
-                return;
-            }
+        const weeklyBars = buildHabitWeeklyBars(weekly, habitName);
+        if (weeklyBars) {
+            chart.appendChild(weeklyBars);
+        }
 
-            const sortType = link.dataset.sortType || "text";
-            const nextDirection = link.dataset.nextDirection || "asc";
-            const rows = Array.from(tbody.querySelectorAll("tr"));
-            rows
-                .sort((rowA, rowB) => {
-                    const cellA = rowA.children.item(columnIndex);
-                    const cellB = rowB.children.item(columnIndex);
-                    const valueA = parseValue(cellA, sortType);
-                    const valueB = parseValue(cellB, sortType);
-                    if (valueA === valueB) {
-                        return 0;
-                    }
-                    if (sortType === "numeric") {
-                        return nextDirection === "asc" ? valueA - valueB : valueB - valueA;
-                    }
-                    return nextDirection === "asc"
-                        ? String(valueA).localeCompare(String(valueB))
-                        : String(valueB).localeCompare(String(valueA));
-                })
-                .forEach((row) => tbody.appendChild(row));
-
-            sortLinks.forEach((candidate) => {
-                if (candidate === link) {
-                    candidate.dataset.activeDirection = nextDirection;
-                    candidate.dataset.nextDirection = nextDirection === "asc" ? "desc" : "asc";
-                    candidate.classList.add("is-active");
-                } else {
-                    candidate.dataset.activeDirection = "none";
-                    candidate.dataset.nextDirection = "desc";
-                    candidate.classList.remove("is-active");
-                }
-            });
-
-            updateHeaderState(headerCell, nextDirection);
-
-            if (sortInput && link.dataset.sort) {
-                sortInput.value = link.dataset.sort;
-            }
-            if (directionInput) {
-                directionInput.value = nextDirection;
-            }
-
-            const url = new URL(window.location.href);
-            if (link.dataset.sort) {
-                url.searchParams.set("sort", link.dataset.sort);
-            }
-            url.searchParams.set("direction", nextDirection);
-            window.history.replaceState(null, "", url);
-        });
+        const fallback = card.querySelector("[data-fallback]");
+        if (fallback) {
+            fallback.classList.add("habit-fallback--hidden");
+        }
     });
 }
 
@@ -456,25 +383,93 @@ function safeParseJSON(value) {
     }
 }
 
-function titleCase(value) {
-    if (!value) {
-        return "";
+function buildHabitHeatmap(history, habitName) {
+    if (!Array.isArray(history) || history.length === 0) {
+        return null;
     }
-    return value
-        .toString()
-        .split(/[_\s-]+/)
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" ");
+
+    const container = document.createElement("div");
+    container.className = "habit-heatmap";
+    container.setAttribute(
+        "aria-label",
+        `${history.length}-day completion history for ${habitName}`,
+    );
+    container.setAttribute("role", "img");
+
+    history.forEach((day, index) => {
+        const cell = document.createElement("span");
+        cell.className = "habit-heatmap__day";
+        const recency = history.length - index - 1;
+        let level = 0;
+        if (day && day.completed) {
+            if (recency <= 6) {
+                level = 3;
+            } else if (recency <= 13) {
+                level = 2;
+            } else {
+                level = 1;
+            }
+        }
+        cell.dataset.level = String(level);
+        const label = day && day.label ? day.label : day.date;
+        const weekday = day && day.weekday ? day.weekday : "";
+        const status = day && day.completed ? "Completed" : "Missed";
+        cell.title = `${weekday ? `${weekday} · ` : ""}${label} — ${status}`;
+        cell.setAttribute("aria-label", cell.title);
+        container.appendChild(cell);
+    });
+
+    return container;
 }
 
-function formatCurrency(value) {
-    const number = Number(value) || 0;
-    return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: "USD",
-        maximumFractionDigits: 0,
-        minimumFractionDigits: 0,
-    }).format(number);
+function buildHabitWeeklyBars(weekly, habitName) {
+    if (!Array.isArray(weekly) || weekly.length === 0) {
+        return null;
+    }
+
+    const container = document.createElement("div");
+    container.className = "habit-weekly-bars";
+    container.setAttribute(
+        "aria-label",
+        `Weekly completion totals for ${habitName}`,
+    );
+    container.setAttribute("role", "group");
+
+    weekly.forEach((week) => {
+        const row = document.createElement("div");
+        row.className = "habit-weekly-bars__row";
+
+        const label = document.createElement("div");
+        label.className = "habit-weekly-bars__label";
+        label.textContent = week && week.label ? week.label : week.start_date;
+
+        const track = document.createElement("div");
+        track.className = "habit-weekly-bars__track";
+        track.setAttribute("aria-hidden", "true");
+
+        const fill = document.createElement("span");
+        fill.className = "habit-weekly-bars__fill";
+        const totalDays = week && typeof week.total === "number" ? week.total : 0;
+        const completed = week && typeof week.completed === "number" ? week.completed : 0;
+        const ratio = totalDays > 0 ? Math.min(completed / totalDays, 1) : 0;
+        fill.style.setProperty("--habit-weekly-progress", (ratio * 100).toFixed(2));
+        track.appendChild(fill);
+
+        const value = document.createElement("div");
+        value.className = "habit-weekly-bars__value";
+        value.textContent = `${completed}/${totalDays} days`;
+        value.setAttribute(
+            "aria-label",
+            `${label.textContent}: completed ${completed} of ${totalDays} days`,
+        );
+
+        row.appendChild(label);
+        row.appendChild(track);
+        row.appendChild(value);
+        container.appendChild(row);
+    });
+
+    return container;
 }
 
 function jobItemTemplate(job) {

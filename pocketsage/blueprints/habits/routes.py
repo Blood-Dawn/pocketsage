@@ -6,47 +6,104 @@ from datetime import date, timedelta
 
 from flask import flash, redirect, render_template, request, url_for
 
-from . import bp
 from ...extensions import session_scope
-from ...models.habit import Habit, HabitEntry
+from . import bp
+from .repository import SqlModelHabitsRepository
 
 
-def _compute_streak(entries: list[HabitEntry]) -> int:
-    """Return the current streak length for the provided habit entries."""
-
-    if not entries:
-        return 0
-
-    today = date.today()
-    latest_entry = entries[0].occurred_on
-
-    if today - latest_entry > timedelta(days=1):
-        return 0
-
-    streak = 1
-    previous_day = latest_entry
-    for entry in entries[1:]:
-        if entry.occurred_on == previous_day - timedelta(days=1):
-            streak += 1
-            previous_day = entry.occurred_on
-        else:
-            break
-    return streak
+HISTORY_DAYS = 21
+STREAK_LOOKBACK_DAYS = 60
 
 
 @bp.get("/")
 def list_habits():
     """Show habits overview and current streaks."""
 
-    # TODO(@habits-squad): populate context with repository results + streak calculations.
-    habits: list = []
+    today = date.today()
+    history_start = today - timedelta(days=HISTORY_DAYS - 1)
+    streak_window_start = today - timedelta(days=STREAK_LOOKBACK_DAYS - 1)
+    fetch_since = min(history_start, streak_window_start)
 
-    show_empty_state = len(habits) == 0
+    with session_scope() as session:
+        repo = SqlModelHabitsRepository(session)
+        raw_habits = list(repo.list_habits())
+        habit_ids = [habit.id for habit in raw_habits if habit.id is not None]
+        entries = repo.recent_entries(habit_ids=habit_ids, since=fetch_since)
+
+        entries_by_habit: dict[int, list] = {habit_id: [] for habit_id in habit_ids}
+        for entry in entries:
+            entries_by_habit.setdefault(entry.habit_id, []).append(entry)
+        for habit_entries in entries_by_habit.values():
+            habit_entries.sort(key=lambda item: item.occurred_on)
+
+        habits_view: list[dict] = []
+        for habit in raw_habits:
+            if habit.id is None:
+                continue
+
+            habit_entries = entries_by_habit.get(habit.id, [])
+            completion_dates = {entry.occurred_on for entry in habit_entries}
+            history: list[dict] = []
+            for index in range(HISTORY_DAYS):
+                day = history_start + timedelta(days=index)
+                history.append(
+                    {
+                        "date": day.isoformat(),
+                        "label": day.strftime("%b %d").replace(" 0", " "),
+                        "weekday": day.strftime("%a"),
+                        "completed": day in completion_dates,
+                    }
+                )
+
+            weekly_totals: list[dict] = []
+            for offset in range(0, len(history), 7):
+                bucket = history[offset : offset + 7]
+                if not bucket:
+                    continue
+                week_start = date.fromisoformat(bucket[0]["date"])
+                completed = sum(1 for day in bucket if day["completed"])
+                weekly_totals.append(
+                    {
+                        "label": f"Week of {week_start.strftime('%b %d').replace(' 0', ' ')}",
+                        "start_date": bucket[0]["date"],
+                        "completed": completed,
+                        "total": len(bucket),
+                    }
+                )
+
+            streak = 0
+            check_day = today
+            while check_day >= fetch_since and check_day in completion_dates:
+                streak += 1
+                check_day -= timedelta(days=1)
+
+            last_week = history[-7:]
+            completed_last_week = sum(1 for day in last_week if day["completed"])
+            summary = (
+                f"{streak} day streak · {completed_last_week} of last 7 days completed"
+            )
+
+            habits_view.append(
+                {
+                    "id": habit.id,
+                    "name": habit.name,
+                    "description": habit.description,
+                    "streak": streak,
+                    "history": history,
+                    "weekly_totals": weekly_totals,
+                    "summary": summary,
+                    "completed_days": sum(1 for day in history if day["completed"]),
+                    "history_start": history_start.isoformat(),
+                    "history_end": today.isoformat(),
+                }
+            )
 
     return render_template(
         "habits/index.html",
-        habits=habits,
-        show_empty_state=show_empty_state,
+        habits=habits_view,
+        history_days=HISTORY_DAYS,
+        history_start=history_start,
+        history_end=today,
     )
 
 
