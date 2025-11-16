@@ -15,29 +15,77 @@ const FLASH_DISMISS_ICON =
     '<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>';
 
 document.addEventListener("DOMContentLoaded", () => {
-    initFlashDismissal();
+    initTopNav();
     initAdminDashboard();
     initPortfolioUpload();
     initPortfolioSorting();
 });
 
-function initFlashDismissal() {
-    const container = document.querySelector(".flash-messages");
-    if (!container) {
+function initTopNav() {
+    const nav = document.querySelector("[data-top-nav]");
+    if (!nav) {
         return;
     }
 
-    container.addEventListener("click", (event) => {
-        const dismissButton = event.target.closest("[data-flash-dismiss]");
-        if (!dismissButton || !container.contains(dismissButton)) {
+    const toggleButton = nav.querySelector("[data-nav-toggle]");
+    const navLinks = nav.querySelector("[data-nav-links]");
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+
+    const setNavOpen = (open) => {
+        nav.classList.toggle("top-nav--open", open);
+        if (toggleButton) {
+            toggleButton.setAttribute("aria-expanded", open ? "true" : "false");
+        }
+        if (navLinks) {
+            const shouldDisable = !open && !mediaQuery.matches;
+            if (shouldDisable) {
+                navLinks.setAttribute("aria-hidden", "true");
+            } else {
+                navLinks.removeAttribute("aria-hidden");
+            }
+            if ("inert" in navLinks) {
+                navLinks.inert = shouldDisable;
+            }
+        }
+    };
+
+    const closeNav = () => setNavOpen(false);
+
+    if (toggleButton) {
+        toggleButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            const isOpen = nav.classList.contains("top-nav--open");
+            setNavOpen(!isOpen);
+        });
+    }
+
+    if (navLinks) {
+        navLinks.addEventListener("click", (event) => {
+            if (event.target instanceof Element && event.target.closest("a")) {
+                closeNav();
+            }
+        });
+    }
+
+    document.addEventListener("click", (event) => {
+        if (!nav.classList.contains("top-nav--open")) {
             return;
         }
-        event.preventDefault();
-        const flash = dismissButton.closest(".flash");
-        if (flash) {
-            flash.remove();
+        if (event.target instanceof Node && !nav.contains(event.target)) {
+            closeNav();
         }
     });
+
+    const handleMediaChange = (mediaEvent) => {
+        if (mediaEvent.matches) {
+            closeNav();
+        }
+        setNavOpen(nav.classList.contains("top-nav--open"));
+    };
+
+    setNavOpen(nav.classList.contains("top-nav--open"));
+    handleMediaChange(mediaQuery);
+    mediaQuery.addEventListener("change", handleMediaChange);
 }
 
 function initAdminDashboard() {

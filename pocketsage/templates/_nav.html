@@ -1,23 +1,54 @@
-{% set endpoint = request.endpoint or '' %}
-<nav class="top-nav">
-  <ul>
-    <li class="{% if endpoint.startswith('overview.') %}active{% endif %}">
-      <a href="{{ url_for('overview.dashboard') }}"{% if endpoint.startswith('overview.') %} aria-current="page"{% endif %}>Overview</a>
+{% set current_endpoint = request.endpoint %}
+<nav class="top-nav" data-top-nav>
+  <button
+    type="button"
+    class="top-nav__toggle"
+    aria-controls="top-nav-links"
+    aria-expanded="false"
+    data-nav-toggle
+  >
+    <span class="top-nav__toggle-label">Menu</span>
+  </button>
+  <ul id="top-nav-links" class="top-nav__links" data-nav-links>
+    <li>
+      <a
+        href="{{ url_for('ledger.list_transactions') }}"
+        {% if current_endpoint == 'ledger.list_transactions' %}aria-current="page"{% endif %}
+      >
+        Ledger
+      </a>
     </li>
-    <li class="{% if endpoint.startswith('ledger.') %}active{% endif %}">
-      <a href="{{ url_for('ledger.list_transactions') }}"{% if endpoint.startswith('ledger.') %} aria-current="page"{% endif %}>Ledger</a>
+    <li>
+      <a
+        href="{{ url_for('habits.list_habits') }}"
+        {% if current_endpoint == 'habits.list_habits' %}aria-current="page"{% endif %}
+      >
+        Habits
+      </a>
     </li>
-    <li class="{% if endpoint.startswith('habits.') %}active{% endif %}">
-      <a href="{{ url_for('habits.list_habits') }}"{% if endpoint.startswith('habits.') %} aria-current="page"{% endif %}>Habits</a>
+    <li>
+      <a
+        href="{{ url_for('liabilities.list_liabilities') }}"
+        {% if current_endpoint == 'liabilities.list_liabilities' %}aria-current="page"{% endif %}
+      >
+        Liabilities
+      </a>
     </li>
-    <li class="{% if endpoint.startswith('liabilities.') %}active{% endif %}">
-      <a href="{{ url_for('liabilities.list_liabilities') }}"{% if endpoint.startswith('liabilities.') %} aria-current="page"{% endif %}>Liabilities</a>
+    <li>
+      <a
+        href="{{ url_for('portfolio.list_portfolio') }}"
+        {% if current_endpoint == 'portfolio.list_portfolio' %}aria-current="page"{% endif %}
+      >
+        Portfolio
+      </a>
     </li>
-    <li class="{% if endpoint.startswith('portfolio.') %}active{% endif %}">
-      <a href="{{ url_for('portfolio.list_portfolio') }}"{% if endpoint.startswith('portfolio.') %} aria-current="page"{% endif %}>Portfolio</a>
-    </li>
-    <li class="{% if endpoint.startswith('admin.') %}active{% endif %}">
-      <a href="{{ url_for('admin.dashboard') }}"{% if endpoint.startswith('admin.') %} aria-current="page"{% endif %}>Admin</a>
+    <li>
+      <a
+        href="{{ url_for('admin.dashboard') }}"
+        {% if current_endpoint == 'admin.dashboard' %}aria-current="page"{% endif %}
+      >
+        Admin
+      </a>
     </li>
   </ul>
 </nav>
