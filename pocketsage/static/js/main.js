@@ -18,74 +18,29 @@ document.addEventListener("DOMContentLoaded", () => {
     initTopNav();
     initAdminDashboard();
     initPortfolioUpload();
-    initLiabilityDashboard();
+    applyAllocationFallback();
 });
 
-function initTopNav() {
-    const nav = document.querySelector("[data-top-nav]");
-    if (!nav) {
+function applyAllocationFallback() {
+    const supportsCustomProperties =
+        typeof window.CSS !== "undefined" &&
+        typeof window.CSS.supports === "function" &&
+        window.CSS.supports("(--allocation: 0)");
+
+    if (supportsCustomProperties) {
         return;
     }
 
-    const toggleButton = nav.querySelector("[data-nav-toggle]");
-    const navLinks = nav.querySelector("[data-nav-links]");
-    const mediaQuery = window.matchMedia("(min-width: 768px)");
-
-    const setNavOpen = (open) => {
-        nav.classList.toggle("top-nav--open", open);
-        if (toggleButton) {
-            toggleButton.setAttribute("aria-expanded", open ? "true" : "false");
-        }
-        if (navLinks) {
-            const shouldDisable = !open && !mediaQuery.matches;
-            if (shouldDisable) {
-                navLinks.setAttribute("aria-hidden", "true");
-            } else {
-                navLinks.removeAttribute("aria-hidden");
+    document
+        .querySelectorAll(".allocation-bar-fill[data-allocation]")
+        .forEach((bar) => {
+            const value = Number.parseFloat(bar.dataset.allocation);
+            if (!Number.isFinite(value)) {
+                return;
             }
-            if ("inert" in navLinks) {
-                navLinks.inert = shouldDisable;
-            }
-        }
-    };
-
-    const closeNav = () => setNavOpen(false);
-
-    if (toggleButton) {
-        toggleButton.addEventListener("click", (event) => {
-            event.stopPropagation();
-            const isOpen = nav.classList.contains("top-nav--open");
-            setNavOpen(!isOpen);
+            const clamped = Math.max(0, Math.min(value, 100));
+            bar.style.width = `${clamped}%`;
         });
-    }
-
-    if (navLinks) {
-        navLinks.addEventListener("click", (event) => {
-            if (event.target instanceof Element && event.target.closest("a")) {
-                closeNav();
-            }
-        });
-    }
-
-    document.addEventListener("click", (event) => {
-        if (!nav.classList.contains("top-nav--open")) {
-            return;
-        }
-        if (event.target instanceof Node && !nav.contains(event.target)) {
-            closeNav();
-        }
-    });
-
-    const handleMediaChange = (mediaEvent) => {
-        if (mediaEvent.matches) {
-            closeNav();
-        }
-        setNavOpen(nav.classList.contains("top-nav--open"));
-    };
-
-    setNavOpen(nav.classList.contains("top-nav--open"));
-    handleMediaChange(mediaQuery);
-    mediaQuery.addEventListener("change", handleMediaChange);
 }
 
 function initAdminDashboard() {

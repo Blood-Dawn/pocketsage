@@ -1,14 +1,17 @@
 :root {
     color-scheme: light dark;
     font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-    --habit-surface: rgba(255, 255, 255, 0.04);
-    --habit-border: rgba(148, 163, 184, 0.22);
-    --habit-heatmap-0: rgba(148, 163, 184, 0.22);
-    --habit-heatmap-1: #166534;
-    --habit-heatmap-2: #15803d;
-    --habit-heatmap-3: #22c55e;
-    --habit-bar-track: rgba(148, 163, 184, 0.18);
-    --habit-bar-fill: linear-gradient(90deg, #15803d, #4ade80);
+    --allocation-track: rgba(148, 163, 184, 0.25);
+    --allocation-fill-start: #22d3ee;
+    --allocation-fill-end: #3b82f6;
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --allocation-track: rgba(100, 116, 139, 0.3);
+        --allocation-fill-start: #0ea5e9;
+        --allocation-fill-end: #2563eb;
+    }
 }
 
 body {
@@ -964,7 +967,7 @@ textarea.form-input {
     position: relative;
     height: var(--space-tight);
     border-radius: 999px;
-    background: var(--color-allocation-track);
+    background: var(--allocation-track);
     overflow: hidden;
 }
 
@@ -973,7 +976,7 @@ textarea.form-input {
     position: absolute;
     inset: 0;
     width: calc(var(--allocation) * 1%);
-    background: linear-gradient(90deg, var(--color-allocation-fill-start), var(--color-allocation-fill-end));
+    background: linear-gradient(90deg, var(--allocation-fill-start), var(--allocation-fill-end));
 }
 
 .allocation-value {
