@@ -34,8 +34,8 @@ Framework Owner checkpoint for the PocketSage desktop-first Flask app. Focus are
 - `make dev` → run Flask dev server
 - `make test` → pytest (currently skipped TODOs)
 - `make lint` → ruff + black check
-- `make package` → runs `pyinstaller PocketSage.spec --clean`
-- `make demo-seed` → placeholder seeding script (raises TODO)
+- `make package` → PyInstaller stub build
+- `make demo-seed` → populate the local database with curated demo data
 
 ## Configuration Flags
 - `.env` values prefixed with `POCKETSAGE_`
@@ -62,3 +62,18 @@ Framework Owner checkpoint for the PocketSage desktop-first Flask app. Focus are
 - Fill Admin tasks, seeding, and export flows
 
 See `TODO.md` for the full itemization with owners.
+
+## Demo Data Seeding
+
+Run the demo seeding script whenever you need a representative dataset for manual
+testing:
+
+- `make demo-seed`
+- or `python scripts/seed_demo.py`
+
+The script applies upserts instead of blind inserts so it can be executed
+multiple times without duplicating rows. Categories are keyed by slug,
+transactions by their synthetic `external_id`, habits by name (including habit
+entries by date), and liabilities by name. This ensures the seed remains
+idempotent while still refreshing values such as balances, descriptions, or
+transaction memos on subsequent runs.
