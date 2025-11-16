@@ -1,0 +1,478 @@
+branch 'staging/incoming-20251116043405' set up to track 'origin/main'.
+Switched to a new branch 'staging/incoming-20251116043405'
+Open PRs: 30
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/compile-template-and-static-directories -> FETCH_HEAD
+
+>>> Merging PR #39 from origin/codex/compile-template-and-static-directories (prefer INCOMING)…
+Auto-merging PocketSage.spec
+Merge made by the 'ort' strategy.
+ PocketSage.spec   | 59 ++++++++++++++++++++++++++++++++++++++++++++++++++-----
+ docs/packaging.md | 22 +++++++++++++++++++++
+ 2 files changed, 76 insertions(+), 5 deletions(-)
+ create mode 100644 docs/packaging.md
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/update-packaging-documentation-and-checklist -> FETCH_HEAD
+
+>>> Merging PR #38 from origin/codex/update-packaging-documentation-and-checklist (prefer INCOMING)…
+Auto-merging README.md
+Merge made by the 'ort' strategy.
+ Makefile             | 4 ++++
+ README.md            | 2 +-
+ docs/architecture.md | 7 ++++++-
+ 3 files changed, 11 insertions(+), 2 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/summarize-retention-behavior-in-admin-docs -> FETCH_HEAD
+
+>>> Merging PR #37 from origin/codex/summarize-retention-behavior-in-admin-docs (prefer INCOMING)…
+Merge made by the 'ort' strategy.
+ docs/admin_operations.md | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+ create mode 100644 docs/admin_operations.md
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/document-permission-changes-for-_ensure_secure_directory -> FETCH_HEAD
+
+>>> Merging PR #36 from origin/codex/document-permission-changes-for-_ensure_secure_directory (prefer INCOMING)…
+Merge made by the 'ort' strategy.
+ docs/ops_guide.md | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+ create mode 100644 docs/ops_guide.md
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/implement-demo-data-seeding-logic -> FETCH_HEAD
+
+>>> Merging PR #35 from origin/codex/implement-demo-data-seeding-logic (prefer INCOMING)…
+Auto-merging README.md
+Merge made by the 'ort' strategy.
+ README.md            |  19 ++++-
+ scripts/seed_demo.py | 198 ++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 212 insertions(+), 5 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/track-pytest-skip-reason-in-test_routes_smoke -> FETCH_HEAD
+
+>>> Merging PR #34 from origin/codex/track-pytest-skip-reason-in-test_routes_smoke (prefer INCOMING)…
+Auto-merging TODO.md
+Merge made by the 'ort' strategy.
+ TODO.md                    |  1 +
+ docs/qa_roadmap.md         | 16 ++++++++++++++++
+ tests/test_routes_smoke.py |  3 +++
+ 3 files changed, 20 insertions(+)
+ create mode 100644 docs/qa_roadmap.md
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/cross-check-context-keys-for-portfolio -> FETCH_HEAD
+
+>>> Merging PR #33 from origin/codex/cross-check-context-keys-for-portfolio (prefer INCOMING)…
+Auto-merging docs/demo_script.md
+Merge made by the 'ort' strategy.
+ docs/demo_script.md | 5 +++++
+ 1 file changed, 5 insertions(+)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/document-blueprint-url_prefixes-in-runbook -> FETCH_HEAD
+
+>>> Merging PR #32 from origin/codex/document-blueprint-url_prefixes-in-runbook (prefer INCOMING)…
+Auto-merging docs/demo_script.md
+Merge made by the 'ort' strategy.
+ docs/demo_script.md | 42 ++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 38 insertions(+), 4 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/create-overview-blueprint-and-update-navigation -> FETCH_HEAD
+
+>>> Merging PR #31 from origin/codex/create-overview-blueprint-and-update-navigation (prefer INCOMING)…
+Auto-merging pocketsage/templates/_nav.html
+Auto-merging tests/test_routes_smoke.py
+Merge made by the 'ort' strategy.
+ pocketsage/__init__.py                     |   4 +
+ pocketsage/blueprints/overview/__init__.py |  26 ++++++
+ pocketsage/blueprints/overview/routes.py   |  26 ++++++
+ pocketsage/blueprints/overview/services.py | 129 +++++++++++++++++++++++++++++
+ pocketsage/templates/_nav.html             |  33 ++++----
+ pocketsage/templates/overview/index.html   | 104 +++++++++++++++++++++++
+ tests/test_routes_smoke.py                 |   1 +
+ 7 files changed, 308 insertions(+), 15 deletions(-)
+ create mode 100644 pocketsage/blueprints/overview/__init__.py
+ create mode 100644 pocketsage/blueprints/overview/routes.py
+ create mode 100644 pocketsage/blueprints/overview/services.py
+ create mode 100644 pocketsage/templates/overview/index.html
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/update-navigation-for-better-accessibility -> FETCH_HEAD
+
+>>> Merging PR #30 from origin/codex/update-navigation-for-better-accessibility (prefer INCOMING)…
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/static/js/main.js
+Auto-merging pocketsage/templates/_nav.html
+Merge made by the 'ort' strategy.
+ pocketsage/static/css/main.css | 122 ++++++++++++++++++++++++++++++++++-------
+ pocketsage/static/js/main.js   |  70 +++++++++++++++++++----
+ pocketsage/templates/_nav.html |  63 +++++++++++++++------
+ 3 files changed, 208 insertions(+), 47 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/add-income-and-expense-summaries-to-template -> FETCH_HEAD
+
+>>> Merging PR #29 from origin/codex/add-income-and-expense-summaries-to-template (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/ledger/routes.py
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/templates/ledger/index.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/ledger/routes.py | 244 +++++++++++++++++++++++++--------
+ pocketsage/static/css/main.css         | 100 ++++++++++++++
+ pocketsage/templates/ledger/index.html | 181 +++++-------------------
+ 3 files changed, 322 insertions(+), 203 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/extend-habit-context-with-completion-history -> FETCH_HEAD
+
+>>> Merging PR #28 from origin/codex/extend-habit-context-with-completion-history (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/habits/routes.py
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/static/js/main.js
+Auto-merging pocketsage/templates/habits/index.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/habits/repository.py |  33 ++-
+ pocketsage/blueprints/habits/routes.py     | 115 ++++++++---
+ pocketsage/static/css/main.css             | 309 +++++++++++++++--------------
+ pocketsage/static/js/main.js               | 227 +++++++++++----------
+ pocketsage/templates/habits/index.html     |  82 +++++---
+ 5 files changed, 445 insertions(+), 321 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/implement-habit-form-and-validation -> FETCH_HEAD
+
+>>> Merging PR #27 from origin/codex/implement-habit-form-and-validation (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/habits/routes.py
+Auto-merging pocketsage/static/css/main.css
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/habits/forms.py  |  83 +++++++++++++++++++----
+ pocketsage/blueprints/habits/routes.py |  43 +++++++++---
+ pocketsage/static/css/main.css         | 120 +++++++++++++++++++++++++++++++++
+ pocketsage/templates/habits/form.html  | 110 +++++++++++++++++++++++++++++-
+ 4 files changed, 334 insertions(+), 22 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/generate-payment-schedules-and-render-templates -> FETCH_HEAD
+
+>>> Merging PR #26 from origin/codex/generate-payment-schedules-and-render-templates (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/liabilities/routes.py
+Auto-merging pocketsage/services/liabilities.py
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/static/js/main.js
+Auto-merging pocketsage/templates/liabilities/index.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/liabilities/repository.py |  43 ++-
+ pocketsage/blueprints/liabilities/routes.py     | 245 +++++++---------
+ pocketsage/services/liabilities.py              | 305 +++++++------------
+ pocketsage/static/css/main.css                  | 371 +++++++++++++++---------
+ pocketsage/static/js/main.js                    | 155 ++++++++--
+ pocketsage/templates/liabilities/index.html     | 259 ++++++++++++-----
+ 6 files changed, 803 insertions(+), 575 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/update-recalc-form-and-js-logic -> FETCH_HEAD
+
+>>> Merging PR #25 from origin/codex/update-recalc-form-and-js-logic (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/liabilities/routes.py
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/static/js/main.js
+Auto-merging pocketsage/templates/liabilities/index.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/liabilities/routes.py | 238 ++++++++------------
+ pocketsage/static/css/main.css              | 329 +++++++---------------------
+ pocketsage/static/js/main.js                | 319 +++++++++++++++++----------
+ pocketsage/templates/liabilities/index.html | 252 ++++++---------------
+ 4 files changed, 451 insertions(+), 687 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/update-portfolio-index-for-allocations -> FETCH_HEAD
+
+>>> Merging PR #24 from origin/codex/update-portfolio-index-for-allocations (prefer INCOMING)…
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/static/js/main.js
+Auto-merging pocketsage/templates/portfolio/index.html
+Merge made by the 'ort' strategy.
+ pocketsage/static/css/main.css            | 23 +++++----
+ pocketsage/static/js/main.js              | 77 +++++++------------------------
+ pocketsage/templates/portfolio/index.html |  2 +-
+ 3 files changed, 30 insertions(+), 72 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/add-upload-preview-feature -> FETCH_HEAD
+
+>>> Merging PR #23 from origin/codex/add-upload-preview-feature (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/portfolio/routes.py
+Auto-merging pocketsage/static/js/main.js
+Auto-merging pocketsage/templates/portfolio/upload.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/portfolio/routes.py  |  78 ++++++-
+ pocketsage/static/js/main.js               | 323 ++++++++++++++++++++++++++---
+ pocketsage/templates/portfolio/upload.html |  12 +-
+ 3 files changed, 386 insertions(+), 27 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/organize-portfolio-holdings-by-account -> FETCH_HEAD
+
+>>> Merging PR #22 from origin/codex/organize-portfolio-holdings-by-account (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/portfolio/routes.py
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/templates/portfolio/index.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/portfolio/routes.py |  74 ++++++++++++------
+ pocketsage/static/css/main.css            | 120 +++++++++++++-----------------
+ pocketsage/templates/portfolio/index.html | 105 +++++++++++---------------
+ 3 files changed, 149 insertions(+), 150 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/update-test_smoke.py-with-new-behavior -> FETCH_HEAD
+
+>>> Merging PR #21 from origin/codex/update-test_smoke.py-with-new-behavior (prefer INCOMING)…
+Merge made by the 'ort' strategy.
+ tests/test_smoke.py | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/update-runbook-for-pytest-instructions -> FETCH_HEAD
+
+>>> Merging PR #20 from origin/codex/update-runbook-for-pytest-instructions (prefer INCOMING)…
+Auto-merging docs/demo_script.md
+Merge made by the 'ort' strategy.
+ docs/demo_script.md | 5 +++++
+ 1 file changed, 5 insertions(+)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/document-lint-commands-and-exit-codes -> FETCH_HEAD
+
+>>> Merging PR #19 from origin/codex/document-lint-commands-and-exit-codes (prefer INCOMING)…
+Merge made by the 'ort' strategy.
+ CONTRIBUTING.md | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/confirm-admin.dashboard-attributes-presence -> FETCH_HEAD
+
+>>> Merging PR #18 from origin/codex/confirm-admin.dashboard-attributes-presence (prefer INCOMING)…
+Auto-merging tests/test_routes_smoke.py
+Merge made by the 'ort' strategy.
+ tests/test_routes_smoke.py | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/verify-todo-note-on-/liabilities -> FETCH_HEAD
+
+>>> Merging PR #17 from origin/codex/verify-todo-note-on-/liabilities (prefer INCOMING)…
+Auto-merging TODO.md
+Auto-merging docs/milestones.md
+Merge made by the 'ort' strategy.
+ TODO.md                  | 10 +++++-----
+ docs/manual_test_plan.md |  9 +++++++++
+ docs/milestones.md       |  2 +-
+ 3 files changed, 15 insertions(+), 6 deletions(-)
+ create mode 100644 docs/manual_test_plan.md
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/verify-placeholder-copy-on-/habits -> FETCH_HEAD
+
+>>> Merging PR #16 from origin/codex/verify-placeholder-copy-on-/habits (prefer INCOMING)…
+Auto-merging docs/demo_script.md
+Auto-merging tests/test_routes_smoke.py
+Merge made by the 'ort' strategy.
+ docs/demo_script.md        |  6 ++++++
+ tests/test_routes_smoke.py | 50 +++++++++++++++++-----------------------------
+ 2 files changed, 24 insertions(+), 32 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/verify-todo-banner-on-ledger-page -> FETCH_HEAD
+
+>>> Merging PR #15 from origin/codex/verify-todo-banner-on-ledger-page (prefer INCOMING)…
+Auto-merging docs/demo_script.md
+Merge made by the 'ort' strategy.
+ docs/demo_script.md | 1 +
+ 1 file changed, 1 insertion(+)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/flag-secret-key-placeholder-in-.env.example -> FETCH_HEAD
+
+>>> Merging PR #14 from origin/codex/flag-secret-key-placeholder-in-.env.example (prefer INCOMING)…
+Auto-merging README.md
+Merge made by the 'ort' strategy.
+ .env.example | 1 +
+ README.md    | 6 ++++--
+ 2 files changed, 5 insertions(+), 2 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/extract-and-update-runbook-sections -> FETCH_HEAD
+
+>>> Merging PR #13 from origin/codex/extract-and-update-runbook-sections (prefer INCOMING)…
+Auto-merging docs/demo_script.md
+Merge made by the 'ort' strategy.
+ docs/demo_script.md | 53 ++++++++++++++++++-----------------------------------
+ 1 file changed, 18 insertions(+), 35 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/document-_resolve_data_dir-behavior -> FETCH_HEAD
+
+>>> Merging PR #12 from origin/codex/document-_resolve_data_dir-behavior (prefer INCOMING)…
+Auto-merging README.md
+Merge made by the 'ort' strategy.
+ README.md | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/update-configuration-docs-for-data-directory -> FETCH_HEAD
+
+>>> Merging PR #11 from origin/codex/update-configuration-docs-for-data-directory (prefer INCOMING)…
+Auto-merging README.md
+Merge made by the 'ort' strategy.
+ README.md | 5 +++++
+ 1 file changed, 5 insertions(+)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/add-shell-script-for-make-setup -> FETCH_HEAD
+
+>>> Merging PR #10 from origin/codex/add-shell-script-for-make-setup (prefer INCOMING)…
+Auto-merging README.md
+Merge made by the 'ort' strategy.
+ README.md        | 13 +++++++++++++
+ scripts/setup.sh | 20 ++++++++++++++++++++
+ 2 files changed, 33 insertions(+)
+ create mode 100755 scripts/setup.sh
+
+>>> Pushing to main…
+To https://github.com/Blood-Dawn/pocketsage.git
+   4b69581..b1d18ca  HEAD -> main
+Pushed directly to main
+[?2004h]0;MINGW64:/c/Users/kheiven/Documents/GitHub/pocketsage
+[32mkheiven@KheivenD-24F83R5 [35mMINGW64 [33m~/Documents/GitHub/pocketsage[36m (staging/incoming-20251116043405)[0m
+$ #!/usr/bin/env bash
+# bulk-merge-incoming.sh — merge ALL open PRs; conflicts => INCOMING wins; log+pause enabled
+
+set -Eeuo pipefail
+set -o errtrace
+
+REPO="${REPO:-Blood-Dawn/pocketsage}"
+BASE="${BASE:-main}"
+STAGING="${STAGING:-staging/incoming-$(date +%Y%m%d%H%M%S)}"
+PAUSE="${PAUSE:-1}"
+
+LOG_DIR="./.logs"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/bulk-merge-$(date +%F_%H%M%S).log"
+exec > >(tee -a "$LOG_FILE") 2>&1  # save and show output live  (GNU tee)  # (1)
+# (1) tee duplicates output to console and file. Use -a to append. :contentReference[oaicite:4]{index=4}
+
+on_err() {
+  ec=$?
+  echo ""
+  echo "=== ERROR (exit $ec) ==========================================="
+  echo "Last command: ${BASH_COMMAND}"
+  echo "Repo: $REPO  Base: $BASE  Staging: $STAGING"
+  git status -sb || true
+  gh pr status -R "$REPO" || true
+[7m  echo "Log saved to: $LOG_FILE"[27m
+[7m  echo "==============================================================="[27m
+[7m  if [[ "$PAUSE" == "1" ]]; then read -rp "Press Enter to exit…"; fi[27m
+[7m  exit "$ec"[27m
+[7m}[27m
+[7mon_exit() {[27m
+[7m  ec=$?[27m
+[7m  echo ""[27m
+[7m  echo "=== DONE (exit $ec) ============================================="[27m
+[7m  echo "Log saved to: $LOG_FILE"[27m
+[7m  echo "================================================================"[27m
+[7m  if [[ "$PAUSE" == "1" ]]; then read -rp "Press Enter to exit…"; fi[27m
+[7m}[27m
+[7mtrap on_err ERR[27m
+[7mtrap on_exit EXIT[27m
+
+[7m# --- auth & base branch ---[27m
+[7mgh auth status >/dev/null 2>&1 || gh auth login -s repo   # gh CLI auth  :contentReference[oaicite:5]{index=5}[27m
+[7mgit fetch origin --prune[27m
+[7mgit checkout -B "$STAGING" "origin/$BASE"[27m
+
+[7m# --- collect all OPEN PRs (incl. forks) ---[27m
+[7mmapfile -t PRS < <(gh pr list -R "$REPO" --state open \[27m
+[7m  --json number,isCrossRepository,headRepositoryOwner,headRepository,headRefName,isDraft \[27m
+[7m  --jq '.[] | select(.isDraft|not) | [[27m
+[7m        .number,[27m
+[7m        (if .isCrossRepository then "X" else "-" end),[27m
+[7m        .headRepositoryOwner.login,[27m
+[7m        .headRepository.name,[27m
+[7m        .headRefName[27m
+[7m      ] | @tsv')[27m
+[7mecho "Open PRs: ${#PRS[@]}"[27m
+
+[7m# --- merge each PR with INCOMING (PR side) preferred ---[27m
+[7mfor row in "${PRS[@]}"; do[27m
+[7m  IFS=$'\t' read -r NUM CROSS OWNER HREPO HREF <<< "$row"[27m
+
+[7m  if [[ "$CROSS" == "X" ]]; then[27m
+[7m    FURL="https://github.com/${OWNER}/${HREPO}.git"[27m
+[7m    TMPREF="_fork/${OWNER}/${HREF}"[27m
+[7m    git fetch "$FURL" "${HREF}:refs/remotes/${TMPREF}"[27m
+[7m    SRC="refs/remotes/${TMPREF}"[27m
+[7m  else[27m
+[7m    git fetch origin "$HREF"[27m
+[7m    SRC="origin/${HREF}"[27m
+[7m  fi[27m[7m  echo ""[27m[7m  echo ">>> Merging PR #$NUM from $SRC (prefer INCOMING)…"[27m[7m  # 1) Try normal merge with PR side winning on conflicts[27m[7m  if ! git merge -X theirs --no-ff --no-edit "$SRC"; then             # -X theirs => incoming wins on conflicts  :contentReference[oaicite:6]{index=6}[27m[7m    echo "Conflict(s): forcing all files to INCOMING version…"[27m[7m    git checkout --theirs .                                          # pick PR version for all conflicted files  :contentReference[oaicite:7]{index=7}[27m[7m    git add -A[27m[7m    git commit -m "Resolve conflicts preferring INCOMING for PR #$NUM"[27m[7m  fi[27m[7mdone[27m[7m# --- push directly or open a single staging PR if protected ---[27m[7mecho ""[27m[7mecho ">>> Pushing to $BASE…"[27m[7mif git push origin "HEAD:$BASE"; then[27m[7m  echo "Pushed directly to $BASE"[27m[7melse[27m[7m  echo "Direct push blocked (likely protection). Opening staging PR…"[27m[7m  git push -u origin "$STAGING"[27m[7m  gh pr create -R "$REPO" --base "$BASE" --head "$STAGING" \[27m[7m    --title "Bulk merge (accept INCOMING on conflicts)" \[27m[7m    --body "Merged all open PRs onto $BASE with '-X theirs'; remaining conflicts resolved with 'checkout --theirs'."[27m[7mfi[27m[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A  echo "Log saved to: $LOG_FILE"
+  echo "==============================================================="
+  if [[ "$PAUSE" == "1" ]]; then read -rp "Press Enter to exit…"; fi
+  exit "$ec"
+}
+on_exit() {
+  ec=$?
+  echo ""
+  echo "=== DONE (exit $ec) ============================================="
+  echo "Log saved to: $LOG_FILE"
+  echo "================================================================"
+  if [[ "$PAUSE" == "1" ]]; then read -rp "Press Enter to exit…"; fi
+}
+trap on_err ERR
+trap on_exit EXIT
+
+# --- auth & base branch ---
+gh auth status >/dev/null 2>&1 || gh auth login -s repo   # gh CLI auth  :contentReference[oaicite:5]{index=5}
+git fetch origin --prune
+git checkout -B "$STAGING" "origin/$BASE"
+
+# --- collect all OPEN PRs (incl. forks) ---
+mapfile -t PRS < <(gh pr list -R "$REPO" --state open \
+  --json number,isCrossRepository,headRepositoryOwner,headRepository,headRefName,isDraft \
+  --jq '.[] | select(.isDraft|not) | [
+        .number,
+        (if .isCrossRepository then "X" else "-" end),
+        .headRepositoryOwner.login,
+        .headRepository.name,
+        .headRefName
+      ] | @tsv')
+echo "Open PRs: ${#PRS[@]}"
+
+# --- merge each PR with INCOMING (PR side) preferred ---
+for row in "${PRS[@]}"; do
+  IFS=$'\t' read -r NUM CROSS OWNER HREPO HREF <<< "$row"
+
+  if [[ "$CROSS" == "X" ]]; then
+    FURL="https://github.com/${OWNER}/${HREPO}.git"
+    TMPREF="_fork/${OWNER}/${HREF}"
+    git fetch "$FURL" "${HREF}:refs/remotes/${TMPREF}"
+    SRC="refs/remotes/${TMPREF}"
+  else
+    git fetch origin "$HREF"
+    SRC="origin/${HREF}"
+  fi  echo ""  echo ">>> Merging PR #$NUM from $SRC (prefer INCOMING)…"  # 1) Try normal merge with PR side winning on conflicts  if ! git merge -X theirs --no-ff --no-edit "$SRC"; then             # -X theirs => incoming wins on conflicts  :contentReference[oaicite:6]{index=6}    echo "Conflict(s): forcing all files to INCOMING version…"    git checkout --theirs .                                          # pick PR version for all conflicted files  :contentReference[oaicite:7]{index=7}    git add -A    git commit -m "Resolve conflicts preferring INCOMING for PR #$NUM"  fidone# --- push directly or open a single staging PR if protected ---echo ""echo ">>> Pushing to $BASE…"if git push origin "HEAD:$BASE"; then  echo "Pushed directly to $BASE"else  echo "Direct push blocked (likely protection). Opening staging PR…"  git push -u origin "$STAGING"  gh pr create -R "$REPO" --base "$BASE" --head "$STAGING" \    --title "Bulk merge (accept INCOMING on conflicts)" \    --body "Merged all open PRs onto $BASE with '-X theirs'; remaining conflicts resolved with 'checkout --theirs'."fi
+[?2004lbranch 'staging/incoming-20251116043405' set up to track 'origin/main'.
+Your branch is up to date with 'origin/main'.
+Reset branch 'staging/incoming-20251116043405'
+Open PRs: 3
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/document-watcher-extra-in-runbook -> FETCH_HEAD
+
+>>> Merging PR #9 from origin/codex/document-watcher-extra-in-runbook (prefer INCOMING)…
+Auto-merging docs/demo_script.md
+Merge made by the 'ort' strategy.
+ docs/demo_script.md | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/review-and-update-onboarding-documentation -> FETCH_HEAD
+
+>>> Merging PR #8 from origin/codex/review-and-update-onboarding-documentation (prefer INCOMING)…
+Merge made by the 'ort' strategy.
+ docs/runbook.md | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+ create mode 100644 docs/runbook.md
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/capture-ui-inspiration-from-finance-dashboards -> FETCH_HEAD
+
+>>> Merging PR #7 from origin/codex/capture-ui-inspiration-from-finance-dashboards (prefer INCOMING)…
+Merge made by the 'ort' strategy.
+ docs/assets/README.md                | 12 ++++++++
+ docs/communication/ui_brief_share.md | 25 ++++++++++++++++
+ docs/ui_inspiration.md               | 56 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 93 insertions(+)
+ create mode 100644 docs/assets/README.md
+ create mode 100644 docs/communication/ui_brief_share.md
+ create mode 100644 docs/ui_inspiration.md
+
+>>> Pushing to main…
+To https://github.com/Blood-Dawn/pocketsage.git
+   b1d18ca..ff9c7dc  HEAD -> main
+Pushed directly to main
+[?2004h]0;MINGW64:/c/Users/kheiven/Documents/GitHub/pocketsage
+[32mkheiven@KheivenD-24F83R5 [35mMINGW64 [33m~/Documents/GitHub/pocketsage[36m (staging/incoming-20251116043405)[0m
+$ 

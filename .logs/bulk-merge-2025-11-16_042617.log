@@ -1,0 +1,346 @@
+branch 'staging/incoming-20251116042616' set up to track 'origin/main'.
+Switched to a new branch 'staging/incoming-20251116042616'
+Open PRs: 30
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/add-pytest-fixtures-and-tests-for-demo-seed -> FETCH_HEAD
+
+>>> Merging PR #69 from origin/codex/add-pytest-fixtures-and-tests-for-demo-seed (prefer INCOMING)…
+Merge made by the 'ort' strategy.
+ tests/test_admin_jobs.py | 57 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 57 insertions(+)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/implement-investment-account-demo-setup -> FETCH_HEAD
+
+>>> Merging PR #68 from origin/codex/implement-investment-account-demo-setup (prefer INCOMING)…
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/admin/tasks.py | 99 ++++++++++++++++++++++++++++++++----
+ 1 file changed, 88 insertions(+), 11 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/add-demo-data-for-habits-and-liabilities -> FETCH_HEAD
+
+>>> Merging PR #67 from origin/codex/add-demo-data-for-habits-and-liabilities (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/admin/tasks.py
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/admin/routes.py |   8 +-
+ pocketsage/blueprints/admin/tasks.py  | 191 ++++++++++++++++++----------------
+ 2 files changed, 109 insertions(+), 90 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/expand-run_demo_seed-for-transactions-and-budget -> FETCH_HEAD
+
+>>> Merging PR #66 from origin/codex/expand-run_demo_seed-for-transactions-and-budget (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/admin/tasks.py
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/admin/tasks.py | 250 +++++++++++++++++++++--------------
+ 1 file changed, 150 insertions(+), 100 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/modify-base.html-for-skip-link-and-footer -> FETCH_HEAD
+
+>>> Merging PR #65 from origin/codex/modify-base.html-for-skip-link-and-footer (prefer INCOMING)…
+Merge made by the 'ort' strategy.
+ pocketsage/static/css/main.css | 40 ++++++++++++++++++++++++++++++++++++++++
+ pocketsage/templates/base.html |  9 ++++++++-
+ 2 files changed, 48 insertions(+), 1 deletion(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/update-css-for-layout-and-responsiveness -> FETCH_HEAD
+
+>>> Merging PR #64 from origin/codex/update-css-for-layout-and-responsiveness (prefer INCOMING)…
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/templates/liabilities/index.html
+Merge made by the 'ort' strategy.
+ pocketsage/static/css/main.css              |  69 +++--
+ pocketsage/templates/admin/index.html       |   8 +-
+ pocketsage/templates/habits/index.html      |   6 +-
+ pocketsage/templates/ledger/index.html      |   6 +-
+ pocketsage/templates/liabilities/index.html | 393 +---------------------------
+ pocketsage/templates/portfolio/index.html   |   6 +-
+ pocketsage/templates/portfolio/upload.html  |   4 +-
+ 7 files changed, 66 insertions(+), 426 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/implement-theming-with-css-variables-and-toggle -> FETCH_HEAD
+
+>>> Merging PR #63 from origin/codex/implement-theming-with-css-variables-and-toggle (prefer INCOMING)…
+Auto-merging pocketsage/static/css/main.css
+Merge made by the 'ort' strategy.
+ pocketsage/static/css/main.css | 372 +++++++++++++++++++++++++----------------
+ pocketsage/static/js/main.js   |  65 +++++++
+ pocketsage/templates/_nav.html |  11 ++
+ 3 files changed, 303 insertions(+), 145 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/update-transaction-listing-and-styles -> FETCH_HEAD
+
+>>> Merging PR #62 from origin/codex/update-transaction-listing-and-styles (prefer INCOMING)…
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/templates/ledger/index.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/ledger/repository.py | 205 ++++++++++++++++++++++++++-
+ pocketsage/blueprints/ledger/routes.py     |  62 ++++++++-
+ pocketsage/static/css/main.css             | 216 +++++++++++++++++++++++++++++
+ pocketsage/templates/ledger/index.html     | 109 ++++++++++++++-
+ 4 files changed, 583 insertions(+), 9 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/enhance-flash-messages-functionality -> FETCH_HEAD
+
+>>> Merging PR #61 from origin/codex/enhance-flash-messages-functionality (prefer INCOMING)…
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/static/js/main.js
+Merge made by the 'ort' strategy.
+ pocketsage/static/css/main.css   |  68 +++++++++++++++++++++-
+ pocketsage/static/js/main.js     | 118 +++++++++++++++++++--------------------
+ pocketsage/templates/_flash.html |  31 +++++++++-
+ 3 files changed, 153 insertions(+), 64 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/extend-transaction-filtering-functionality -> FETCH_HEAD
+
+>>> Merging PR #60 from origin/codex/extend-transaction-filtering-functionality (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/ledger/repository.py
+Auto-merging pocketsage/blueprints/ledger/routes.py
+Auto-merging pocketsage/templates/ledger/index.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/ledger/repository.py | 163 ++++++++---------------------
+ pocketsage/blueprints/ledger/routes.py     | 113 +++++++++++---------
+ pocketsage/templates/ledger/index.html     | 135 ++++++++++--------------
+ tests/test_ledger_filters.py               | 131 +++++++++++++++++++++++
+ 4 files changed, 296 insertions(+), 246 deletions(-)
+ create mode 100644 tests/test_ledger_filters.py
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/update-list_transactions-for-pagination -> FETCH_HEAD
+
+>>> Merging PR #59 from origin/codex/update-list_transactions-for-pagination (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/ledger/repository.py
+Auto-merging pocketsage/blueprints/ledger/routes.py
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/static/js/main.js
+Auto-merging pocketsage/templates/ledger/index.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/ledger/repository.py | 123 ++++++++------
+ pocketsage/blueprints/ledger/routes.py     | 186 +++++++++++++--------
+ pocketsage/static/css/main.css             | 251 ++++++++++++++++++++++-------
+ pocketsage/static/js/main.js               | 142 ++++++++++++++++
+ pocketsage/templates/ledger/index.html     | 204 +++++++++++++++++------
+ tests/test_ledger_repository.py            |  68 ++++++++
+ 6 files changed, 746 insertions(+), 228 deletions(-)
+ create mode 100644 tests/test_ledger_repository.py
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/populate-form-data-in-new_transaction -> FETCH_HEAD
+
+>>> Merging PR #58 from origin/codex/populate-form-data-in-new_transaction (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/ledger/routes.py
+Auto-merging pocketsage/static/css/main.css
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/ledger/routes.py |  19 +++---
+ pocketsage/static/css/main.css         | 113 +++++++++++++++++++++++++++++++++
+ pocketsage/templates/ledger/form.html  |  74 ++++++++++++++++++++-
+ 3 files changed, 196 insertions(+), 10 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/implement-validation-and-error-messages-in-ledger-form -> FETCH_HEAD
+
+>>> Merging PR #57 from origin/codex/implement-validation-and-error-messages-in-ledger-form (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/ledger/routes.py
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/templates/ledger/form.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/ledger/forms.py  |  93 +++++++++++++-
+ pocketsage/blueprints/ledger/routes.py |  22 ++--
+ pocketsage/static/css/main.css         | 218 +++++----------------------------
+ pocketsage/templates/ledger/form.html  | 212 ++++++++++++++++++++++----------
+ 4 files changed, 279 insertions(+), 266 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/update-transaction-editing-functionality -> FETCH_HEAD
+
+>>> Merging PR #56 from origin/codex/update-transaction-editing-functionality (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/ledger/routes.py
+Auto-merging pocketsage/templates/ledger/form.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/ledger/routes.py | 190 ++++++++++++++++---------
+ pocketsage/templates/ledger/form.html  | 244 +++++++++++++--------------------
+ tests/test_ledger_routes.py            | 122 +++++++++++++++++
+ 3 files changed, 348 insertions(+), 208 deletions(-)
+ create mode 100644 tests/test_ledger_routes.py
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/fetch-habit-summaries-and-update-ui -> FETCH_HEAD
+
+>>> Merging PR #55 from origin/codex/fetch-habit-summaries-and-update-ui (prefer INCOMING)…
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/templates/habits/index.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/habits/routes.py |  71 +++++++++++++++++++-
+ pocketsage/static/css/main.css         | 119 +++++++++++++++++++++++----------
+ pocketsage/templates/habits/index.html |  41 +++++++++++-
+ 3 files changed, 188 insertions(+), 43 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/add-illustrated-empty-state-for-habits -> FETCH_HEAD
+
+>>> Merging PR #54 from origin/codex/add-illustrated-empty-state-for-habits (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/habits/routes.py
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/templates/habits/index.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/habits/routes.py | 51 +++++-------------------
+ pocketsage/static/css/main.css         | 71 ++++++++++++++++++++++++++++++++++
+ pocketsage/templates/habits/index.html | 69 +++++++++++++++++----------------
+ 3 files changed, 117 insertions(+), 74 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/render-per-habit-toggle-forms-with-csrf -> FETCH_HEAD
+
+>>> Merging PR #53 from origin/codex/render-per-habit-toggle-forms-with-csrf (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/habits/routes.py
+Auto-merging pocketsage/static/js/main.js
+Auto-merging pocketsage/templates/habits/index.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/habits/routes.py |  21 +++-
+ pocketsage/static/js/main.js           | 209 +++++++++++++++------------------
+ pocketsage/templates/habits/index.html |  69 ++++++-----
+ 3 files changed, 145 insertions(+), 154 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/gather-liability-summaries-and-update-ui -> FETCH_HEAD
+
+>>> Merging PR #52 from origin/codex/gather-liability-summaries-and-update-ui (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/liabilities/routes.py
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/templates/liabilities/index.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/liabilities/routes.py | 176 +++++++++++++++++++++--
+ pocketsage/static/css/main.css              | 208 +++++++++++++++++++++-------
+ pocketsage/templates/liabilities/index.html | 115 ++++++++++++++-
+ 3 files changed, 435 insertions(+), 64 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/compute-payoff-projections-in-liabilities-service -> FETCH_HEAD
+
+>>> Merging PR #51 from origin/codex/compute-payoff-projections-in-liabilities-service (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/liabilities/routes.py
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/static/js/main.js
+Auto-merging pocketsage/templates/liabilities/index.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/liabilities/routes.py |  19 +--
+ pocketsage/services/__init__.py             |   3 +-
+ pocketsage/services/liabilities.py          | 211 ++++++++++++++++++++++++++
+ pocketsage/static/css/main.css              | 198 +++++++-----------------
+ pocketsage/static/js/main.js                | 225 ++++++++++++++--------------
+ pocketsage/templates/liabilities/index.html | 177 ++++++++++------------
+ 6 files changed, 461 insertions(+), 372 deletions(-)
+ create mode 100644 pocketsage/services/liabilities.py
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/implement-liability-form-and-validation -> FETCH_HEAD
+
+>>> Merging PR #50 from origin/codex/implement-liability-form-and-validation (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/liabilities/forms.py
+Auto-merging pocketsage/blueprints/liabilities/routes.py
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/templates/liabilities/form.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/liabilities/forms.py  | 111 +++++++++++++----
+ pocketsage/blueprints/liabilities/routes.py |  51 ++++++--
+ pocketsage/static/css/main.css              | 171 ++++++++++++++------------
+ pocketsage/templates/liabilities/form.html  | 179 +++++++++++++++++++++-------
+ 4 files changed, 362 insertions(+), 150 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/extend-portfolio-list-with-sorting-and-filtering -> FETCH_HEAD
+
+>>> Merging PR #49 from origin/codex/extend-portfolio-list-with-sorting-and-filtering (prefer INCOMING)…
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/static/js/main.js
+Auto-merging pocketsage/templates/portfolio/index.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/portfolio/routes.py | 102 +++++++++++++++-
+ pocketsage/static/css/main.css            | 134 +++++++++++++++++++++
+ pocketsage/static/js/main.js              | 194 ++++++++++++++++--------------
+ pocketsage/templates/portfolio/index.html |  61 +++++++---
+ 4 files changed, 383 insertions(+), 108 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/update-docs-with-tools-pinned-versions -> FETCH_HEAD
+
+>>> Merging PR #48 from origin/codex/update-docs-with-tools-pinned-versions (prefer INCOMING)…
+Merge made by the 'ort' strategy.
+ README.md | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/summarize-dependencies-in-onboarding-docs -> FETCH_HEAD
+
+>>> Merging PR #47 from origin/codex/summarize-dependencies-in-onboarding-docs (prefer INCOMING)…
+Auto-merging README.md
+Merge made by the 'ort' strategy.
+ README.md | 24 ++++++++++++++++--------
+ 1 file changed, 16 insertions(+), 8 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/review-cli-commands-and-add-documentation -> FETCH_HEAD
+
+>>> Merging PR #46 from origin/codex/review-cli-commands-and-add-documentation (prefer INCOMING)…
+Merge made by the 'ort' strategy.
+ docs/ops_runbook.md | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+ create mode 100644 docs/ops_runbook.md
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/document-sqlcipher-environment-variables -> FETCH_HEAD
+
+>>> Merging PR #45 from origin/codex/document-sqlcipher-environment-variables (prefer INCOMING)…
+Auto-merging README.md
+Merge made by the 'ort' strategy.
+ README.md             |  2 ++
+ docs/configuration.md | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+)
+ create mode 100644 docs/configuration.md
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/ensure-job-data-is-passed-to-admin-template -> FETCH_HEAD
+
+>>> Merging PR #44 from origin/codex/ensure-job-data-is-passed-to-admin-template (prefer INCOMING)…
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/static/js/main.js
+Auto-merging pocketsage/templates/admin/index.html
+Merge made by the 'ort' strategy.
+ pocketsage/static/css/main.css        | 130 +++++++++++++++++++++++++++++++
+ pocketsage/static/js/main.js          | 143 +++++++++++++++++++++++++++++-----
+ pocketsage/templates/admin/index.html |  63 ++++++++++++++-
+ 3 files changed, 314 insertions(+), 22 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/modify-admin-to-show-recent-exports -> FETCH_HEAD
+
+>>> Merging PR #43 from origin/codex/modify-admin-to-show-recent-exports (prefer INCOMING)…
+Auto-merging pocketsage/blueprints/admin/routes.py
+Auto-merging pocketsage/static/css/main.css
+Auto-merging pocketsage/templates/admin/index.html
+Merge made by the 'ort' strategy.
+ pocketsage/blueprints/admin/routes.py | 60 ++++++++++++++++++++++++-----------
+ pocketsage/static/css/main.css        | 48 ++++++++++++++++++++++++++++
+ pocketsage/templates/admin/index.html | 38 +++++++++++++++++-----
+ 3 files changed, 120 insertions(+), 26 deletions(-)
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/update-troubleshooting-matrix-for-baseconfig -> FETCH_HEAD
+
+>>> Merging PR #42 from origin/codex/update-troubleshooting-matrix-for-baseconfig (prefer INCOMING)…
+Auto-merging README.md
+Merge made by the 'ort' strategy.
+ README.md               |  2 +-
+ docs/troubleshooting.md | 41 +++++++++++++++++++++++++++++++++++++++++
+ pocketsage/config.py    |  5 +++--
+ 3 files changed, 45 insertions(+), 3 deletions(-)
+ create mode 100644 docs/troubleshooting.md
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/update-release-checklist-for-pyinstaller -> FETCH_HEAD
+
+>>> Merging PR #41 from origin/codex/update-release-checklist-for-pyinstaller (prefer INCOMING)…
+Merge made by the 'ort' strategy.
+ docs/release_checklist.md | 20 ++++++++++++++++++++
+ docs/release_notes.md     | 25 +++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)
+ create mode 100644 docs/release_checklist.md
+ create mode 100644 docs/release_notes.md
+From https://github.com/Blood-Dawn/pocketsage
+ * branch            codex/update-packaging-docs-and-runbook -> FETCH_HEAD
+
+>>> Merging PR #40 from origin/codex/update-packaging-docs-and-runbook (prefer INCOMING)…
+Auto-merging README.md
+Merge made by the 'ort' strategy.
+ PocketSage.spec         |  5 ++++-
+ README.md               | 21 ++++-----------------
+ docs/demo_script.md     |  1 +
+ docs/system_overview.md |  2 +-
+ 4 files changed, 10 insertions(+), 19 deletions(-)
+
+>>> Pushing to main…
+To https://github.com/Blood-Dawn/pocketsage.git
+   f11cbf9..4b69581  HEAD -> main
+Pushed directly to main
+[?2004h]0;MINGW64:/c/Users/kheiven/Documents/GitHub/pocketsage
+[32mkheiven@KheivenD-24F83R5 [35mMINGW64 [33m~/Documents/GitHub/pocketsage[36m (staging/incoming-20251116042616)[0m
+$ 
