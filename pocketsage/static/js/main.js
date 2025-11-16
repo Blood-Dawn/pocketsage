@@ -1,75 +1,42 @@
 // PocketSage frontend bootstrapping
 
 const FINAL_JOB_STATUSES = new Set(["succeeded", "failed"]);
-const THEME_STORAGE_KEY = "pocketsage:theme";
-const VALID_THEMES = new Set(["light", "dark"]);
-const DEFAULT_THEME = "dark";
+const ALERT_FLASH_CATEGORIES = new Set(["danger", "warning", "error"]);
+
+const FLASH_ICONS = Object.freeze({
+    success: `<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.707a1 1 0 00-1.414-1.414L9 10.172 7.707 8.879a1 1 0 10-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>`,
+    danger: `<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-9-3a1 1 0 112 0v4a1 1 0 11-2 0V7zm1 8a1.25 1.25 0 100-2.5A1.25 1.25 0 0010 15z" clip-rule="evenodd"></path></svg>`,
+    error: `<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-9-3a1 1 0 112 0v4a1 1 0 11-2 0V7zm1 8a1.25 1.25 0 100-2.5A1.25 1.25 0 0010 15z" clip-rule="evenodd"></path></svg>`,
+    warning: `<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l6.518 11.59c.75 1.333-.214 2.99-1.742 2.99H3.48c-1.528 0-2.492-1.657-1.742-2.99l6.52-11.59zM11 14a1 1 0 10-2 0 1 1 0 002 0zm-1-2a1 1 0 01-1-1V8a1 1 0 112 0v3a1 1 0 01-1 1z"></path></svg>`,
+    info: `<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM9 9a1 1 0 112 0v5a1 1 0 11-2 0V9zm1-4a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd"></path></svg>`,
+});
+
+const FLASH_DISMISS_ICON =
+    '<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>';
 
 document.addEventListener("DOMContentLoaded", () => {
-    initTheme();
+    initFlashDismissal();
     initAdminDashboard();
     initPortfolioUpload();
 });
 
-function initTheme() {
-    const initialTheme = getStoredTheme() || DEFAULT_THEME;
-    applyTheme(initialTheme);
-
-    const toggle = document.querySelector("[data-theme-toggle]");
-    if (!toggle) {
+function initFlashDismissal() {
+    const container = document.querySelector(".flash-messages");
+    if (!container) {
         return;
     }
 
-    toggle.addEventListener("click", () => {
-        const body = document.body;
-        const currentTheme = body ? body.dataset.theme : null;
-        const nextTheme = currentTheme === "light" ? "dark" : "light";
-        applyTheme(nextTheme);
+    container.addEventListener("click", (event) => {
+        const dismissButton = event.target.closest("[data-flash-dismiss]");
+        if (!dismissButton || !container.contains(dismissButton)) {
+            return;
+        }
+        event.preventDefault();
+        const flash = dismissButton.closest(".flash");
+        if (flash) {
+            flash.remove();
+        }
     });
-}
-
-function applyTheme(theme) {
-    const body = document.body;
-    if (!body) {
-        return;
-    }
-
-    const normalizedTheme = VALID_THEMES.has(theme) ? theme : DEFAULT_THEME;
-    body.dataset.theme = normalizedTheme;
-    document.documentElement.style.colorScheme = normalizedTheme;
-    setStoredTheme(normalizedTheme);
-    updateThemeToggle(normalizedTheme);
-}
-
-function getStoredTheme() {
-    try {
-        const stored = localStorage.getItem(THEME_STORAGE_KEY);
-        return stored && VALID_THEMES.has(stored) ? stored : null;
-    } catch (error) {
-        console.warn("Unable to access theme preference", error);
-        return null;
-    }
-}
-
-function setStoredTheme(theme) {
-    try {
-        localStorage.setItem(THEME_STORAGE_KEY, theme);
-    } catch (error) {
-        console.warn("Unable to persist theme preference", error);
-    }
-}
-
-function updateThemeToggle(theme) {
-    const toggle = document.querySelector("[data-theme-toggle]");
-    if (!toggle) {
-        return;
-    }
-
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    const nextLabel = `Switch to ${nextTheme} mode`;
-    toggle.textContent = `${nextTheme.charAt(0).toUpperCase()}${nextTheme.slice(1)} mode`;
-    toggle.setAttribute("aria-label", nextLabel);
-    toggle.setAttribute("aria-pressed", theme === "dark" ? "true" : "false");
 }
 
 function initAdminDashboard() {
@@ -334,14 +301,43 @@ function formatDate(value) {
     return date.toLocaleString();
 }
 
+function getFlashIconMarkup(category) {
+    const normalized = typeof category === "string" ? category.toLowerCase() : "";
+    return FLASH_ICONS[normalized] || FLASH_ICONS.info;
+}
+
 function showFlash(message, category) {
     const container = document.querySelector(".flash-messages");
     if (!container) {
         return;
     }
+    const normalizedCategory = (typeof category === "string" && category.trim())
+        ? category.trim().toLowerCase()
+        : "info";
     const element = document.createElement("div");
-    element.className = `flash flash-${category}`;
-    element.textContent = message;
+    element.className = `flash flash-${normalizedCategory}`;
+    element.setAttribute("role", ALERT_FLASH_CATEGORIES.has(normalizedCategory) ? "alert" : "status");
+
+    const icon = document.createElement("span");
+    icon.className = "flash-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.innerHTML = getFlashIconMarkup(normalizedCategory);
+
+    const content = document.createElement("div");
+    content.className = "flash-message";
+    content.textContent = message;
+
+    const dismissButton = document.createElement("button");
+    dismissButton.type = "button";
+    dismissButton.className = "flash-dismiss";
+    dismissButton.setAttribute("aria-label", "Dismiss notification");
+    dismissButton.setAttribute("data-flash-dismiss", "");
+    dismissButton.innerHTML = FLASH_DISMISS_ICON;
+    dismissButton.addEventListener("click", () => {
+        element.remove();
+    });
+
+    element.append(icon, content, dismissButton);
     container.appendChild(element);
     setTimeout(() => {
         element.remove();
