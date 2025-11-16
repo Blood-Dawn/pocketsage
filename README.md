@@ -41,8 +41,10 @@ Framework Owner checkpoint for the PocketSage desktop-first Flask app. Focus are
 - `.env` values prefixed with `POCKETSAGE_`
 - `POCKETSAGE_USE_SQLCIPHER=true` switches DB URL builder (SQLCipher driver TODO)
 - `POCKETSAGE_DATABASE_URL` overrides computed path if needed
-- See [`docs/configuration.md`](docs/configuration.md) for a deeper dive into
-  SQLCipher toggles, URL construction, and engine options.
+- `POCKETSAGE_SECRET_KEY` must be regenerated with a strong random value before any deployment beyond local development (e.g., `python -c "import secrets; print(secrets.token_urlsafe(64))"`).
+
+### Deployment Checklist
+- [ ] Replace the default `replace-me` secret in `.env` so it differs from the fallback defined on `BaseConfig`.
 
 ## Privacy & Offline Notes
 - All data stored locally under `instance/`
