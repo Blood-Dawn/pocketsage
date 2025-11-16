@@ -1,20 +1,23 @@
+{% set endpoint = request.endpoint or '' %}
 <nav class="top-nav">
   <ul>
-    <li><a href="{{ url_for('ledger.list_transactions') }}">Ledger</a></li>
-    <li><a href="{{ url_for('habits.list_habits') }}">Habits</a></li>
-    <li><a href="{{ url_for('liabilities.list_liabilities') }}">Liabilities</a></li>
-    <li><a href="{{ url_for('portfolio.list_portfolio') }}">Portfolio</a></li>
-    <li><a href="{{ url_for('admin.dashboard') }}">Admin</a></li>
-    <li>
-      <button
-        type="button"
-        class="theme-toggle"
-        data-theme-toggle
-        aria-label="Switch to light mode"
-        aria-pressed="true"
-      >
-        Light mode
-      </button>
+    <li class="{% if endpoint.startswith('overview.') %}active{% endif %}">
+      <a href="{{ url_for('overview.dashboard') }}"{% if endpoint.startswith('overview.') %} aria-current="page"{% endif %}>Overview</a>
+    </li>
+    <li class="{% if endpoint.startswith('ledger.') %}active{% endif %}">
+      <a href="{{ url_for('ledger.list_transactions') }}"{% if endpoint.startswith('ledger.') %} aria-current="page"{% endif %}>Ledger</a>
+    </li>
+    <li class="{% if endpoint.startswith('habits.') %}active{% endif %}">
+      <a href="{{ url_for('habits.list_habits') }}"{% if endpoint.startswith('habits.') %} aria-current="page"{% endif %}>Habits</a>
+    </li>
+    <li class="{% if endpoint.startswith('liabilities.') %}active{% endif %}">
+      <a href="{{ url_for('liabilities.list_liabilities') }}"{% if endpoint.startswith('liabilities.') %} aria-current="page"{% endif %}>Liabilities</a>
+    </li>
+    <li class="{% if endpoint.startswith('portfolio.') %}active{% endif %}">
+      <a href="{{ url_for('portfolio.list_portfolio') }}"{% if endpoint.startswith('portfolio.') %} aria-current="page"{% endif %}>Portfolio</a>
+    </li>
+    <li class="{% if endpoint.startswith('admin.') %}active{% endif %}">
+      <a href="{{ url_for('admin.dashboard') }}"{% if endpoint.startswith('admin.') %} aria-current="page"{% endif %}>Admin</a>
     </li>
   </ul>
 </nav>
