@@ -23,11 +23,11 @@
 - [ ] # TODO(@habits-squad) Support habit archival and reactivation flows.
 
 ## Liabilities & Debts - Vedell Jones
-- [x] # TODO(@debts-squad) Implement liabilities repository with create/read/update and payoff schedule storage.
-- [x] # TODO(@debts-squad) Finish snowball and avalanche calculators with deterministic ordering.
-- [x] # TODO(@debts-squad) Generate payoff timeline chart PNG via `services.reports`.
-- [x] # TODO(@debts-squad) Add ability to record actual payments and reconcile balances.
-- [x] # TODO(@debts-squad) Surface debt-free date projections in UI.
+- [ ] # TODO(@debts-squad) Implement liabilities repository with create/read/update and payoff schedule storage.
+- [ ] # TODO(@debts-squad) Finish snowball and avalanche calculators with deterministic ordering.
+- [ ] # TODO(@debts-squad) Generate payoff timeline chart PNG via `services.reports` (UI currently renders a TODO placeholder on `/liabilities/`).
+- [ ] # TODO(@debts-squad) Add ability to record actual payments and reconcile balances.
+- [ ] # TODO(@debts-squad) Surface debt-free date projections in UI.
 
 ## Portfolio (Optional)(KD)
 - [x] # TODO(@portfolio-squad) Wire upload form to accept CSV and call `import_csv.import_csv_file`.
