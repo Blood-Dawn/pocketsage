@@ -43,41 +43,24 @@
 - Charts and CSV imports pending.
 - Tests currently skipped; mention roadmap for coverage.
 
-## Blueprint Routing Overview
+## README Focus Follow-Up Tasks
 
-PocketSage exposes its major feature areas via Flask blueprints. Use the following
-reference when hitting routes during manual testing:
+### Replace repository protocols with SQLModel CRUD implementations
+- **Owner:** @ledger-squad, @habits-squad, @debts-squad
+- **Status:** Not started – repositories for ledger transactions and liabilities remain unchecked in `TODO.md`; habit persistence landed but additional CRUD wiring is still pending.
+- **Next Action:** Implement the SQLModel repositories listed under the "Ledger", "Habits", and "Liabilities & Debts" sections of the backlog so services stop depending on protocol stubs.
 
-- **Home (`pocketsage.blueprints.home`)**
-  - **Base path:** `/` (no blueprint `url_prefix`). Visiting `/` serves the landing
-    page; Flask redirects `/` requests that omit the trailing slash as needed.
-  - **Key routes:** `GET /`.
-- **Admin (`pocketsage.blueprints.admin`)**
-  - **Base path:** `/admin/` (`url_prefix="/admin"`; Flask enforces the trailing
-    slash on the dashboard route defined as `@bp.get("/")`).
-  - **Key routes:** `GET /admin/`, `POST /admin/seed-demo`, `POST /admin/export`,
-    `GET /admin/export/download`, `GET /admin/jobs/<job_id>`.
-- **Habits (`pocketsage.blueprints.habits`)**
-  - **Base path:** `/habits/` (`url_prefix="/habits"`; expect trailing-slash
-    redirects for the index route).
-  - **Key routes:** `GET /habits/`, `GET /habits/new`,
-    `POST /habits/<habit_id>/toggle`.
-- **Ledger (`pocketsage.blueprints.ledger`)**
-  - **Base path:** `/ledger/` (`url_prefix="/ledger"`; trailing slash enforced on
-    the index route).
-  - **Key routes:** `GET /ledger/`, `GET /ledger/new`, `POST /ledger/`,
-    `GET /ledger/<transaction_id>/edit`, `POST /ledger/<transaction_id>`.
-- **Liabilities (`pocketsage.blueprints.liabilities`)**
-  - **Base path:** `/liabilities/` (`url_prefix="/liabilities"`; trailing slash
-    enforced on the index route).
-  - **Key routes:** `GET /liabilities/`, `GET /liabilities/new`,
-    `POST /liabilities/<liability_id>/recalculate`.
-- **Portfolio (`pocketsage.blueprints.portfolio`)**
-  - **Base path:** `/portfolio/` (`url_prefix="/portfolio"`; trailing slash
-    enforced on the holdings index).
-  - **Key routes:** `GET /portfolio/`, `POST /portfolio/import`,
-    `GET /portfolio/upload`, `GET /portfolio/export`.
+### Implement Matplotlib chart rendering + CSV import idempotency
+- **Owner:** @ledger-squad, @reports, @imports, @qa-team
+- **Status:** In progress – chart hooks and CSV idempotent upserts are still open, though QA already has regression coverage marked complete.
+- **Next Action:** Finish `build_spending_chart`/`export_spending_png` work and the import persistence/idempotent upsert tasks in "Services & Integrations" so ledger charts reflect reliable ingest results.
 
-All route decorators use Flask's default strict-slash behavior: define index
-routes with `"/"` so Flask issues redirects for missing trailing slashes, while
-subroutes such as `/export` or `/new` do not carry trailing slashes.
+### Wire watchdog optional observer when extra installed
+- **Owner:** @watcher
+- **Status:** Not started – both watcher bootstrap and debounce/retry TODOs remain unchecked in the integrations backlog.
+- **Next Action:** Implement the filesystem observer startup and stabilization tasks gated behind the `[watcher]` extra to complete the automation story highlighted in the README.
+
+### Fill Admin tasks, seeding, and export flows
+- **Owner:** @admin-squad, @framework-owner, @ops-team
+- **Status:** Complete – the entire "Admin & Operations" section of `TODO.md` is checked off following seed/export automation and scheduler wiring.
+- **Next Action:** Monitor for polish opportunities post-launch; no immediate backlog work is required beyond demo rehearsal.
