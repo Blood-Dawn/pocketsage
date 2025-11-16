@@ -62,8 +62,69 @@
 
     <section class="surface-card admin-panel">
       <h2>Background Jobs</h2>
+      <div class="visually-hidden" aria-live="polite" data-job-announcer></div>
       <ul class="job-list" data-job-list>
-        <!-- Populated via JavaScript -->
+        {% if jobs %}
+          {% for job in jobs %}
+            <li
+              class="job-item"
+              data-job-id="{{ job.id }}"
+              data-job-status="{{ job.status }}"
+            >
+              <header class="job-item__header">
+                <span class="job-item__name">{{ job.name }}</span>
+                <span
+                  class="job-status-badge job-status-badge--{{ job.status }}{% if job.status not in ('succeeded', 'failed') %} is-loading{% endif %}"
+                  data-status="{{ job.status }}"
+                >
+                  {% if job.status not in ('succeeded', 'failed') %}
+                    <span class="job-status-badge__spinner" aria-hidden="true"></span>
+                  {% endif %}
+                  <span class="job-status-badge__label">{{ job.status | replace('_', ' ') | title }}</span>
+                </span>
+              </header>
+              <dl class="job-timestamps">
+                <div>
+                  <dt>Created</dt>
+                  <dd>
+                    {% if job.created_at %}
+                      <time datetime="{{ job.created_at }}">{{ job.created_at | replace('T', ' ') }}</time>
+                    {% else %}
+                      <span class="empty">—</span>
+                    {% endif %}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Started</dt>
+                  <dd>
+                    {% if job.started_at %}
+                      <time datetime="{{ job.started_at }}">{{ job.started_at | replace('T', ' ') }}</time>
+                    {% else %}
+                      <span class="empty">—</span>
+                    {% endif %}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Finished</dt>
+                  <dd>
+                    {% if job.finished_at %}
+                      <time datetime="{{ job.finished_at }}">{{ job.finished_at | replace('T', ' ') }}</time>
+                    {% else %}
+                      <span class="empty">—</span>
+                    {% endif %}
+                  </dd>
+                </div>
+              </dl>
+              {% if job.error %}
+                <div class="job-error" role="status">{{ job.error }}</div>
+              {% endif %}
+            </li>
+          {% endfor %}
+        {% else %}
+          <li class="job-item job-item--empty">
+            <span class="empty">No background jobs yet.</span>
+          </li>
+        {% endif %}
       </ul>
     </section>
   </section>
