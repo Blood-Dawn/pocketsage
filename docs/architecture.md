@@ -32,7 +32,12 @@
 
 ## Packaging
 - PyInstaller spec (`PocketSage.spec`) bundles CLI app, templates, and static assets.
-- Makefile `package` target runs PyInstaller (TODO: refine hidden imports & bundling).
+- `make package` runs `pyinstaller PocketSage.spec --clean` (TODO: refine hidden imports & bundling).
+
+### Packaging checklist
+- [ ] Confirm `PocketSage.spec` exists at the repository root before packaging.
+  - If the file is missing, restore it from version control or regenerate with `pyinstaller run.py --name PocketSage --specpath .`.
+- [ ] Run `make package` to build the binary with PyInstaller.
 
 ## TODO Highlights
 - Replace repository protocols with SQLModel implementations.

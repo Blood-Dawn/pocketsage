@@ -34,7 +34,7 @@ Framework Owner checkpoint for the PocketSage desktop-first Flask app. Focus are
 - `make dev` → run Flask dev server
 - `make test` → pytest (currently skipped TODOs)
 - `make lint` → ruff + black check
-- `make package` → PyInstaller stub build
+- `make package` → runs `pyinstaller PocketSage.spec --clean`
 - `make demo-seed` → placeholder seeding script (raises TODO)
 
 ## Configuration Flags
