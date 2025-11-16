@@ -24,6 +24,16 @@ Framework Owner checkpoint for the PocketSage desktop-first Flask app. Focus are
 4. `python run.py`
 5. Visit http://127.0.0.1:5000 to view the landing page and navigate to scaffolded blueprints
 
+## Development Environment
+The `dev` extra pins the following tool versions. After installation, confirm each tool reports the expected version to avoid drift across contributors.
+
+| Tool | Pinned version | Verify with |
+| --- | --- | --- |
+| `black` | `24.8.0` | `black --version`
+| `pytest` | `8.2.0` | `pytest --version`
+| `ruff` | `0.6.2` | `ruff --version`
+| `pre-commit` | `3.8.0` | `pre-commit --version`
+
 ### Make Targets
 - `make setup` → install deps, enable pre-commit
 - `make dev` → run Flask dev server
