@@ -1,158 +1,108 @@
 {% extends 'base.html' %}
-{% block title %}Ledger Entry · PocketSage{% endblock %}
+{% set edit_mode = is_edit %}
+{% block title %}{% if edit_mode %}Edit Ledger Entry · PocketSage{% else %}Ledger Entry · PocketSage{% endif %}{% endblock %}
 {% block content %}
-  {% set form_state = form if form is defined else None %}
-  {% if transaction_id is defined %}
-    {% set action_url = url_for('ledger.update_transaction', transaction_id=transaction_id) %}
-  {% else %}
-    {% set action_url = url_for('ledger.create_transaction') %}
-  {% endif %}
-
-  <h1>Ledger Entry</h1>
-
-  {% if form_state and form_state.errors %}
-    <div class="alert alert-danger" role="alert" aria-live="polite">
-      <p>There were problems with your submission:</p>
-      <ul>
-        {% for field, messages in form_state.errors.items() %}
-          {% for message in messages %}
-            <li><a href="#{{ field }}">{{ message }}</a></li>
-          {% endfor %}
-        {% endfor %}
-      </ul>
-    </div>
-  {% endif %}
-
-  <form method="post" action="{{ action_url }}" novalidate>
-    {% set occurred_value = '' %}
-    {% if form_state %}
-      {% set occurred_value = form_state.raw_data.get('occurred_at', '') %}
-      {% if not occurred_value and form_state.occurred_at %}
-        {% set occurred_value = form_state.occurred_at.date().isoformat() %}
+  <article class="ledger-form">
+    <header class="page-header">
+      <h1>{% if edit_mode %}Edit Ledger Entry{% else %}Ledger Entry{% endif %}</h1>
+      {% if edit_mode %}
+        <nav class="page-actions">
+          <a class="link-danger todo" href="#delete-transaction" aria-disabled="true">Delete entry</a>
+        </nav>
       {% endif %}
+    </header>
+
+    {% if edit_mode and metadata %}
+      <section class="ledger-metadata">
+        <h2>Entry metadata</h2>
+        <dl>
+          {% if metadata.id %}
+            <div><dt>ID</dt><dd>#{{ metadata.id }}</dd></div>
+          {% endif %}
+          {% if metadata.external_id %}
+            <div><dt>External ID</dt><dd>{{ metadata.external_id }}</dd></div>
+          {% endif %}
+          {% if metadata.occurred_at %}
+            <div><dt>Occurred</dt><dd>{{ metadata.occurred_at }}</dd></div>
+          {% endif %}
+          {% if metadata.amount %}
+            <div><dt>Amount</dt><dd>{{ metadata.amount }} {{ metadata.currency or '' }}</dd></div>
+          {% endif %}
+          {% if metadata.account %}
+            <div><dt>Account</dt><dd>{{ metadata.account }}</dd></div>
+          {% endif %}
+          {% if metadata.category_id %}
+            <div><dt>Category</dt><dd>{{ metadata.category_id }}</dd></div>
+          {% endif %}
+          {% if metadata.created_at %}
+            <div><dt>Created</dt><dd>{{ metadata.created_at }}</dd></div>
+          {% endif %}
+          {% if metadata.updated_at %}
+            <div><dt>Updated</dt><dd>{{ metadata.updated_at }}</dd></div>
+          {% endif %}
+        </dl>
+      </section>
     {% endif %}
-    {% set occurred_invalid = form_state and form_state.errors.get('occurred_at') %}
-    <div class="form-field">
-      <label for="occurred_at">Date</label>
-      <input
-        type="date"
-        id="occurred_at"
-        name="occurred_at"
-        class="form-control{% if occurred_invalid %} is-invalid{% endif %}"
-        value="{{ occurred_value }}"
-        aria-invalid="{{ 'true' if occurred_invalid else 'false' }}"
-        {% if occurred_invalid %}aria-describedby="occurred_at-error"{% endif %}
-        required
-      >
-      {% if occurred_invalid %}
-        <div id="occurred_at-error" class="field-error" role="alert">
-          <ul>
-            {% for message in form_state.errors['occurred_at'] %}
-              <li>{{ message }}</li>
-            {% endfor %}
-          </ul>
-        </div>
-      {% endif %}
-    </div>
 
-    {% set amount_value = '' %}
-    {% if form_state %}
-      {% set amount_value = form_state.raw_data.get('amount', '') %}
-      {% if not amount_value and form_state.amount is not none %}
-        {% set amount_value = form_state.amount %}
-      {% endif %}
+    <form method="post" action="{{ form_action }}" class="ledger-entry-form">
+      <fieldset>
+        <legend class="sr-only">Ledger entry</legend>
+        <div class="form-control">
+          <label for="occurred_at">Occurred at</label>
+          <input
+            type="datetime-local"
+            id="occurred_at"
+            name="occurred_at"
+            value="{{ form_values.occurred_at }}"
+            required
+          >
+        </div>
+        <div class="form-control">
+          <label for="amount">Amount</label>
+          <input
+            type="number"
+            id="amount"
+            name="amount"
+            step="0.01"
+            value="{{ form_values.amount }}"
+            required
+          >
+        </div>
+        <div class="form-control">
+          <label for="memo">Memo</label>
+          <input
+            type="text"
+            id="memo"
+            name="memo"
+            maxlength="255"
+            value="{{ form_values.memo }}"
+          >
+        </div>
+        <div class="form-control">
+          <label for="category_id">Category</label>
+          <input
+            type="number"
+            id="category_id"
+            name="category_id"
+            value="{{ form_values.category_id }}"
+          >
+        </div>
+      </fieldset>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+          {% if edit_mode %}Update entry{% else %}Create entry{% endif %}
+        </button>
+        <a class="btn" href="{{ list_url }}">Back to ledger</a>
+      </div>
+    </form>
+
+    {% if form and form.memo %}
+      <section class="form-summary">
+        <h2>Current memo</h2>
+        <p>{{ form.memo }}</p>
+      </section>
     {% endif %}
-    {% set amount_invalid = form_state and form_state.errors.get('amount') %}
-    <div class="form-field">
-      <label for="amount">Amount</label>
-      <input
-        type="number"
-        step="0.01"
-        inputmode="decimal"
-        id="amount"
-        name="amount"
-        class="form-control{% if amount_invalid %} is-invalid{% endif %}"
-        value="{{ amount_value }}"
-        aria-invalid="{{ 'true' if amount_invalid else 'false' }}"
-        {% if amount_invalid %}aria-describedby="amount-error"{% endif %}
-        required
-      >
-      {% if amount_invalid %}
-        <div id="amount-error" class="field-error" role="alert">
-          <ul>
-            {% for message in form_state.errors['amount'] %}
-              <li>{{ message }}</li>
-            {% endfor %}
-          </ul>
-        </div>
-      {% endif %}
-    </div>
 
-    {% set memo_value = '' %}
-    {% if form_state %}
-      {% set memo_value = form_state.raw_data.get('memo', '') %}
-      {% if not memo_value and form_state.memo %}
-        {% set memo_value = form_state.memo %}
-      {% endif %}
-    {% endif %}
-    {% set memo_invalid = form_state and form_state.errors.get('memo') %}
-    <div class="form-field">
-      <label for="memo">Memo</label>
-      <textarea
-        id="memo"
-        name="memo"
-        rows="3"
-        class="form-control{% if memo_invalid %} is-invalid{% endif %}"
-        aria-invalid="{{ 'true' if memo_invalid else 'false' }}"
-        {% if memo_invalid %}aria-describedby="memo-error"{% endif %}
-        required
-      >{{ memo_value }}</textarea>
-      {% if memo_invalid %}
-        <div id="memo-error" class="field-error" role="alert">
-          <ul>
-            {% for message in form_state.errors['memo'] %}
-              <li>{{ message }}</li>
-            {% endfor %}
-          </ul>
-        </div>
-      {% endif %}
-    </div>
-
-    {% set category_value = '' %}
-    {% if form_state %}
-      {% set category_value = form_state.raw_data.get('category_id', '') %}
-      {% if not category_value and form_state.category_id is not none %}
-        {% set category_value = form_state.category_id %}
-      {% endif %}
-    {% endif %}
-    {% set category_invalid = form_state and form_state.errors.get('category_id') %}
-    <div class="form-field">
-      <label for="category_id">Category (optional)</label>
-      <input
-        type="number"
-        id="category_id"
-        name="category_id"
-        class="form-control{% if category_invalid %} is-invalid{% endif %}"
-        value="{{ category_value }}"
-        aria-invalid="{{ 'true' if category_invalid else 'false' }}"
-        {% if category_invalid %}aria-describedby="category_id-error"{% endif %}
-        min="1"
-        step="1"
-      >
-      {% if category_invalid %}
-        <div id="category_id-error" class="field-error" role="alert">
-          <ul>
-            {% for message in form_state.errors['category_id'] %}
-              <li>{{ message }}</li>
-            {% endfor %}
-          </ul>
-        </div>
-      {% endif %}
-    </div>
-
-    <div class="form-actions">
-      <button type="submit" class="btn-primary">Save Entry</button>
-      <a class="btn-link" href="{{ url_for('ledger.list_transactions') }}">Cancel</a>
-    </div>
-  </form>
+    <p class="todo">TODO(@ledger-squad): build accessible form with categories + date picker.</p>
+  </article>
 {% endblock %}

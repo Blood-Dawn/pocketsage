@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
-from flask import flash, redirect, render_template, request, url_for
-
-from flask import flash, g, redirect, render_template, request, url_for
-
-from flask import flash, g, redirect, render_template, request, url_for
+from flask import current_app, flash, redirect, render_template, request, url_for
+from werkzeug.exceptions import NotFound
 
 from ...extensions import session_scope
+from ...models.transaction import Transaction
 from . import bp
 from .forms import LedgerEntryForm
 
@@ -84,8 +83,18 @@ def list_transactions():
 def new_transaction():
     """Render form for creating a transaction."""
 
+    filters = request.args.to_dict(flat=True)
     form = LedgerEntryForm()
-    return render_template("ledger/form.html", form=form)
+    return render_template(
+        "ledger/form.html",
+        form=form,
+        form_values=_form_values(form),
+        filters=filters,
+        form_action=url_for("ledger.create_transaction"),
+        list_url=url_for("ledger.list_transactions", **filters),
+        metadata=None,
+        is_edit=False,
+    )
 
 
 @bp.post("/")
@@ -105,75 +114,134 @@ def create_transaction():
 def edit_transaction(transaction_id: int):
     """Render edit form for a specific transaction."""
 
-    # TODO(@ledger-squad): fetch transaction + populate form state from repository.
-    form = LedgerEntryForm()
-    return render_template("ledger/form.html", transaction_id=transaction_id, form=form)
+    filters = request.args.to_dict(flat=True)
+    with session_scope() as session:
+        transaction = session.get(Transaction, transaction_id)
+        if transaction is None:
+            raise NotFound(f"Transaction {transaction_id} was not found")
+
+        form = LedgerEntryForm(
+            occurred_at=transaction.occurred_at,
+            amount=transaction.amount,
+            memo=transaction.memo or "",
+            category_id=transaction.category_id,
+        )
+
+        account_label: str | None = None
+        if getattr(transaction, "account", None) is not None:
+            account_name = getattr(transaction.account, "name", None)
+            if account_name:
+                account_label = account_name
+        if account_label is None and transaction.account_id is not None:
+            account_label = f"Account #{transaction.account_id}"
+
+        metadata: dict[str, Any] = {
+            "id": transaction.id,
+            "occurred_at": transaction.occurred_at.isoformat() if transaction.occurred_at else None,
+            "amount": f"{transaction.amount:,.2f}" if transaction.amount is not None else None,
+            "currency": transaction.currency,
+            "external_id": transaction.external_id,
+            "account": account_label,
+            "memo": transaction.memo or "",
+            "category_id": transaction.category_id,
+        }
+
+        created_at = getattr(transaction, "created_at", None)
+        if created_at is not None:
+            metadata["created_at"] = created_at.isoformat()
+        updated_at = getattr(transaction, "updated_at", None)
+        if updated_at is not None:
+            metadata["updated_at"] = updated_at.isoformat()
+
+    return render_template(
+        "ledger/form.html",
+        form=form,
+        form_values=_form_values(form),
+        filters=filters,
+        form_action=url_for("ledger.update_transaction", transaction_id=transaction_id, **filters),
+        list_url=url_for("ledger.list_transactions", **filters),
+        metadata=metadata,
+        is_edit=True,
+        transaction_id=transaction_id,
+    )
 
 
 @bp.post("/<int:transaction_id>")
 def update_transaction(transaction_id: int):
     """Handle update submissions for an existing transaction."""
 
-    form = LedgerEntryForm.from_mapping(request.form)
-    if not form.validate():
-        return render_template(
-            "ledger/form.html", transaction_id=transaction_id, form=form
-        ), 400
+    filters = request.args.to_dict(flat=True)
+    redirect_to_edit = lambda: redirect(
+        url_for("ledger.edit_transaction", transaction_id=transaction_id, **filters)
+    )
 
-    # TODO(@ledger-squad): apply optimistic locking + repository update.
-    flash("Ledger transaction update not yet implemented", "warning")
-    return redirect(url_for("ledger.list_transactions"))
-
-
-def _coerce_int(
-    value: str | None,
-    *,
-    default: int,
-    minimum: int | None = None,
-    maximum: int | None = None,
-) -> int:
-    """Convert ``value`` to an ``int`` within optional bounds."""
+    occurred_raw = request.form.get("occurred_at")
+    amount_raw = request.form.get("amount")
+    if not occurred_raw or amount_raw in (None, ""):
+        flash("Unable to update transaction; please check the provided details.", "danger")
+        return redirect_to_edit()
 
     try:
-        result = int(value) if value is not None else default
-    except (TypeError, ValueError):
-        result = default
-    if minimum is not None:
-        result = max(result, minimum)
-    if maximum is not None:
-        result = min(result, maximum)
-    return result
+        occurred_at = datetime.fromisoformat(occurred_raw)
+        amount = float(amount_raw)
+    except ValueError:
+        flash("Unable to update transaction; please check the provided details.", "danger")
+        return redirect_to_edit()
+
+    memo = (request.form.get("memo") or "").strip()
+    category_raw = request.form.get("category_id")
+    category_id: int | None = None
+    if category_raw not in (None, ""):
+        try:
+            category_id = int(category_raw)
+        except ValueError:
+            flash("Unable to update transaction; please check the provided details.", "danger")
+            return redirect_to_edit()
+
+    try:
+        with session_scope() as session:
+            transaction = session.get(Transaction, transaction_id)
+            if transaction is None:
+                flash("Transaction could not be found.", "warning")
+                return redirect(url_for("ledger.list_transactions", **filters))
+
+            transaction.occurred_at = occurred_at
+            transaction.amount = amount
+            transaction.memo = memo
+            transaction.category_id = category_id
+            session.add(transaction)
+    except Exception:  # pragma: no cover - surfaced via flash for user feedback
+        current_app.logger.exception(
+            "Failed to update ledger transaction %s", transaction_id
+        )
+        flash("An unexpected error occurred while updating the transaction.", "danger")
+        return redirect_to_edit()
+
+    flash("Transaction updated successfully.", "success")
+    return redirect(url_for("ledger.list_transactions", **filters))
 
 
-def _pagination_window(current_page: int, total_pages: int, width: int = 2) -> list[int | None]:
-    """Return a condensed pagination range with ellipses."""
+def _form_values(form: LedgerEntryForm) -> dict[str, str]:
+    """Convert a LedgerEntryForm into HTML-friendly string values."""
 
-    if total_pages <= (width * 2 + 5):
-        return list(range(1, total_pages + 1))
+    occurred_value = ""
+    if form.occurred_at is not None:
+        if isinstance(form.occurred_at, datetime):
+            occurred_value = form.occurred_at.strftime("%Y-%m-%dT%H:%M")
+        else:
+            occurred_value = str(form.occurred_at)
 
-    window_start = max(current_page - width, 1)
-    window_end = min(current_page + width, total_pages)
+    amount_value = ""
+    if form.amount is not None:
+        amount_value = f"{form.amount:.2f}"
 
-    window: list[int | None] = [1]
+    category_value = ""
+    if form.category_id is not None:
+        category_value = str(form.category_id)
 
-    if window_start > 2:
-        window.append(None)
-
-    window.extend(range(window_start, window_end + 1))
-
-    if window_end < total_pages - 1:
-        window.append(None)
-
-    if total_pages not in window:
-        window.append(total_pages)
-
-    return window
-
-
-def _per_page_options(selected: int) -> tuple[int, ...]:
-    """Return a sorted tuple of available page sizes including ``selected``."""
-
-    options = list(PER_PAGE_CHOICES)
-    if selected not in options:
-        options.append(selected)
-    return tuple(sorted(dict.fromkeys(options)))
+    return {
+        "occurred_at": occurred_value,
+        "amount": amount_value,
+        "memo": form.memo,
+        "category_id": category_value,
+    }
