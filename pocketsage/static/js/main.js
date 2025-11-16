@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initTopNav();
     initAdminDashboard();
     initPortfolioUpload();
-    initHabitVisualizations();
+    initLiabilitiesSchedule();
 });
 
 function initTopNav() {
@@ -332,43 +332,146 @@ function initPortfolioUpload() {
     });
 }
 
-function initHabitVisualizations() {
-    const cards = document.querySelectorAll("[data-habit-visualization]");
-    if (!cards.length) {
+function initLiabilitiesSchedule() {
+    const dashboard = document.querySelector("[data-liabilities-dashboard]");
+    if (!dashboard) {
         return;
     }
 
-    cards.forEach((card) => {
-        const history = safeParseJSON(card.dataset.history) || [];
-        if (!history.length) {
-            return;
+    const list = dashboard.querySelector("[data-liability-list]");
+    const cards = list ? Array.from(list.querySelectorAll("[data-liability]")) : [];
+    const searchInput = dashboard.querySelector("[data-liability-search]");
+    const strategySelect = dashboard.querySelector("[data-liability-strategy]");
+    const sortSelect = dashboard.querySelector("[data-liability-sort]");
+    const emptyState = dashboard.querySelector("[data-liability-empty]");
+    const countTarget = dashboard.querySelector("[data-liability-count]");
+    const upcomingRange = dashboard.querySelector("[data-upcoming-range]");
+    const upcomingRows = Array.from(
+        dashboard.querySelectorAll("[data-upcoming-row]")
+    );
+    const upcomingEmptyRow = dashboard.querySelector("[data-upcoming-empty]");
+
+    let filterTerm = "";
+    let filterStrategy = "all";
+
+    const normalize = (value) => (value || "").toString().trim().toLowerCase();
+
+    const parseDate = (value) => {
+        if (!value) {
+            return Number.MAX_SAFE_INTEGER;
+        }
+        const timestamp = Date.parse(value);
+        if (Number.isNaN(timestamp)) {
+            return Number.MAX_SAFE_INTEGER;
+        }
+        return timestamp;
+    };
+
+    const comparators = {
+        next_due: (a, b) =>
+            parseDate(a.dataset.liabilityNextDue) -
+            parseDate(b.dataset.liabilityNextDue),
+        balance: (a, b) =>
+            parseFloat(b.dataset.liabilityBalance || "0") -
+            parseFloat(a.dataset.liabilityBalance || "0"),
+        name: (a, b) =>
+            normalize(a.dataset.liabilityName).localeCompare(
+                normalize(b.dataset.liabilityName)
+            ),
+    };
+
+    const applyUpcomingFilters = () => {
+        const rangeValue = parseInt(upcomingRange?.value ?? "", 10);
+        let visibleRows = 0;
+
+        upcomingRows.forEach((row) => {
+            const rowName = normalize(row.dataset.liabilityName);
+            const rowStrategy = normalize(row.dataset.liabilityStrategy);
+            const matchesTerm = !filterTerm || rowName.includes(filterTerm);
+            const matchesStrategy =
+                filterStrategy === "all" ||
+                rowStrategy === normalize(filterStrategy);
+            const days = parseInt(row.dataset.upcomingDays ?? "", 10);
+            const matchesRange =
+                Number.isNaN(rangeValue) ||
+                rangeValue < 0 ||
+                Number.isNaN(days)
+                    ? true
+                    : days <= rangeValue;
+
+            const shouldShow = matchesTerm && matchesStrategy && matchesRange;
+            row.hidden = !shouldShow;
+            if (shouldShow) {
+                visibleRows += 1;
+            }
+        });
+
+        if (upcomingEmptyRow) {
+            upcomingEmptyRow.hidden = visibleRows !== 0;
+        }
+    };
+
+    const applyLiabilityFilters = () => {
+        if (list) {
+            const sortKey = sortSelect?.value || "next_due";
+            const comparator = comparators[sortKey] || comparators.next_due;
+            const sortedCards = [...cards].sort(comparator);
+
+            sortedCards.forEach((card) => list.appendChild(card));
+
+            let visibleCards = 0;
+            cards.forEach((card) => {
+                const name = normalize(card.dataset.liabilityName);
+                const strategy = normalize(card.dataset.liabilityStrategy);
+                const matchesTerm = !filterTerm || name.includes(filterTerm);
+                const matchesStrategy =
+                    filterStrategy === "all" ||
+                    strategy === normalize(filterStrategy);
+                const shouldShow = matchesTerm && matchesStrategy;
+                card.hidden = !shouldShow;
+                if (shouldShow) {
+                    visibleCards += 1;
+                }
+            });
+
+            if (countTarget) {
+                countTarget.textContent = visibleCards.toString();
+            }
+            if (emptyState) {
+                emptyState.hidden = visibleCards !== 0;
+            }
         }
 
-        const weekly = safeParseJSON(card.dataset.weekly) || [];
-        const habitName = card.dataset.habitName || "habit";
-        const chart = card.querySelector(".habit-chart");
+        applyUpcomingFilters();
+    };
 
-        if (!chart) {
-            return;
-        }
+    if (searchInput) {
+        searchInput.addEventListener("input", (event) => {
+            filterTerm = normalize(event.target.value);
+            applyLiabilityFilters();
+        });
+    }
 
-        chart.innerHTML = "";
+    if (strategySelect) {
+        strategySelect.addEventListener("change", (event) => {
+            filterStrategy = event.target.value || "all";
+            applyLiabilityFilters();
+        });
+    }
 
-        const heatmap = buildHabitHeatmap(history, habitName);
-        if (heatmap) {
-            chart.appendChild(heatmap);
-        }
+    if (sortSelect) {
+        sortSelect.addEventListener("change", () => {
+            applyLiabilityFilters();
+        });
+    }
 
-        const weeklyBars = buildHabitWeeklyBars(weekly, habitName);
-        if (weeklyBars) {
-            chart.appendChild(weeklyBars);
-        }
+    if (upcomingRange) {
+        upcomingRange.addEventListener("change", () => {
+            applyUpcomingFilters();
+        });
+    }
 
-        const fallback = card.querySelector("[data-fallback]");
-        if (fallback) {
-            fallback.classList.add("habit-fallback--hidden");
-        }
-    });
+    applyLiabilityFilters();
 }
 
 function safeParseJSON(value) {

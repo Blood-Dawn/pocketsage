@@ -2,168 +2,129 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
+from datetime import date
+from typing import Any
 
-from flask import flash, redirect, render_template, request, url_for
+from flask import flash, redirect, render_template, url_for
 
+from ...extensions import session_scope
 from . import bp
-from .forms import DEFAULT_STRATEGIES, LiabilityForm
-
-from pocketsage.blueprints.liabilities import bp
-from pocketsage.repository import get_liability_repository
-from pocketsage.services.debts import DebtAccount, persist_projection
-from pocketsage.forms.liability_forms import LiabilityForm
-from pocketsage.repository import Liability, PayoffSchedule
-from pocketsage.services.debts import persist_projection, get_debt_accounts
-from pocketsage.services.reports import generate_payoff_timeline
-
-@dataclass(slots=True)
-class LiabilityView:
-    """Presentation layer model for liabilities."""
-
-    id: int
-    name: str
-    balance: float
-    balance_display: str
-    apr_display: str
-    minimum_payment_display: str
-    strategy: str
-    strategy_display: str
-    next_due_date: date
-    next_due_display: str
-    is_overdue: bool
-    target_payoff_date: date | None
-    target_payoff_display: str
-    progress_pct: float
-    progress_display: str
+from .repository import SqlModelLiabilitiesRepository
 
 
-def _add_months(start: date, months: int) -> date:
-    month = start.month - 1 + months
-    year = start.year + month // 12
-    month = month % 12 + 1
-    day = min(start.day, monthrange(year, month)[1])
-    return date(year, month, day)
+def _currency(amount: float | None) -> str:
+    return f"${(amount or 0.0):,.2f}"
 
 
-def _estimate_payoff_date(balance: float, minimum_payment: float, *, base: date) -> date | None:
-    if minimum_payment <= 0:
-        return None
-    months = max(1, ceil(balance / minimum_payment))
-    return _add_months(base, months)
-
-
-def _progress_percentage(*, opened_on: date | None, target: date | None, today: date) -> float:
-    if opened_on is None or target is None:
-        return 0.0
-    total_days = (target - opened_on).days
-    if total_days <= 0:
-        return 100.0
-    elapsed_days = max(0, (today - opened_on).days)
-    progress = min(1.0, elapsed_days / total_days)
-    return round(progress * 100, 1)
-
-
-def _normalize_strategy(value: str | None) -> str:
-    if not value:
-        return "unspecified"
-    return value.strip().lower()
-
-
-def _hydrate_liabilities(liabilities: Iterable[Liability], *, today: date) -> tuple[list[LiabilityView], dict]:
-    rows: list[LiabilityView] = []
-    total_balance = 0.0
-    total_minimum_payment = 0.0
-    total_apr = 0.0
-    strategy_summary: dict[str, dict[str, float | int]] = {}
-    overdue_count = 0
-
-    for liability in liabilities:
-        balance = float(liability.balance or 0.0)
-        apr = float(liability.apr or 0.0)
-        minimum_payment = float(liability.minimum_payment or 0.0)
-        strategy = _normalize_strategy(liability.payoff_strategy)
-
-        current_month_due = date(today.year, today.month, liability.due_day)
-        is_overdue = current_month_due < today
-        if is_overdue:
-            overdue_count += 1
-            next_due = _add_months(current_month_due, 1)
-        else:
-            next_due = current_month_due
-
-        target_payoff = _estimate_payoff_date(balance, minimum_payment, base=today)
-        progress_pct = _progress_percentage(
-            opened_on=liability.opened_on,
-            target=target_payoff,
-            today=today,
-        )
-
-        rows.append(
-            LiabilityView(
-                id=liability.id or 0,
-                name=liability.name,
-                balance=balance,
-                balance_display=f"${balance:,.2f}",
-                apr_display=f"{apr:.2f}%",
-                minimum_payment_display=f"${minimum_payment:,.2f}",
-                strategy=strategy,
-                strategy_display=strategy.replace("_", " ").title(),
-                next_due_date=next_due,
-                next_due_display=next_due.strftime("%b %d, %Y"),
-                is_overdue=is_overdue,
-                target_payoff_date=target_payoff,
-                target_payoff_display=target_payoff.strftime("%b %d, %Y") if target_payoff else "—",
-                progress_pct=progress_pct,
-                progress_display=f"{progress_pct:.0f}%",
-            )
-        )
-
-        total_balance += balance
-        total_minimum_payment += minimum_payment
-        total_apr += apr
-
-        summary = strategy_summary.setdefault(
-            strategy,
-            {"count": 0, "balance": 0.0, "minimum_payment": 0.0},
-        )
-        summary["count"] = int(summary["count"]) + 1
-        summary["balance"] = float(summary["balance"]) + balance
-        summary["minimum_payment"] = float(summary["minimum_payment"]) + minimum_payment
-
-    average_apr = (total_apr / len(rows)) if rows else 0.0
-    summary_payload = {
-        "total_balance": total_balance,
-        "total_balance_display": f"${total_balance:,.2f}",
-        "total_minimum_payment": total_minimum_payment,
-        "total_minimum_payment_display": f"${total_minimum_payment:,.2f}",
-        "average_apr": average_apr,
-        "average_apr_display": f"{average_apr:.2f}%",
-        "overdue_count": overdue_count,
-        "strategies": [
-            {
-                "name": name,
-                "label": name.replace("_", " ").title(),
-                "count": data["count"],
-                "balance": data["balance"],
-                "balance_display": f"${float(data['balance']):,.2f}",
-                "minimum_payment": data["minimum_payment"],
-                "minimum_payment_display": f"${float(data['minimum_payment']):,.2f}",
-            }
-            for name, data in sorted(strategy_summary.items())
-        ],
-    }
-
-    rows.sort(key=lambda entry: entry.balance, reverse=True)
-    return rows, summary_payload
+def _percentage(amount: float | None) -> str:
+    return f"{(amount or 0.0):.2f}%"
 
 
 @bp.get("/")
 def list_liabilities():
     """Display liabilities overview with payoff projections."""
 
-    overview = liabilities_service.compute_overview()
-    return render_template("liabilities/index.html", overview=overview)
+    today = date.today()
+    with session_scope() as session:
+        repo = SqlModelLiabilitiesRepository(session)
+        liabilities = list(repo.list_liabilities())
+        schedule_map = repo.build_schedules(liabilities=liabilities)
+
+    liability_views: list[dict[str, Any]] = []
+    upcoming_rows: list[dict[str, Any]] = []
+    total_balance = 0.0
+    total_minimum = 0.0
+
+    for liability in liabilities:
+        liability_id = liability.id
+        schedule = schedule_map.get(liability_id, []) if liability_id is not None else []
+        total_balance += float(liability.balance or 0.0)
+        total_minimum += float(liability.minimum_payment or 0.0)
+
+        total_paid = sum(row.payment for row in schedule)
+        total_interest = sum(row.interest for row in schedule)
+        next_payment = schedule[0] if schedule else None
+        months_to_payoff = len(schedule)
+
+        view_schedule: list[dict[str, Any]] = []
+        for index, row in enumerate(schedule):
+            days_until = (row.due_date - today).days
+            view_schedule.append(
+                {
+                    "due_date": row.due_date,
+                    "due_display": row.due_date.strftime("%b %d, %Y"),
+                    "payment": row.payment,
+                    "payment_display": _currency(row.payment),
+                    "principal": row.principal,
+                    "principal_display": _currency(row.principal),
+                    "interest": row.interest,
+                    "interest_display": _currency(row.interest),
+                    "remaining_balance": row.remaining_balance,
+                    "remaining_display": _currency(row.remaining_balance),
+                    "days_until": days_until,
+                }
+            )
+            if liability_id is not None and index < 12:
+                upcoming_rows.append(
+                    {
+                        "liability_id": liability_id,
+                        "liability_name": liability.name,
+                        "strategy": liability.payoff_strategy,
+                        "due_date": row.due_date,
+                        "due_iso": row.due_date.isoformat(),
+                        "due_display": row.due_date.strftime("%b %d, %Y"),
+                        "payment_display": _currency(row.payment),
+                        "days_until": days_until,
+                    }
+                )
+
+        liability_views.append(
+            {
+                "id": liability_id,
+                "name": liability.name,
+                "balance": float(liability.balance or 0.0),
+                "balance_display": _currency(liability.balance),
+                "apr": float(liability.apr or 0.0),
+                "apr_display": _percentage(liability.apr),
+                "minimum_payment": float(liability.minimum_payment or 0.0),
+                "minimum_payment_display": _currency(liability.minimum_payment),
+                "due_day": liability.due_day,
+                "payoff_strategy": liability.payoff_strategy,
+                "next_payment": (
+                    {
+                        "due_display": next_payment.due_date.strftime("%b %d, %Y"),
+                        "payment_display": _currency(next_payment.payment),
+                        "remaining_display": _currency(next_payment.remaining_balance),
+                        "due_iso": next_payment.due_date.isoformat(),
+                    }
+                    if next_payment
+                    else None
+                ),
+                "schedule": view_schedule,
+                "total_payment_display": _currency(total_paid),
+                "total_interest_display": _currency(total_interest),
+                "months_to_payoff": months_to_payoff,
+            }
+        )
+
+    upcoming_rows.sort(key=lambda row: row["due_date"])
+
+    strategies = sorted(
+        {view["payoff_strategy"] for view in liability_views if view["payoff_strategy"]}
+    )
+
+    return render_template(
+        "liabilities/index.html",
+        liabilities=liability_views,
+        upcoming_payments=upcoming_rows,
+        strategies=strategies,
+        totals={
+            "balance": _currency(total_balance),
+            "minimum": _currency(total_minimum),
+            "count": len(liability_views),
+        },
+        today_label=today.strftime("%b %d, %Y"),
+    )
 
 
 @bp.post("/<int:liability_id>/recalculate")

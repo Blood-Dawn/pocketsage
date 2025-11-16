@@ -1479,218 +1479,323 @@ textarea.form-input {
     flex-wrap: wrap;
 }
 
-/* TODO(@ux-team): extend design tokens, typography scale, and dark/light mode palettes. */
-
-.habits-dashboard {
+.liabilities-dashboard {
     display: grid;
-    gap: 1.5rem;
+    gap: 2rem;
 }
 
-.habits-header {
-    display: grid;
-    gap: 0.35rem;
-}
-
-.habits-header p {
-    color: rgba(255, 255, 255, 0.72);
-    margin: 0;
-}
-
-.habit-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    gap: 1.5rem;
-}
-
-.habit-card {
-    background: var(--habit-surface);
-    border: 1px solid var(--habit-border);
-    border-radius: 0.85rem;
-    padding: 1.5rem;
-    display: grid;
-    gap: 1.25rem;
-}
-
-.habit-card__header {
+.liabilities-header {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1rem;
+    padding: clamp(1.25rem, 2vw, 2rem);
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 1.5rem;
-    justify-content: space-between;
-    align-items: flex-start;
 }
 
-.habit-card__title {
-    display: grid;
-    gap: 0.35rem;
-    min-width: 16rem;
+.liabilities-title h1 {
+    margin: 0 0 0.35rem;
 }
 
-.habit-card__title h2 {
-    margin: 0;
-}
-
-.habit-card__description {
+.liabilities-subtitle {
     margin: 0;
     color: rgba(255, 255, 255, 0.7);
 }
 
-.habit-card__metrics {
-    margin: 0;
-    padding: 0;
+.liabilities-summary {
     display: grid;
-    gap: 0.5rem;
-}
-
-.habit-card__metrics div {
-    background: rgba(148, 163, 184, 0.12);
-    padding: 0.6rem 0.85rem;
-    border-radius: 0.6rem;
-    min-width: 13rem;
-}
-
-.habit-card__metrics dt {
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: 1rem;
     margin: 0;
-    font-size: 0.8rem;
+}
+
+.summary-card {
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 0.75rem;
+    padding: 1rem;
+}
+
+.summary-card:nth-child(2) {
+    background: rgba(34, 197, 94, 0.08);
+    border-color: rgba(34, 197, 94, 0.2);
+}
+
+.summary-card:nth-child(3) {
+    background: rgba(234, 179, 8, 0.08);
+    border-color: rgba(234, 179, 8, 0.2);
+}
+
+.summary-card dt {
+    margin: 0 0 0.5rem;
+    font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: rgba(255, 255, 255, 0.55);
+    color: rgba(255, 255, 255, 0.6);
 }
 
-.habit-card__metrics dd {
-    margin: 0.2rem 0 0;
+.summary-card dd {
+    margin: 0;
+    font-size: clamp(1.35rem, 2.8vw, 2rem);
+    font-weight: 700;
+}
+
+.liabilities-controls,
+.upcoming-header {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+}
+
+.control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 10rem;
+    font-size: 0.9rem;
+}
+
+.control span {
     font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
 }
 
-.habit-card__body {
+input[type="search"],
+select {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 0.75rem;
+    color: inherit;
+    padding: 0.6rem 0.85rem;
+    font: inherit;
+    min-height: 2.5rem;
+}
+
+input[type="search"]:focus,
+select:focus {
+    outline: 2px solid rgba(59, 130, 246, 0.7);
+    outline-offset: 2px;
+}
+
+.upcoming-section {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1rem;
+    padding: clamp(1.25rem, 2vw, 2rem);
+    display: grid;
+    gap: 1.25rem;
+}
+
+.upcoming-header h2 {
+    margin: 0;
+}
+
+.upcoming-header p {
+    margin: 0.35rem 0 0;
+    color: rgba(255, 255, 255, 0.65);
+    max-width: 36ch;
+}
+
+.schedule-table-wrapper {
+    overflow-x: auto;
+    border-radius: 0.75rem;
+}
+
+.schedule-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 32rem;
+}
+
+.schedule-table th,
+.schedule-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+    text-align: left;
+}
+
+.schedule-table th {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(148, 163, 184, 0.85);
+    background: rgba(148, 163, 184, 0.08);
+}
+
+.schedule-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.schedule-table .numeric {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.schedule-table .strategy {
+    text-transform: capitalize;
+}
+
+.liability-list {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.liability-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1rem;
+}
+
+.liability-details summary {
+    list-style: none;
+}
+
+.liability-details summary::-webkit-details-marker {
+    display: none;
+}
+
+.liability-summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 1.5rem;
+    align-items: flex-start;
+    padding: clamp(1.1rem, 2vw, 1.75rem);
+    cursor: pointer;
+}
+
+.liability-details[open] .liability-summary {
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.liability-summary h2 {
+    margin: 0;
+    font-size: clamp(1.25rem, 2.2vw, 1.75rem);
+}
+
+.liability-summary .meta {
+    margin: 0.35rem 0 0;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: rgba(56, 189, 248, 0.2);
+    color: #38bdf8;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.liability-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 1rem;
+    margin: 0;
+}
+
+.liability-metrics dt {
+    margin: 0 0 0.35rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(148, 163, 184, 0.9);
+}
+
+.liability-metrics dd {
+    margin: 0;
+    font-size: 1.05rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.liability-body {
+    padding: clamp(1.1rem, 2vw, 1.75rem);
     display: grid;
     gap: 1rem;
 }
 
-.habit-chart {
-    display: grid;
-    gap: 1.25rem;
-}
-
-.habit-heatmap {
-    display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: 0.4rem;
-}
-
-.habit-heatmap__day {
-    aspect-ratio: 1;
-    border-radius: 0.4rem;
-    background: var(--habit-heatmap-0);
-    transition: transform 120ms ease, box-shadow 120ms ease;
-}
-
-.habit-heatmap__day[data-level="1"] {
-    background: var(--habit-heatmap-1);
-}
-
-.habit-heatmap__day[data-level="2"] {
-    background: var(--habit-heatmap-2);
-}
-
-.habit-heatmap__day[data-level="3"] {
-    background: var(--habit-heatmap-3);
-}
-
-.habit-heatmap__day:hover,
-.habit-heatmap__day:focus-visible {
-    transform: translateY(-1px) scale(1.02);
-    box-shadow: 0 4px 16px rgba(34, 197, 94, 0.35);
-}
-
-.habit-weekly-bars {
-    display: grid;
-    gap: 0.75rem;
-}
-
-.habit-weekly-bars__row {
-    display: grid;
-    gap: 0.65rem;
-}
-
-.habit-weekly-bars__label {
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.habit-weekly-bars__track {
-    background: var(--habit-bar-track);
-    border-radius: 999px;
-    position: relative;
-    overflow: hidden;
-    height: 0.7rem;
-}
-
-.habit-weekly-bars__fill {
-    --habit-weekly-progress: 0;
-    position: absolute;
-    inset: 0;
-    width: calc(var(--habit-weekly-progress) * 1%);
-    background: var(--habit-bar-fill);
-    transition: width 200ms ease;
-}
-
-.habit-weekly-bars__value {
-    font-size: 0.85rem;
-    font-variant-numeric: tabular-nums;
-    color: rgba(255, 255, 255, 0.8);
-}
-
-.habit-fallback__summary {
+.schedule-summary {
     margin: 0;
-    font-weight: 600;
+    color: rgba(148, 163, 184, 0.9);
 }
 
-.habit-fallback__table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 0.75rem;
+[data-liability-empty] {
+    text-align: center;
 }
 
-.habit-fallback__table caption {
-    text-align: left;
-    margin-bottom: 0.4rem;
-    font-weight: 600;
+@media (max-width: 900px) {
+    .liability-summary {
+        flex-direction: column;
+    }
+
+    .liability-metrics {
+        grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+    }
+
+    .schedule-table {
+        min-width: 100%;
+    }
 }
 
-.habit-fallback__table th,
-.habit-fallback__table td {
-    padding: 0.45rem 0.6rem;
-    text-align: left;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-}
+@media (max-width: 640px) {
+    .liabilities-header {
+        padding: 1.25rem;
+    }
 
-.habit-fallback__table tbody tr:last-child th,
-.habit-fallback__table tbody tr:last-child td {
-    border-bottom: none;
-}
+    .liabilities-summary {
+        grid-template-columns: 1fr;
+    }
 
-.habit-fallback--hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    clip-path: inset(50%);
-    white-space: nowrap;
-    border: 0;
-}
-
-@media (max-width: 720px) {
-    .habit-card__header {
+    .liabilities-controls,
+    .upcoming-header {
         flex-direction: column;
         align-items: stretch;
     }
 
-    .habit-card__metrics {
-        grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    .control {
+        width: 100%;
+    }
+
+    .schedule-table thead {
+        display: none;
+    }
+
+    .schedule-table,
+    .schedule-table tbody,
+    .schedule-table tr,
+    .schedule-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .schedule-table td {
+        padding: 0.75rem 0.85rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        position: relative;
+        padding-left: 6.5rem;
+    }
+
+    .schedule-table td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 0.85rem;
+        top: 0.75rem;
+        font-weight: 600;
+        color: rgba(148, 163, 184, 0.9);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+    }
+
+    .schedule-table .numeric {
+        text-align: right;
     }
 }
+
+/* TODO(@ux-team): extend design tokens, typography scale, and dark/light mode palettes. */
