@@ -26,86 +26,61 @@
 {% endmacro %}
 
 {% block content %}
-  <section class="ledger-header">
-    <div class="ledger-heading">
-      <h1>Ledger</h1>
-      <p class="ledger-subtitle">Track inflows and outflows across your accounts.</p>
-    </div>
-    <dl class="ledger-summary" aria-label="Ledger summary">
-      <div class="ledger-summary-card ledger-summary-card--inflow">
-        <dt>Inflow</dt>
-        <dd>{{ '${:,.2f}'.format(summary.inflow) }}</dd>
-      </div>
-      <div class="ledger-summary-card ledger-summary-card--outflow">
-        <dt>Outflow</dt>
-        <dd>{{ '${:,.2f}'.format(summary.outflow) }}</dd>
-      </div>
-      <div class="ledger-summary-card ledger-summary-card--net">
-        <dt>Net</dt>
-        <dd>{{ '${:,.2f}'.format(summary.net) }}</dd>
-      </div>
-    </dl>
-  </section>
-
-  <section class="ledger-table" aria-label="Ledger transactions">
-    {% if transactions %}
-      {{ pagination_controls(pagination, prev_url, next_url) }}
-      <div class="ledger-table-wrapper">
-        <table class="ledger-transactions">
-          <thead>
-            <tr>
-              <th scope="col">Date</th>
-              <th scope="col">Memo</th>
-              <th scope="col">Account</th>
-              <th scope="col">Category</th>
-              <th scope="col" class="ledger-amount-heading">Amount</th>
-              <th scope="col">Currency</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for txn in transactions %}
-              {% set amount_class = 'ledger-amount ledger-amount--inflow' if txn.amount >= 0 else 'ledger-amount ledger-amount--outflow' %}
-              <tr>
-                <td data-label="Date">
-                  <time datetime="{{ txn.occurred_at.isoformat() }}">{{ txn.occurred_at.strftime('%b %d, %Y') }}</time>
-                </td>
-                <td data-label="Memo">
-                  {% if txn.memo %}
-                    {{ txn.memo }}
-                  {% else %}
-                    <span class="ledger-cell-empty">—</span>
-                  {% endif %}
-                </td>
-                <td data-label="Account">
-                  {% if txn.account_name %}
-                    {{ txn.account_name }}
-                  {% else %}
-                    <span class="ledger-cell-empty">—</span>
-                  {% endif %}
-                </td>
-                <td data-label="Category">
-                  {% if txn.category_name %}
-                    {{ txn.category_name }}
-                  {% else %}
-                    <span class="ledger-cell-empty">—</span>
-                  {% endif %}
-                </td>
-                <td class="{{ amount_class }}" data-label="Amount">
-                  {{ '${:,.2f}'.format(txn.amount) }}
-                </td>
-                <td data-label="Currency">{{ txn.currency }}</td>
-              </tr>
+  <h1>Ledger</h1>
+  {% set selected_category = filter_state.category %}
+  <form method="get" class="filter-toolbar">
+    <fieldset>
+      <legend class="sr-only">Filter transactions</legend>
+      <div class="filter-row">
+        <label>
+          From
+          <input type="date" name="start_date" value="{{ filter_state.start_date }}">
+        </label>
+        <label>
+          To
+          <input type="date" name="end_date" value="{{ filter_state.end_date }}">
+        </label>
+        <label>
+          Category
+          <select name="category">
+            <option value="">All categories</option>
+            {% for category in categories %}
+              <option value="{{ category.id }}" {% if selected_category and selected_category|int == category.id %}selected{% endif %}>{{ category.name }}</option>
             {% endfor %}
-          </tbody>
-        </table>
+          </select>
+        </label>
+        <label>
+          Search
+          <input type="search" name="search" value="{{ filter_state.search }}" placeholder="Memo contains…">
+        </label>
+        <button type="submit">Apply</button>
+        <a class="button button-secondary" href="{{ url_for('ledger.list_transactions') }}">Reset</a>
       </div>
-      {{ pagination_controls(pagination, prev_url, next_url) }}
-    {% else %}
-      <div class="ledger-empty">
-        <h2>No transactions yet</h2>
-        <p>Once you add or import transactions, cashflow activity will appear here.</p>
-        <a href="{{ url_for('ledger.new_transaction') }}" class="btn-secondary">Add a transaction</a>
-      </div>
-    {% endif %}
-  </section>
+    </fieldset>
+  </form>
+
+  {% if transactions %}
+    <table class="ledger-table">
+      <thead>
+        <tr>
+          <th scope="col">Date</th>
+          <th scope="col">Category</th>
+          <th scope="col">Memo</th>
+          <th scope="col" class="numeric">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for transaction in transactions %}
+          <tr>
+            <td>{{ transaction.occurred_at.strftime('%Y-%m-%d') }}</td>
+            <td>{{ transaction.category.name if transaction.category else 'Uncategorized' }}</td>
+            <td>{{ transaction.memo }}</td>
+            <td class="numeric">{{ '%.2f'|format(transaction.amount) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty-state">No transactions match the current filters.</p>
+  {% endif %}
 {% endblock %}

@@ -2,74 +2,89 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Any
+from datetime import date
+from typing import Any, Tuple
 
-from flask import flash, redirect, render_template, request, url_for
+from flask import flash, g, redirect, render_template, request, url_for
 
 from ...extensions import session_scope
 from . import bp
 from .repository import SqlModelLedgerRepository
 
-DEFAULT_PAGE_SIZE = 25
-MAX_PAGE_SIZE = 100
 
+def _parse_date(value: str | None) -> date | None:
+    """Attempt to parse ISO-8601 date strings."""
 
-def _clean_filters(args: Mapping[str, str]) -> dict[str, str]:
-    """Normalize query-string filters for repository consumption."""
-
-    skip_keys = {"page", "per_page"}
-    return {k: v for k, v in args.items() if k not in skip_keys and v}
-
-
-def _parse_positive_int(value: str | None, *, default: int, upper: int | None = None) -> int:
-    """Parse integer query params while enforcing sane bounds."""
-
+    if not value:
+        return None
     try:
-        parsed = int(value) if value is not None else default
-    except (TypeError, ValueError):
-        return default
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
 
-    if parsed < 1:
-        parsed = default
 
-    if upper is not None:
-        parsed = min(parsed, upper)
+def _extract_filters(args) -> Tuple[dict[str, Any], dict[str, str]]:
+    """Convert request arguments into repository filters and form state."""
 
-    return parsed
+    form_state: dict[str, str] = {
+        "start_date": args.get("start_date", ""),
+        "end_date": args.get("end_date", ""),
+        "category": args.get("category", ""),
+        "search": args.get("search", ""),
+    }
+
+    filters: dict[str, Any] = {}
+
+    start_date = _parse_date(form_state["start_date"] or None)
+    if start_date is not None:
+        filters["start_date"] = start_date
+        form_state["start_date"] = start_date.isoformat()
+    else:
+        form_state["start_date"] = ""
+
+    end_date = _parse_date(form_state["end_date"] or None)
+    if end_date is not None:
+        filters["end_date"] = end_date
+        form_state["end_date"] = end_date.isoformat()
+    else:
+        form_state["end_date"] = ""
+
+    category_raw = (form_state["category"] or "").strip()
+    if category_raw:
+        try:
+            filters["category_id"] = int(category_raw)
+            form_state["category"] = str(filters["category_id"])
+        except ValueError:
+            form_state["category"] = ""
+    else:
+        form_state["category"] = ""
+
+    search_raw = (form_state["search"] or "").strip()
+    if search_raw:
+        filters["search"] = search_raw
+        form_state["search"] = search_raw
+    else:
+        form_state["search"] = ""
+
+    return filters, form_state
 
 
 @bp.get("/")
 def list_transactions():
     """Display ledger transactions with filters and rollups."""
 
-    filters = _clean_filters(request.args)
-    page = _parse_positive_int(request.args.get("page"), default=1)
-    per_page = _parse_positive_int(
-        request.args.get("per_page"), default=DEFAULT_PAGE_SIZE, upper=MAX_PAGE_SIZE
-    )
+    filters, form_state = _extract_filters(request.args)
+    repo = SqlModelLedgerRepository(g.sqlmodel_session)
+    transactions = repo.list_transactions(filters=filters)
+    categories = repo.list_categories()
 
-    with session_scope() as session:
-        repo = SqlModelLedgerRepository(session)
-        result = repo.list_transactions(filters=filters, page=page, per_page=per_page)
-
-    pagination = result.pagination
-
-    def _page_url(target_page: int) -> str:
-        params: dict[str, Any] = {**filters, "page": target_page, "per_page": pagination.per_page}
-        return url_for("ledger.list_transactions", **params)
-
-    prev_url = _page_url(pagination.page - 1) if pagination.has_prev else None
-    next_url = _page_url(pagination.page + 1) if pagination.has_next else None
-
+    # TODO(@ledger-squad): wire pagination + rollup summary calculations.
     return render_template(
         "ledger/index.html",
         filters=filters,
-        transactions=result.transactions,
-        summary=result.summary,
-        pagination=pagination,
-        prev_url=prev_url,
-        next_url=next_url,
+        filter_state=form_state,
+        transactions=transactions,
+        categories=categories,
     )
 
 

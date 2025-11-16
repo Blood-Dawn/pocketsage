@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime
-from math import ceil
-from typing import Iterable, Protocol, Sequence
+from datetime import date, datetime, time
+from typing import Iterable, Protocol
 
-from sqlalchemy import case, func
-from sqlalchemy.orm import selectinload
+from sqlalchemy import func
 from sqlmodel import Session, select
 
+from ...models.category import Category
 from ...models.transaction import Transaction
 
 
@@ -96,6 +94,9 @@ class LedgerRepository(Protocol):
     ) -> LedgerListResult:  # pragma: no cover - interface
         ...
 
+    def list_categories(self) -> Iterable[Category]:  # pragma: no cover - interface
+        ...
+
     def create_transaction(self, *, payload: dict) -> Transaction:  # pragma: no cover - interface
         ...
 
@@ -109,119 +110,47 @@ class LedgerRepository(Protocol):
 
 
 class SqlModelLedgerRepository:
-    """SQLModel-backed ledger repository used by the Flask blueprint."""
+    """SQLModel-backed ledger repository with filtering support."""
 
     def __init__(self, session: Session) -> None:
-        self.session = session
+        self._session = session
 
-    def list_transactions(
-        self,
-        *,
-        filters: dict,
-        page: int,
-        per_page: int,
-    ) -> LedgerListResult:
-        page = max(page, 1)
-        per_page = max(per_page, 1)
+    def list_transactions(self, *, filters: dict) -> list[Transaction]:
+        stmt = select(Transaction)
 
-        where_clauses = self._build_filters(filters)
+        start_date: date | None = filters.get("start_date")
+        if start_date is not None:
+            start_dt = datetime.combine(start_date, time.min)
+            stmt = stmt.where(Transaction.occurred_at >= start_dt)
 
-        count_stmt = select(func.count()).select_from(Transaction)
-        if where_clauses:
-            count_stmt = count_stmt.where(*where_clauses)
-        total = int(self.session.exec(count_stmt).one() or 0)
+        end_date: date | None = filters.get("end_date")
+        if end_date is not None:
+            end_dt = datetime.combine(end_date, time.max).replace(microsecond=999999)
+            stmt = stmt.where(Transaction.occurred_at <= end_dt)
 
-        stmt = (
-            select(Transaction)
-            .options(
-                selectinload(Transaction.account),
-                selectinload(Transaction.category),
-            )
-            .order_by(Transaction.occurred_at.desc(), Transaction.id.desc())
-        )
-        if where_clauses:
-            stmt = stmt.where(*where_clauses)
+        category_id: int | None = filters.get("category_id")
+        if category_id is not None:
+            stmt = stmt.where(Transaction.category_id == category_id)
 
-        if total and (page - 1) * per_page >= total:
-            # Clamp page to final page if the requested page exceeds bounds.
-            page = ceil(total / per_page)
-
-        offset = (page - 1) * per_page
-        rows = self.session.exec(stmt.offset(offset).limit(per_page)).all()
-
-        transactions = [self._project_transaction(txn) for txn in rows]
-
-        summary = self._compute_summary(where_clauses)
-        pagination = LedgerPagination(page=page, per_page=per_page, total=total)
-
-        return LedgerListResult(
-            transactions=transactions,
-            summary=summary,
-            pagination=pagination,
-        )
-
-    # internal helpers -------------------------------------------------
-
-    def _build_filters(self, filters: dict) -> list:
-        clauses: list = []
-        search = (filters.get("q") or filters.get("search") or "").strip()
+        search: str | None = filters.get("search")
         if search:
-            like = f"%{search.lower()}%"
-            clauses.append(func.lower(Transaction.memo).like(like))
+            pattern = f"%{search.lower()}%"
+            stmt = stmt.where(func.lower(Transaction.memo).like(pattern))
 
-        for key, column in (
-            ("category_id", Transaction.category_id),
-            ("account_id", Transaction.account_id),
-        ):
-            value = filters.get(key)
-            if value in (None, ""):
-                continue
-            try:
-                numeric = int(value)
-            except (TypeError, ValueError):
-                continue
-            clauses.append(column == numeric)
+        stmt = stmt.order_by(Transaction.occurred_at.desc())
+        return list(self._session.exec(stmt))
 
-        return clauses
+    def list_categories(self) -> list[Category]:
+        stmt = select(Category).order_by(Category.name)
+        return list(self._session.exec(stmt))
 
-    def _project_transaction(self, txn: Transaction) -> LedgerTransactionRow:
-        account_name: str | None = None
-        if txn.account is not None:
-            account_name = txn.account.name
-        elif txn.account_id is not None:
-            account_name = f"Account #{txn.account_id}"
+    def create_transaction(self, *, payload: dict) -> Transaction:  # pragma: no cover - stub
+        raise NotImplementedError
 
-        category_name: str | None = None
-        if txn.category is not None:
-            category_name = txn.category.name
-
-        return LedgerTransactionRow(
-            id=txn.id or 0,
-            occurred_at=txn.occurred_at,
-            memo=txn.memo or "",
-            amount=float(txn.amount or 0.0),
-            currency=(txn.currency or "USD").upper(),
-            account_name=account_name,
-            category_name=category_name,
-            external_id=txn.external_id,
-        )
-
-    def _compute_summary(self, where_clauses: Iterable) -> LedgerSummary:
-        inflow_case = case((Transaction.amount > 0, Transaction.amount), else_=0.0)
-        outflow_case = case((Transaction.amount < 0, Transaction.amount), else_=0.0)
-
-        summary_stmt = select(
-            func.coalesce(func.sum(inflow_case), 0.0),
-            func.coalesce(func.sum(outflow_case), 0.0),
-        ).select_from(Transaction)
-
-        if where_clauses:
-            summary_stmt = summary_stmt.where(*where_clauses)
-
-        inflow_raw, outflow_raw = self.session.exec(summary_stmt).one()
-        inflow = float(inflow_raw or 0.0)
-        outflow = abs(float(outflow_raw or 0.0))
-        net = inflow - outflow
-
-        return LedgerSummary(inflow=inflow, outflow=outflow, net=net)
-
+    def update_transaction(
+        self,
+        transaction_id: int,
+        *,
+        payload: dict,
+    ) -> Transaction:  # pragma: no cover - stub
+        raise NotImplementedError
