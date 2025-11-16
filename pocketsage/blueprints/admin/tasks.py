@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta, timezone
+from calendar import monthrange
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
@@ -12,7 +13,7 @@ from sqlalchemy.exc import OperationalError
 from sqlmodel import select
 
 from pocketsage.extensions import session_scope
-from pocketsage.models import Habit, HabitEntry, Liability, Transaction
+from pocketsage.models import Account, Budget, BudgetLine, Category, Transaction
 from pocketsage.services.export_csv import export_transactions_csv
 from pocketsage.services.reports import export_spending_png
 
@@ -27,104 +28,153 @@ def run_demo_seed() -> None:
     with session_scope() as session:
         now = datetime.now(timezone.utc)
 
-        # Avoid heavy dependencies; insert a couple of transactions if none exist.
-        transactions_present = session.exec(select(Transaction)).first() is not None
-        if not transactions_present:
-            t1 = Transaction(occurred_at=now, amount=-12.34, memo="Coffee")
-            t2 = Transaction(occurred_at=now, amount=1500.0, memo="Salary")
-            session.add(t1)
-            session.add(t2)
+        # Seed canonical categories covering common inflows and outflows.
+        categories_seed = [
+            {"name": "Groceries", "slug": "groceries", "category_type": "expense", "color": "#4CAF50"},
+            {"name": "Dining Out", "slug": "dining-out", "category_type": "expense", "color": "#FF7043"},
+            {"name": "Utilities", "slug": "utilities", "category_type": "expense", "color": "#29B6F6"},
+            {"name": "Transportation", "slug": "transportation", "category_type": "expense", "color": "#AB47BC"},
+            {"name": "Wellness", "slug": "wellness", "category_type": "expense", "color": "#8D6E63"},
+            {"name": "Paycheck", "slug": "paycheck", "category_type": "income", "color": "#2E7D32"},
+            {"name": "Interest Income", "slug": "interest-income", "category_type": "income", "color": "#1B5E20"},
+            {"name": "Transfer In", "slug": "transfer-in", "category_type": "income", "color": "#00796B"},
+        ]
+        categories: dict[str, Category] = {}
+        for payload in categories_seed:
+            category = Category(**payload)
+            session.add(category)
+            categories[payload["slug"]] = category
+        session.flush()
 
-        # Seed demo habits with a rolling two-week streak snapshot to highlight
-        # variance in completion for presenters.
-        habits_present = session.exec(select(Habit)).first() is not None
-        if not habits_present:
-            today = now.date()
-            two_week_history = 14
-            habits_payload = [
-                {
-                    "habit": Habit(
-                        name="Morning Walk",
-                        description="Get outside for 20 minutes before work.",
-                        cadence="daily",
-                    ),
-                    # Oldest -> newest; 11/14 completions for presenters to call out.
-                    "history": [1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1],
-                },
-                {
-                    "habit": Habit(
-                        name="Evening Journal",
-                        description="Reflect on the day with three bullet points.",
-                        cadence="daily",
-                    ),
-                    # Alternating successes: 7/14 completions to show comeback potential.
-                    "history": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
-                },
-                {
-                    "habit": Habit(
-                        name="Sunday Meal Prep",
-                        description="Batch cook lunches for the upcoming week.",
-                        cadence="weekly",
-                    ),
-                    # Weekly cadence snapshot across two Sundays.
-                    "history": [1, 0],
-                    "weekly_offsets": [7, 0],
-                },
-            ]
+        accounts_seed = [
+            {"name": "Everyday Checking", "currency": "USD"},
+            {"name": "Rainy Day Savings", "currency": "USD"},
+        ]
+        accounts: dict[str, Account] = {}
+        for payload in accounts_seed:
+            account = Account(**payload)
+            session.add(account)
+            accounts[payload["name"]] = account
+        session.flush()
 
-            for payload in habits_payload:
-                habit = payload["habit"]
-                session.add(habit)
-                session.flush()  # ensure habit.id populated for entries
+        # Use timezone-aware UTC datetimes for persisted rows with staggered activity.
+        base_timestamp = datetime.now(timezone.utc).replace(hour=9, minute=0, second=0, microsecond=0, day=1)
+        transactions_seed = [
+            {
+                "offset_days": 0,
+                "amount": 3200.0,
+                "memo": "Paycheck deposit #IncomeOverview",
+                "category": "paycheck",
+                "account": "Everyday Checking",
+            },
+            {
+                "offset_days": 1,
+                "amount": -82.45,
+                "memo": "Fresh Mart groceries #BudgetBasics",
+                "category": "groceries",
+                "account": "Everyday Checking",
+            },
+            {
+                "offset_days": 3,
+                "amount": -54.12,
+                "memo": "Neighborhood market restock #MealPlan",
+                "category": "groceries",
+                "account": "Everyday Checking",
+            },
+            {
+                "offset_days": 4,
+                "amount": -32.18,
+                "memo": "Lunch with team #SocialSpending",
+                "category": "dining-out",
+                "account": "Everyday Checking",
+            },
+            {
+                "offset_days": 6,
+                "amount": -120.5,
+                "memo": "City utilities autopay #HouseholdHub",
+                "category": "utilities",
+                "account": "Everyday Checking",
+            },
+            {
+                "offset_days": 9,
+                "amount": -45.0,
+                "memo": "Transit pass reload #CommuteTracker",
+                "category": "transportation",
+                "account": "Everyday Checking",
+            },
+            {
+                "offset_days": 11,
+                "amount": -18.25,
+                "memo": "Rideshare to client site #OnTheGo",
+                "category": "transportation",
+                "account": "Everyday Checking",
+            },
+            {
+                "offset_days": 13,
+                "amount": -62.0,
+                "memo": "Wellness studio membership #SelfCare",
+                "category": "wellness",
+                "account": "Everyday Checking",
+            },
+            {
+                "offset_days": 15,
+                "amount": 200.0,
+                "memo": "Savings top-up from paycheck #GoalSetting",
+                "category": "transfer-in",
+                "account": "Rainy Day Savings",
+            },
+            {
+                "offset_days": 17,
+                "amount": 8.75,
+                "memo": "Monthly savings interest #PassiveIncome",
+                "category": "interest-income",
+                "account": "Rainy Day Savings",
+            },
+        ]
 
-                history = payload.get("history", [])
-                if "weekly_offsets" in payload:
-                    offsets = payload["weekly_offsets"]
-                else:
-                    offsets = [two_week_history - 1 - idx for idx in range(len(history))]
+        for seed in transactions_seed:
+            occurred_at = base_timestamp + timedelta(days=seed["offset_days"])
+            transaction = Transaction(
+                occurred_at=occurred_at,
+                amount=seed["amount"],
+                memo=seed["memo"],
+                category_id=categories[seed["category"]].id,
+                account_id=accounts[seed["account"]].id,
+                currency="USD",
+            )
+            session.add(transaction)
 
-                for value, offset in zip(history, offsets):
-                    occurred_on = today - timedelta(days=offset)
+        # Budget for the current month, aligning planned totals with seeded categories.
+        period_start = date(base_timestamp.year, base_timestamp.month, 1)
+        period_end = date(
+            base_timestamp.year,
+            base_timestamp.month,
+            monthrange(base_timestamp.year, base_timestamp.month)[1],
+        )
+        budget = Budget(
+            period_start=period_start,
+            period_end=period_end,
+            label=f"{base_timestamp.strftime('%B %Y')} Household Budget",
+        )
+        session.add(budget)
+        session.flush()
 
-                    entry = HabitEntry(
-                        habit_id=habit.id,
-                        occurred_on=occurred_on,
-                        value=value,
-                    )
-                    session.add(entry)
-
-        # Seed liabilities to provide payoff comparison talking points.
-        liabilities_present = session.exec(select(Liability)).first() is not None
-        if not liabilities_present:
-            liabilities = [
-                Liability(
-                    name="Redwood Rewards Card",
-                    balance=5200.45,
-                    apr=19.99,
-                    minimum_payment=165.0,
-                    due_day=15,
-                    payoff_strategy="avalanche",
-                ),
-                Liability(
-                    name="State University Loan",
-                    balance=18250.0,
-                    apr=5.45,
-                    minimum_payment=205.72,
-                    due_day=5,
-                    payoff_strategy="snowball",
-                ),
-                Liability(
-                    name="Canyon Auto Loan",
-                    balance=11400.0,
-                    apr=6.9,
-                    minimum_payment=340.0,
-                    due_day=22,
-                    payoff_strategy="snowball",
-                ),
-            ]
-
-            for liability in liabilities:
-                session.add(liability)
+        planned_lines: list[tuple[str, float]] = [
+            ("groceries", 450.0),
+            ("dining-out", 150.0),
+            ("utilities", 200.0),
+            ("transportation", 120.0),
+            ("wellness", 80.0),
+        ]
+        for slug, planned_amount in planned_lines:
+            session.add(
+                BudgetLine(
+                    budget_id=budget.id,
+                    category_id=categories[slug].id,
+                    planned_amount=planned_amount,
+                    rollover_enabled=False,
+                )
+            )
 
 
 EXPORT_RETENTION = 5
