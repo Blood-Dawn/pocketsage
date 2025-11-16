@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initTopNav();
     initAdminDashboard();
     initPortfolioUpload();
-    initLiabilitiesSchedule();
+    initLiabilityDashboard();
 });
 
 function initTopNav() {
@@ -332,146 +332,237 @@ function initPortfolioUpload() {
     });
 }
 
-function initLiabilitiesSchedule() {
-    const dashboard = document.querySelector("[data-liabilities-dashboard]");
-    if (!dashboard) {
+function initLiabilityDashboard() {
+    const root = document.querySelector("[data-liability-dashboard]");
+    if (!root) {
         return;
     }
 
-    const list = dashboard.querySelector("[data-liability-list]");
-    const cards = list ? Array.from(list.querySelectorAll("[data-liability]")) : [];
-    const searchInput = dashboard.querySelector("[data-liability-search]");
-    const strategySelect = dashboard.querySelector("[data-liability-strategy]");
-    const sortSelect = dashboard.querySelector("[data-liability-sort]");
-    const emptyState = dashboard.querySelector("[data-liability-empty]");
-    const countTarget = dashboard.querySelector("[data-liability-count]");
-    const upcomingRange = dashboard.querySelector("[data-upcoming-range]");
-    const upcomingRows = Array.from(
-        dashboard.querySelectorAll("[data-upcoming-row]")
-    );
-    const upcomingEmptyRow = dashboard.querySelector("[data-upcoming-empty]");
+    const jobEndpointTemplate = root.dataset.jobStatusEndpoint || "";
+    const initialJobs = safeParseJSON(root.dataset.initialJobs) || [];
+    const cards = new Map();
+    const jobs = new Map();
+    const flashTimers = new Map();
 
-    let filterTerm = "";
-    let filterStrategy = "all";
-
-    const normalize = (value) => (value || "").toString().trim().toLowerCase();
-
-    const parseDate = (value) => {
-        if (!value) {
-            return Number.MAX_SAFE_INTEGER;
+    root.querySelectorAll("[data-liability-card]").forEach((card) => {
+        const liabilityId = Number(card.dataset.liabilityId);
+        if (!Number.isFinite(liabilityId)) {
+            return;
         }
-        const timestamp = Date.parse(value);
-        if (Number.isNaN(timestamp)) {
-            return Number.MAX_SAFE_INTEGER;
-        }
-        return timestamp;
-    };
 
-    const comparators = {
-        next_due: (a, b) =>
-            parseDate(a.dataset.liabilityNextDue) -
-            parseDate(b.dataset.liabilityNextDue),
-        balance: (a, b) =>
-            parseFloat(b.dataset.liabilityBalance || "0") -
-            parseFloat(a.dataset.liabilityBalance || "0"),
-        name: (a, b) =>
-            normalize(a.dataset.liabilityName).localeCompare(
-                normalize(b.dataset.liabilityName)
-            ),
-    };
+        const form = card.querySelector("form[data-job-submit]");
+        const button = form ? form.querySelector("button[type='submit']") : null;
+        const status = card.querySelector("[data-status-region]");
+        const flash = card.querySelector("[data-inline-flash]");
+        const defaultStatus = status ? status.textContent.trim() : "";
+        const defaultState = status ? status.dataset.state || "idle" : "idle";
 
-    const applyUpcomingFilters = () => {
-        const rangeValue = parseInt(upcomingRange?.value ?? "", 10);
-        let visibleRows = 0;
-
-        upcomingRows.forEach((row) => {
-            const rowName = normalize(row.dataset.liabilityName);
-            const rowStrategy = normalize(row.dataset.liabilityStrategy);
-            const matchesTerm = !filterTerm || rowName.includes(filterTerm);
-            const matchesStrategy =
-                filterStrategy === "all" ||
-                rowStrategy === normalize(filterStrategy);
-            const days = parseInt(row.dataset.upcomingDays ?? "", 10);
-            const matchesRange =
-                Number.isNaN(rangeValue) ||
-                rangeValue < 0 ||
-                Number.isNaN(days)
-                    ? true
-                    : days <= rangeValue;
-
-            const shouldShow = matchesTerm && matchesStrategy && matchesRange;
-            row.hidden = !shouldShow;
-            if (shouldShow) {
-                visibleRows += 1;
-            }
+        cards.set(liabilityId, {
+            card,
+            form,
+            button,
+            status,
+            flash,
+            defaultStatus,
+            defaultState,
+            name: card.dataset.liabilityName || "This liability",
         });
 
-        if (upcomingEmptyRow) {
-            upcomingEmptyRow.hidden = visibleRows !== 0;
+        if (form) {
+            form.addEventListener("submit", (event) =>
+                handleRecalcSubmit(event, liabilityId)
+            );
+        }
+    });
+
+    const clearStatus = (liabilityId) => {
+        const entry = cards.get(liabilityId);
+        if (!entry || !entry.status) {
+            return;
+        }
+        if (entry.defaultStatus) {
+            entry.status.hidden = false;
+            entry.status.dataset.state = entry.defaultState;
+            entry.status.textContent = entry.defaultStatus;
+        } else {
+            entry.status.hidden = true;
+            entry.status.textContent = "";
         }
     };
 
-    const applyLiabilityFilters = () => {
-        if (list) {
-            const sortKey = sortSelect?.value || "next_due";
-            const comparator = comparators[sortKey] || comparators.next_due;
-            const sortedCards = [...cards].sort(comparator);
+    const setStatus = (liabilityId, message, state = "info") => {
+        const entry = cards.get(liabilityId);
+        if (!entry || !entry.status) {
+            return;
+        }
+        if (!message) {
+            clearStatus(liabilityId);
+            return;
+        }
+        entry.status.hidden = false;
+        entry.status.dataset.state = state;
+        entry.status.textContent = message;
+    };
 
-            sortedCards.forEach((card) => list.appendChild(card));
+    const clearInlineFlash = (liabilityId) => {
+        const entry = cards.get(liabilityId);
+        if (!entry || !entry.flash) {
+            return;
+        }
+        entry.flash.hidden = true;
+        entry.flash.textContent = "";
+        entry.flash.className = "liability-inline-flash";
+        const timer = flashTimers.get(liabilityId);
+        if (timer) {
+            clearTimeout(timer);
+            flashTimers.delete(liabilityId);
+        }
+    };
 
-            let visibleCards = 0;
-            cards.forEach((card) => {
-                const name = normalize(card.dataset.liabilityName);
-                const strategy = normalize(card.dataset.liabilityStrategy);
-                const matchesTerm = !filterTerm || name.includes(filterTerm);
-                const matchesStrategy =
-                    filterStrategy === "all" ||
-                    strategy === normalize(filterStrategy);
-                const shouldShow = matchesTerm && matchesStrategy;
-                card.hidden = !shouldShow;
-                if (shouldShow) {
-                    visibleCards += 1;
+    const showInlineFlash = (liabilityId, message, category = "info") => {
+        const entry = cards.get(liabilityId);
+        if (!entry || !entry.flash) {
+            return;
+        }
+        entry.flash.hidden = false;
+        entry.flash.textContent = message;
+        entry.flash.className = `liability-inline-flash liability-inline-flash-${category}`;
+
+        const timer = flashTimers.get(liabilityId);
+        if (timer) {
+            clearTimeout(timer);
+        }
+        const timeout = window.setTimeout(() => {
+            clearInlineFlash(liabilityId);
+        }, 6000);
+        flashTimers.set(liabilityId, timeout);
+    };
+
+    const trackJob = (job) => {
+        if (!job || !job.id) {
+            return;
+        }
+        jobs.set(job.id, job);
+        const metadata = job.metadata || {};
+        const liabilityId = Number(metadata.liability_id);
+        if (!Number.isFinite(liabilityId) || !cards.has(liabilityId)) {
+            return;
+        }
+
+        const entry = cards.get(liabilityId);
+        if (entry && entry.button) {
+            entry.button.disabled = !FINAL_JOB_STATUSES.has(job.status);
+        }
+
+        if (entry && FINAL_JOB_STATUSES.has(job.status)) {
+            const finished = job.finished_at
+                ? formatDate(job.finished_at)
+                : "just now";
+            if (job.status === "succeeded") {
+                setStatus(
+                    liabilityId,
+                    `Last recalculated ${finished}`,
+                    "success"
+                );
+                showInlineFlash(
+                    liabilityId,
+                    `${entry.name} payoff schedule refreshed successfully.`,
+                    "success"
+                );
+            } else {
+                const message = job.error || "Recalculation failed.";
+                setStatus(liabilityId, message, "warning");
+                showInlineFlash(liabilityId, message, "warning");
+            }
+        } else {
+            setStatus(liabilityId, "Recalculation running…", "pending");
+        }
+    };
+
+    const pollJob = async (jobId) => {
+        if (!jobId || !jobEndpointTemplate) {
+            return;
+        }
+        try {
+            const response = await fetch(
+                jobEndpointTemplate.replace("__JOB__", jobId),
+                {
+                    headers: { Accept: "application/json" },
                 }
+            );
+            if (!response.ok) {
+                return;
+            }
+            const payload = await response.json();
+            trackJob(payload);
+        } catch (error) {
+            console.warn("Failed to poll liability job", jobId, error);
+        }
+    };
+
+    const pollActiveJobs = () => {
+        Array.from(jobs.values())
+            .filter((job) => !FINAL_JOB_STATUSES.has(job.status))
+            .forEach((job) => pollJob(job.id));
+    };
+
+    const handleRecalcSubmit = async (event, liabilityId) => {
+        event.preventDefault();
+        const entry = cards.get(liabilityId);
+        if (!entry || !entry.form) {
+            return;
+        }
+
+        const { form, button } = entry;
+        const payload = safeParseJSON(form.dataset.payload) || {};
+
+        if (button) {
+            button.disabled = true;
+        }
+        clearInlineFlash(liabilityId);
+        setStatus(liabilityId, "Scheduling recalculation…", "pending");
+
+        try {
+            const response = await fetch(form.action, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                },
+                body: JSON.stringify(payload),
             });
 
-            if (countTarget) {
-                countTarget.textContent = visibleCards.toString();
+            const result = await response.json().catch(() => null);
+            if (!response.ok || !result || result.error) {
+                const message =
+                    (result && (result.message || result.error)) ||
+                    "Unable to schedule recalculation.";
+                showInlineFlash(liabilityId, message, "warning");
+                setStatus(liabilityId, message, "warning");
+                if (button) {
+                    button.disabled = false;
+                }
+                return;
             }
-            if (emptyState) {
-                emptyState.hidden = visibleCards !== 0;
-            }
-        }
 
-        applyUpcomingFilters();
+            showInlineFlash(liabilityId, "Recalculation started…", "info");
+            trackJob(result);
+            pollJob(result.id);
+        } catch (error) {
+            console.error("Recalculation submission failed", error);
+            if (button) {
+                button.disabled = false;
+            }
+            form.submit();
+        }
     };
 
-    if (searchInput) {
-        searchInput.addEventListener("input", (event) => {
-            filterTerm = normalize(event.target.value);
-            applyLiabilityFilters();
-        });
-    }
+    initialJobs.forEach((job) => {
+        trackJob(job);
+    });
 
-    if (strategySelect) {
-        strategySelect.addEventListener("change", (event) => {
-            filterStrategy = event.target.value || "all";
-            applyLiabilityFilters();
-        });
-    }
-
-    if (sortSelect) {
-        sortSelect.addEventListener("change", () => {
-            applyLiabilityFilters();
-        });
-    }
-
-    if (upcomingRange) {
-        upcomingRange.addEventListener("change", () => {
-            applyUpcomingFilters();
-        });
-    }
-
-    applyLiabilityFilters();
+    pollActiveJobs();
+    setInterval(pollActiveJobs, 5000);
 }
 
 function safeParseJSON(value) {

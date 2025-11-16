@@ -1481,321 +1481,158 @@ textarea.form-input {
 
 .liabilities-dashboard {
     display: grid;
-    gap: 2rem;
-}
-
-.liabilities-header {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 1rem;
-    padding: clamp(1.25rem, 2vw, 2rem);
-    display: flex;
-    flex-direction: column;
     gap: 1.5rem;
 }
 
-.liabilities-title h1 {
-    margin: 0 0 0.35rem;
+.liabilities-header h1 {
+    margin-bottom: 0.35rem;
 }
 
 .liabilities-subtitle {
     margin: 0;
     color: rgba(255, 255, 255, 0.7);
+    font-size: 0.95rem;
 }
 
-.liabilities-summary {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-    gap: 1rem;
-    margin: 0;
-}
-
-.summary-card {
-    background: rgba(59, 130, 246, 0.08);
-    border: 1px solid rgba(59, 130, 246, 0.2);
-    border-radius: 0.75rem;
-    padding: 1rem;
-}
-
-.summary-card:nth-child(2) {
-    background: rgba(34, 197, 94, 0.08);
-    border-color: rgba(34, 197, 94, 0.2);
-}
-
-.summary-card:nth-child(3) {
-    background: rgba(234, 179, 8, 0.08);
-    border-color: rgba(234, 179, 8, 0.2);
-}
-
-.summary-card dt {
-    margin: 0 0 0.5rem;
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.summary-card dd {
-    margin: 0;
-    font-size: clamp(1.35rem, 2.8vw, 2rem);
-    font-weight: 700;
-}
-
-.liabilities-controls,
-.upcoming-header {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    justify-content: space-between;
-}
-
-.control {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    min-width: 10rem;
-    font-size: 0.9rem;
-}
-
-.control span {
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.7);
-}
-
-input[type="search"],
-select {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(148, 163, 184, 0.4);
-    border-radius: 0.75rem;
-    color: inherit;
-    padding: 0.6rem 0.85rem;
-    font: inherit;
-    min-height: 2.5rem;
-}
-
-input[type="search"]:focus,
-select:focus {
-    outline: 2px solid rgba(59, 130, 246, 0.7);
-    outline-offset: 2px;
-}
-
-.upcoming-section {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 1rem;
-    padding: clamp(1.25rem, 2vw, 2rem);
-    display: grid;
-    gap: 1.25rem;
-}
-
-.upcoming-header h2 {
-    margin: 0;
-}
-
-.upcoming-header p {
-    margin: 0.35rem 0 0;
-    color: rgba(255, 255, 255, 0.65);
-    max-width: 36ch;
-}
-
-.schedule-table-wrapper {
-    overflow-x: auto;
-    border-radius: 0.75rem;
-}
-
-.schedule-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 32rem;
-}
-
-.schedule-table th,
-.schedule-table td {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
-    text-align: left;
-}
-
-.schedule-table th {
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: rgba(148, 163, 184, 0.85);
-    background: rgba(148, 163, 184, 0.08);
-}
-
-.schedule-table tbody tr:last-child td {
-    border-bottom: none;
-}
-
-.schedule-table .numeric {
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-}
-
-.schedule-table .strategy {
-    text-transform: capitalize;
-}
-
-.liability-list {
+.liability-grid {
     display: grid;
     gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
 }
 
 .liability-card {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 1rem;
+    border-radius: 0.85rem;
+    padding: 1.5rem;
+    display: grid;
+    gap: 1rem;
+    min-height: 14rem;
 }
 
-.liability-details summary {
-    list-style: none;
-}
-
-.liability-details summary::-webkit-details-marker {
-    display: none;
-}
-
-.liability-summary {
+.liability-card-header {
     display: flex;
     justify-content: space-between;
-    gap: 1.5rem;
-    align-items: flex-start;
-    padding: clamp(1.1rem, 2vw, 1.75rem);
-    cursor: pointer;
+    align-items: baseline;
+    gap: 0.75rem;
 }
 
-.liability-details[open] .liability-summary {
-    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-}
-
-.liability-summary h2 {
+.liability-card-header h2 {
     margin: 0;
-    font-size: clamp(1.25rem, 2.2vw, 1.75rem);
+    font-size: 1.25rem;
 }
 
-.liability-summary .meta {
-    margin: 0.35rem 0 0;
-    color: rgba(255, 255, 255, 0.65);
-}
-
-.badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.15rem 0.5rem;
-    border-radius: 999px;
-    background: rgba(56, 189, 248, 0.2);
-    color: #38bdf8;
-    font-size: 0.75rem;
+.liability-balance {
+    font-size: 1.1rem;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
 }
 
-.liability-metrics {
+.liability-meta {
+    margin: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-    gap: 1rem;
-    margin: 0;
+    gap: 0.5rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.liability-metrics dt {
-    margin: 0 0 0.35rem;
-    font-size: 0.75rem;
+.liability-meta div {
+    display: grid;
+    gap: 0.15rem;
+}
+
+.liability-meta dt {
+    font-size: 0.8rem;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: rgba(148, 163, 184, 0.9);
+    letter-spacing: 0.08em;
+    opacity: 0.65;
 }
 
-.liability-metrics dd {
+.liability-meta dd {
     margin: 0;
-    font-size: 1.05rem;
     font-variant-numeric: tabular-nums;
 }
 
-.liability-body {
-    padding: clamp(1.1rem, 2vw, 1.75rem);
-    display: grid;
-    gap: 1rem;
+.liability-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
 }
 
-.schedule-summary {
-    margin: 0;
-    color: rgba(148, 163, 184, 0.9);
+.liability-actions .btn-link {
+    opacity: 0.55;
+    cursor: not-allowed;
 }
 
-[data-liability-empty] {
-    text-align: center;
+.liability-status {
+    font-size: 0.85rem;
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.75);
 }
 
-@media (max-width: 900px) {
-    .liability-summary {
-        flex-direction: column;
-    }
-
-    .liability-metrics {
-        grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
-    }
-
-    .schedule-table {
-        min-width: 100%;
-    }
+.liability-status[hidden] {
+    display: none;
 }
 
-@media (max-width: 640px) {
-    .liabilities-header {
-        padding: 1.25rem;
-    }
+.liability-status[data-state="pending"] {
+    color: #fbbf24;
+}
 
-    .liabilities-summary {
-        grid-template-columns: 1fr;
-    }
+.liability-status[data-state="success"] {
+    color: #22c55e;
+}
 
-    .liabilities-controls,
-    .upcoming-header {
-        flex-direction: column;
-        align-items: stretch;
-    }
+.liability-status[data-state="warning"] {
+    color: #f97316;
+}
 
-    .control {
-        width: 100%;
-    }
+.liability-inline-flash {
+    font-size: 0.85rem;
+    border-radius: 0.6rem;
+    padding: 0.6rem 0.75rem;
+}
 
-    .schedule-table thead {
-        display: none;
-    }
+.liability-inline-flash[hidden] {
+    display: none;
+}
 
-    .schedule-table,
-    .schedule-table tbody,
-    .schedule-table tr,
-    .schedule-table td {
-        display: block;
-        width: 100%;
-    }
+.liability-inline-flash-info {
+    background: rgba(59, 130, 246, 0.12);
+    color: #60a5fa;
+}
 
-    .schedule-table td {
-        padding: 0.75rem 0.85rem;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-        position: relative;
-        padding-left: 6.5rem;
-    }
+.liability-inline-flash-success {
+    background: rgba(34, 197, 94, 0.12);
+    color: #4ade80;
+}
 
-    .schedule-table td::before {
-        content: attr(data-label);
-        position: absolute;
-        left: 0.85rem;
-        top: 0.75rem;
-        font-weight: 600;
-        color: rgba(148, 163, 184, 0.9);
-        font-size: 0.75rem;
-        text-transform: uppercase;
-    }
+.liability-inline-flash-warning {
+    background: rgba(251, 191, 36, 0.15);
+    color: #facc15;
+}
 
-    .schedule-table .numeric {
-        text-align: right;
-    }
+.liability-inline-flash-error {
+    background: rgba(248, 113, 113, 0.15);
+    color: #f87171;
+}
+
+.liability-inline-flash strong {
+    font-weight: 600;
+}
+
+.liability-inline-flash button {
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.liability-inline-flash button:hover {
+    text-decoration: underline;
+}
+
+.liability-inline-flash button:disabled {
+    cursor: default;
+    opacity: 0.65;
 }
 
 /* TODO(@ux-team): extend design tokens, typography scale, and dark/light mode palettes. */
