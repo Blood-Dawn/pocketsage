@@ -12,7 +12,8 @@ from sqlalchemy.exc import OperationalError
 from sqlmodel import select
 
 from pocketsage.extensions import session_scope
-from pocketsage.models import Transaction
+from pocketsage.models import AppSetting, Account, Holding, Transaction
+from pocketsage.blueprints.portfolio.repository import SqlModelPortfolioRepository
 from pocketsage.services.export_csv import export_transactions_csv
 from pocketsage.services.reports import export_spending_png
 
@@ -20,21 +21,97 @@ from pocketsage.services.reports import export_spending_png
 def run_demo_seed() -> None:
     """Seed demo data for PocketSage.
 
-    This is intentionally minimal and safe: it inserts a couple of demo
-    transactions only if the DB is empty.
+    Populate a demo investment account with holdings, paired transactions, and
+    a CSV mapping hint the first time the database is initialized.
     """
 
     with session_scope() as session:
-        # Avoid heavy dependencies; insert a couple of transactions if none exist.
-        count = len(list(session.exec(select(Transaction))))
-        if count > 0:
+        # Bail early if demo portfolio data already exists.
+        existing_holding = session.exec(select(Holding.id).limit(1)).first()
+        if existing_holding is not None:
             return
 
-        # Use timezone-aware UTC datetimes for persisted rows.
-        t1 = Transaction(occurred_at=datetime.now(timezone.utc), amount=-12.34, memo="Coffee")
-        t2 = Transaction(occurred_at=datetime.now(timezone.utc), amount=1500.0, memo="Salary")
-        session.add(t1)
-        session.add(t2)
+        repo = SqlModelPortfolioRepository(session)
+
+        account = session.exec(
+            select(Account).where(Account.name == "Demo Investment Portfolio")
+        ).one_or_none()
+        if account is None:
+            account = Account(name="Demo Investment Portfolio", currency="USD")
+            session.add(account)
+            session.flush()
+
+        holdings_payload = [
+            {
+                "symbol": "AAPL",
+                "quantity": 12.0,
+                "avg_price": 148.25,
+                "currency": "USD",
+                "acquired_at": datetime(2022, 3, 14, 15, 9, tzinfo=timezone.utc),
+            },
+            {
+                "symbol": "VOO",
+                "quantity": 8.5,
+                "avg_price": 396.4,
+                "currency": "USD",
+                "acquired_at": datetime(2021, 9, 7, 12, 30, tzinfo=timezone.utc),
+            },
+            {
+                "symbol": "SHOP",
+                "quantity": 5.0,
+                "avg_price": 1420.15,
+                "currency": "CAD",
+                "acquired_at": datetime(2023, 1, 11, 10, 0, tzinfo=timezone.utc),
+            },
+        ]
+
+        for entry in holdings_payload:
+            holding = Holding(
+                symbol=entry["symbol"],
+                quantity=entry["quantity"],
+                avg_price=entry["avg_price"],
+                acquired_at=entry["acquired_at"],
+                account_id=account.id,
+                currency=entry["currency"],
+            )
+            session.add(holding)
+
+            external_id = repo._build_external_id(
+                symbol=entry["symbol"],
+                account_id=account.id,
+                currency=entry["currency"],
+            )
+
+            transaction = session.exec(
+                select(Transaction).where(Transaction.external_id == external_id)
+            ).one_or_none()
+            if transaction is None:
+                transaction = Transaction(external_id=external_id)
+
+            transaction.occurred_at = entry["acquired_at"]
+            transaction.amount = entry["quantity"] * entry["avg_price"]
+            transaction.memo = f"Seeded portfolio position for {entry['symbol']}"
+            transaction.account_id = account.id
+            transaction.currency = entry["currency"]
+
+            session.add(transaction)
+
+        mapping_key = "demo.portfolio.csv_mapping"
+        mapping_value = (
+            "symbol:Ticker,quantity:Shares,avg_price:PurchasePrice,acquired_at:PurchaseDate"
+        )
+        app_setting = session.get(AppSetting, mapping_key)
+        if app_setting is None:
+            app_setting = AppSetting(
+                key=mapping_key,
+                value=mapping_value,
+                description="Sample CSV column mapping showcased in demo seeds.",
+            )
+        else:
+            app_setting.value = mapping_value
+            app_setting.description = "Sample CSV column mapping showcased in demo seeds."
+
+        session.add(app_setting)
 
 
 EXPORT_RETENTION = 5
