@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
@@ -12,8 +12,7 @@ from sqlalchemy.exc import OperationalError
 from sqlmodel import select
 
 from pocketsage.extensions import session_scope
-from pocketsage.models import AppSetting, Account, Holding, Transaction
-from pocketsage.blueprints.portfolio.repository import SqlModelPortfolioRepository
+from pocketsage.models import Habit, HabitEntry, Liability, Transaction
 from pocketsage.services.export_csv import export_transactions_csv
 from pocketsage.services.reports import export_spending_png
 
@@ -26,92 +25,106 @@ def run_demo_seed() -> None:
     """
 
     with session_scope() as session:
-        # Bail early if demo portfolio data already exists.
-        existing_holding = session.exec(select(Holding.id).limit(1)).first()
-        if existing_holding is not None:
-            return
+        now = datetime.now(timezone.utc)
 
-        repo = SqlModelPortfolioRepository(session)
+        # Avoid heavy dependencies; insert a couple of transactions if none exist.
+        transactions_present = session.exec(select(Transaction)).first() is not None
+        if not transactions_present:
+            t1 = Transaction(occurred_at=now, amount=-12.34, memo="Coffee")
+            t2 = Transaction(occurred_at=now, amount=1500.0, memo="Salary")
+            session.add(t1)
+            session.add(t2)
 
-        account = session.exec(
-            select(Account).where(Account.name == "Demo Investment Portfolio")
-        ).one_or_none()
-        if account is None:
-            account = Account(name="Demo Investment Portfolio", currency="USD")
-            session.add(account)
-            session.flush()
+        # Seed demo habits with a rolling two-week streak snapshot to highlight
+        # variance in completion for presenters.
+        habits_present = session.exec(select(Habit)).first() is not None
+        if not habits_present:
+            today = now.date()
+            two_week_history = 14
+            habits_payload = [
+                {
+                    "habit": Habit(
+                        name="Morning Walk",
+                        description="Get outside for 20 minutes before work.",
+                        cadence="daily",
+                    ),
+                    # Oldest -> newest; 11/14 completions for presenters to call out.
+                    "history": [1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1],
+                },
+                {
+                    "habit": Habit(
+                        name="Evening Journal",
+                        description="Reflect on the day with three bullet points.",
+                        cadence="daily",
+                    ),
+                    # Alternating successes: 7/14 completions to show comeback potential.
+                    "history": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+                },
+                {
+                    "habit": Habit(
+                        name="Sunday Meal Prep",
+                        description="Batch cook lunches for the upcoming week.",
+                        cadence="weekly",
+                    ),
+                    # Weekly cadence snapshot across two Sundays.
+                    "history": [1, 0],
+                    "weekly_offsets": [7, 0],
+                },
+            ]
 
-        holdings_payload = [
-            {
-                "symbol": "AAPL",
-                "quantity": 12.0,
-                "avg_price": 148.25,
-                "currency": "USD",
-                "acquired_at": datetime(2022, 3, 14, 15, 9, tzinfo=timezone.utc),
-            },
-            {
-                "symbol": "VOO",
-                "quantity": 8.5,
-                "avg_price": 396.4,
-                "currency": "USD",
-                "acquired_at": datetime(2021, 9, 7, 12, 30, tzinfo=timezone.utc),
-            },
-            {
-                "symbol": "SHOP",
-                "quantity": 5.0,
-                "avg_price": 1420.15,
-                "currency": "CAD",
-                "acquired_at": datetime(2023, 1, 11, 10, 0, tzinfo=timezone.utc),
-            },
-        ]
+            for payload in habits_payload:
+                habit = payload["habit"]
+                session.add(habit)
+                session.flush()  # ensure habit.id populated for entries
 
-        for entry in holdings_payload:
-            holding = Holding(
-                symbol=entry["symbol"],
-                quantity=entry["quantity"],
-                avg_price=entry["avg_price"],
-                acquired_at=entry["acquired_at"],
-                account_id=account.id,
-                currency=entry["currency"],
-            )
-            session.add(holding)
+                history = payload.get("history", [])
+                if "weekly_offsets" in payload:
+                    offsets = payload["weekly_offsets"]
+                else:
+                    offsets = [two_week_history - 1 - idx for idx in range(len(history))]
 
-            external_id = repo._build_external_id(
-                symbol=entry["symbol"],
-                account_id=account.id,
-                currency=entry["currency"],
-            )
+                for value, offset in zip(history, offsets):
+                    occurred_on = today - timedelta(days=offset)
 
-            transaction = session.exec(
-                select(Transaction).where(Transaction.external_id == external_id)
-            ).one_or_none()
-            if transaction is None:
-                transaction = Transaction(external_id=external_id)
+                    entry = HabitEntry(
+                        habit_id=habit.id,
+                        occurred_on=occurred_on,
+                        value=value,
+                    )
+                    session.add(entry)
 
-            transaction.occurred_at = entry["acquired_at"]
-            transaction.amount = entry["quantity"] * entry["avg_price"]
-            transaction.memo = f"Seeded portfolio position for {entry['symbol']}"
-            transaction.account_id = account.id
-            transaction.currency = entry["currency"]
+        # Seed liabilities to provide payoff comparison talking points.
+        liabilities_present = session.exec(select(Liability)).first() is not None
+        if not liabilities_present:
+            liabilities = [
+                Liability(
+                    name="Redwood Rewards Card",
+                    balance=5200.45,
+                    apr=19.99,
+                    minimum_payment=165.0,
+                    due_day=15,
+                    payoff_strategy="avalanche",
+                ),
+                Liability(
+                    name="State University Loan",
+                    balance=18250.0,
+                    apr=5.45,
+                    minimum_payment=205.72,
+                    due_day=5,
+                    payoff_strategy="snowball",
+                ),
+                Liability(
+                    name="Canyon Auto Loan",
+                    balance=11400.0,
+                    apr=6.9,
+                    minimum_payment=340.0,
+                    due_day=22,
+                    payoff_strategy="snowball",
+                ),
+            ]
 
-            session.add(transaction)
-
-        mapping_key = "demo.portfolio.csv_mapping"
-        mapping_value = (
-            "symbol:Ticker,quantity:Shares,avg_price:PurchasePrice,acquired_at:PurchaseDate"
-        )
-        app_setting = session.get(AppSetting, mapping_key)
-        if app_setting is None:
-            app_setting = AppSetting(
-                key=mapping_key,
-                value=mapping_value,
-                description="Sample CSV column mapping showcased in demo seeds.",
-            )
-        else:
-            app_setting.value = mapping_value
-            app_setting.description = "Sample CSV column mapping showcased in demo seeds."
-
-        session.add(app_setting)
+            for liability in liabilities:
+                session.add(liability)
 
 
 EXPORT_RETENTION = 5
