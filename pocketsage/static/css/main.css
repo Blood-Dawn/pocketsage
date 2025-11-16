@@ -174,6 +174,119 @@ body[data-theme='light'] {
     padding: var(--space-xl);
 }
 
+.form-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    padding: clamp(1.25rem, 3vw, 2rem);
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.form-header {
+    display: grid;
+    gap: 0.35rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-subtitle {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.95rem;
+}
+
+.form-layout {
+    display: grid;
+    gap: 1.25rem;
+}
+
+.form-field {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.form-label {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.form-input {
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 0.5rem;
+    color: inherit;
+    font: inherit;
+    padding: 0.75rem 0.9rem;
+    width: 100%;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: rgba(59, 130, 246, 0.65);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+textarea.form-input {
+    resize: vertical;
+    min-height: 6rem;
+}
+
+.form-field-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.form-prefix {
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 0.5rem;
+    font-weight: 600;
+    padding: 0.75rem 0.9rem;
+}
+
+.form-field-row .form-input {
+    flex: 1;
+}
+
+.form-help {
+    margin: 0;
+    font-size: 0.85rem;
+    color: rgba(226, 232, 240, 0.7);
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.form-actions .btn-primary {
+    flex: 0 0 auto;
+}
+
+.form-actions .btn-link {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.form-field--full {
+    width: 100%;
+}
+
+@media (min-width: 720px) {
+    .form-layout {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .form-field--full {
+        grid-column: 1 / -1;
+    }
+}
+
 .flash-messages {
     margin-bottom: var(--space-md);
 }

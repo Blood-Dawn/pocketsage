@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from math import ceil
+from datetime import datetime
+
+from flask import flash, redirect, render_template, request, url_for
 
 from flask import flash, g, redirect, render_template, request, url_for
 
@@ -10,11 +12,7 @@ from flask import flash, g, redirect, render_template, request, url_for
 
 from ...extensions import session_scope
 from . import bp
-from .repository import SQLModelLedgerRepository
-
-
-DEFAULT_PER_PAGE = 25
-PER_PAGE_CHOICES = (10, 25, 50, 100)
+from .forms import LedgerEntryForm
 
 
 @bp.get("/")
@@ -86,8 +84,13 @@ def list_transactions():
 def new_transaction():
     """Render form for creating a transaction."""
 
-    # TODO(@ledger-squad): supply LedgerEntryForm with defaults (see forms.py).
-    return render_template("ledger/form.html")
+    form = LedgerEntryForm(
+        occurred_at=datetime.now().replace(second=0, microsecond=0),
+        amount=None,
+        memo="",
+        category_id=None,
+    )
+    return render_template("ledger/form.html", form=form)
 
 
 @bp.post("/")
