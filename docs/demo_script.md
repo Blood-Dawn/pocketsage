@@ -18,6 +18,7 @@
    - Mention offline-first architecture and SQLCipher toggle.
 2. **Ledger Tour**
    - Show placeholder ledger list; describe upcoming rollups and Matplotlib charts.
+   - Load `/ledger/` to confirm the TODO banner remains visible; capture a screenshot or note any placeholder changes signaling upcoming work.
 3. **Habits Tracker**
    - Toggle action posts to `/habits/<id>/toggle`; highlight streak logic TODOs.
 4. **Liabilities Payoff**
