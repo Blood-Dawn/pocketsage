@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initFlashDismissal();
     initAdminDashboard();
     initPortfolioUpload();
-    initHabitToggles();
+    initLiabilitiesDashboard();
 });
 
 function initFlashDismissal() {
@@ -257,122 +257,106 @@ function initPortfolioUpload() {
     });
 }
 
-function initHabitToggles() {
-    const habitList = document.querySelector("[data-habit-list]");
-    if (!habitList) {
+function initLiabilitiesDashboard() {
+    const dashboard = document.querySelector("[data-liabilities-dashboard]");
+    if (!dashboard) {
         return;
     }
 
-    const flashAnchor = document.querySelector("[data-habit-flash-anchor]");
-    let globalFlash = document.querySelector(".flash-messages");
-    if (!globalFlash && flashAnchor) {
-        globalFlash = document.createElement("section");
-        globalFlash.className = "flash-messages";
-        flashAnchor.appendChild(globalFlash);
-    } else if (flashAnchor && globalFlash && flashAnchor !== globalFlash.parentElement) {
-        flashAnchor.appendChild(globalFlash);
+    if (typeof Chart === "undefined") {
+        console.warn("Chart.js is required for liabilities visualizations.");
+        return;
     }
 
-    const showLocalFlash = (message, category = "info") => {
-        const container = document.querySelector(".flash-messages");
-        if (!container) {
-            return;
-        }
-        const element = document.createElement("div");
-        element.className = `flash flash-${category}`;
-        element.textContent = message;
-        container.appendChild(element);
-        setTimeout(() => {
-            element.remove();
-        }, 5000);
-    };
+    const balanceSeries = safeParseJSON(dashboard.dataset.balanceSeries) || [];
+    const strategySeries = safeParseJSON(dashboard.dataset.strategySeries) || [];
+    const strategyKeys = safeParseJSON(dashboard.dataset.strategyKeys) || [];
 
-    const parseCount = (value) => {
-        const parsed = Number.parseInt(value, 10);
-        return Number.isNaN(parsed) ? 0 : parsed;
-    };
+    const palette = ["#38bdf8", "#22c55e", "#f97316", "#a855f7", "#facc15"];
 
-    habitList.querySelectorAll("form[data-habit-toggle]").forEach((form) => {
-        form.addEventListener("submit", async (event) => {
-            if (!window.fetch) {
-                return;
-            }
-
-            event.preventDefault();
-
-            const card = form.closest("[data-habit]");
-            const button = form.querySelector("[data-habit-toggle-button]");
-            const hiddenState = form.querySelector("input[name='target_state']");
-            const streakDisplay = card?.querySelector("[data-habit-streak-count]");
-            const originalState = card?.dataset.completedToday === "true";
-            const requestedState = hiddenState?.value || "complete";
-            const willComplete = requestedState !== "undo";
-            const previousStreak = streakDisplay ? parseCount(streakDisplay.textContent || "0") : 0;
-            const optimisticStreak = Math.max(0, previousStreak + (willComplete ? 1 : -1));
-
-            if (streakDisplay) {
-                streakDisplay.textContent = optimisticStreak;
-            }
-
-            if (card) {
-                card.dataset.completedToday = willComplete ? "true" : "false";
-            }
-
-            if (button) {
-                button.disabled = true;
-                button.textContent = willComplete ? "Undo today" : "Mark complete";
-            }
-
-            const formData = new FormData(form);
-
-            try {
-                const response = await fetch(form.action, {
-                    method: form.method || "POST",
-                    body: formData,
-                    headers: { "X-Requested-With": "fetch" },
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Request failed with status ${response.status}`);
-                }
-
-                if (hiddenState) {
-                    hiddenState.value = willComplete ? "undo" : "complete";
-                }
-
-                if (button) {
-                    button.disabled = false;
-                }
-
-                showLocalFlash(
-                    willComplete
-                        ? "Marked habit as complete for today."
-                        : "Reopened today's habit entry.",
-                    "success"
-                );
-            } catch (error) {
-                if (streakDisplay) {
-                    streakDisplay.textContent = previousStreak;
-                }
-
-                if (card) {
-                    card.dataset.completedToday = originalState ? "true" : "false";
-                }
-
-                if (hiddenState) {
-                    hiddenState.value = requestedState;
-                }
-
-                if (button) {
-                    button.disabled = false;
-                    button.textContent = originalState ? "Undo today" : "Mark complete";
-                }
-
-                showLocalFlash("We couldn't update that habit. Reloading…", "warning");
-                form.submit();
-            }
+    const balanceCanvas = dashboard.querySelector("[data-balance-chart]");
+    if (balanceCanvas && balanceSeries.length > 0) {
+        const balanceCtx = balanceCanvas.getContext("2d");
+        new Chart(balanceCtx, {
+            type: "line",
+            data: {
+                labels: balanceSeries.map((row) => row.label),
+                datasets: [
+                    {
+                        label: "Total balance",
+                        data: balanceSeries.map((row) => row.total_balance),
+                        borderColor: palette[0],
+                        backgroundColor: "rgba(56, 189, 248, 0.25)",
+                        tension: 0.35,
+                        fill: true,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => formatCurrency(context.parsed.y),
+                        },
+                    },
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: (value) => formatCurrency(value),
+                        },
+                    },
+                },
+            },
         });
-    });
+    }
+
+    const strategyCanvas = dashboard.querySelector("[data-strategy-chart]");
+    if (strategyCanvas && strategySeries.length > 0 && strategyKeys.length > 0) {
+        const datasets = strategyKeys.map((key, index) => ({
+            label: titleCase(key),
+            data: strategySeries.map((row) => {
+                const totals = row.strategies || {};
+                return totals[key] || 0;
+            }),
+            backgroundColor: palette[index % palette.length],
+            stack: "payments",
+            borderRadius: 6,
+        }));
+
+        const strategyCtx = strategyCanvas.getContext("2d");
+        new Chart(strategyCtx, {
+            type: "bar",
+            data: {
+                labels: strategySeries.map((row) => row.label),
+                datasets,
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true },
+                    y: {
+                        stacked: true,
+                        ticks: {
+                            callback: (value) => formatCurrency(value),
+                        },
+                    },
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: (context) =>
+                                `${context.dataset.label}: ${formatCurrency(context.parsed.y)}`,
+                        },
+                    },
+                },
+            },
+        });
+    }
 }
 
 function safeParseJSON(value) {
@@ -385,6 +369,27 @@ function safeParseJSON(value) {
         console.warn("Failed to parse JSON", error);
         return null;
     }
+}
+
+function titleCase(value) {
+    if (!value) {
+        return "";
+    }
+    return value
+        .toString()
+        .split(/[_\s-]+/)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ");
+}
+
+function formatCurrency(value) {
+    const number = Number(value) || 0;
+    return new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 0,
+        minimumFractionDigits: 0,
+    }).format(number);
 }
 
 function jobItemTemplate(job) {

@@ -8,11 +8,8 @@ from datetime import date
 from math import ceil
 from typing import Iterable
 
-from flask import flash, redirect, render_template, url_for
-from sqlmodel import select
+from ...services import liabilities as liabilities_service
 
-from ...extensions import session_scope
-from ...models.liability import Liability
 from . import bp
 
 from pocketsage.blueprints.liabilities import bp
@@ -168,18 +165,8 @@ def _hydrate_liabilities(liabilities: Iterable[Liability], *, today: date) -> tu
 def list_liabilities():
     """Display liabilities overview with payoff projections."""
 
-    today = date.today()
-    with session_scope() as session:
-        liabilities = session.exec(select(Liability)).all()
-
-    liability_rows, summary = _hydrate_liabilities(liabilities, today=today)
-
-    return render_template(
-        "liabilities/index.html",
-        liabilities=liability_rows,
-        summary=summary,
-        today=today,
-    )
+    overview = liabilities_service.compute_overview()
+    return render_template("liabilities/index.html", overview=overview)
 
 
 @bp.post("/<int:liability_id>/recalculate")
