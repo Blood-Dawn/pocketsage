@@ -65,7 +65,7 @@ Framework Owner checkpoint for the PocketSage desktop-first Flask app. Focus are
 ## Folder Highlights
 - `pocketsage/` – app factory, config, extensions, models, services, blueprints, templates, static
 - `scripts/` – demo seeding + CSV samples
-- `docs/` – architecture, code review, demo runbook
+- `docs/` – architecture, code review, demo runbook, troubleshooting matrix
 - `tests/` – pytest scaffolding with skips awaiting implementations
 
 ## Next Steps for Teammates
