@@ -2,90 +2,84 @@
 
 from __future__ import annotations
 
-from datetime import date
-from typing import Any, Tuple
+from math import ceil
+
+from flask import flash, g, redirect, render_template, request, url_for
 
 from flask import flash, g, redirect, render_template, request, url_for
 
 from ...extensions import session_scope
 from . import bp
-from .repository import SqlModelLedgerRepository
+from .repository import SQLModelLedgerRepository
 
 
-def _parse_date(value: str | None) -> date | None:
-    """Attempt to parse ISO-8601 date strings."""
-
-    if not value:
-        return None
-    try:
-        return date.fromisoformat(value)
-    except ValueError:
-        return None
-
-
-def _extract_filters(args) -> Tuple[dict[str, Any], dict[str, str]]:
-    """Convert request arguments into repository filters and form state."""
-
-    form_state: dict[str, str] = {
-        "start_date": args.get("start_date", ""),
-        "end_date": args.get("end_date", ""),
-        "category": args.get("category", ""),
-        "search": args.get("search", ""),
-    }
-
-    filters: dict[str, Any] = {}
-
-    start_date = _parse_date(form_state["start_date"] or None)
-    if start_date is not None:
-        filters["start_date"] = start_date
-        form_state["start_date"] = start_date.isoformat()
-    else:
-        form_state["start_date"] = ""
-
-    end_date = _parse_date(form_state["end_date"] or None)
-    if end_date is not None:
-        filters["end_date"] = end_date
-        form_state["end_date"] = end_date.isoformat()
-    else:
-        form_state["end_date"] = ""
-
-    category_raw = (form_state["category"] or "").strip()
-    if category_raw:
-        try:
-            filters["category_id"] = int(category_raw)
-            form_state["category"] = str(filters["category_id"])
-        except ValueError:
-            form_state["category"] = ""
-    else:
-        form_state["category"] = ""
-
-    search_raw = (form_state["search"] or "").strip()
-    if search_raw:
-        filters["search"] = search_raw
-        form_state["search"] = search_raw
-    else:
-        form_state["search"] = ""
-
-    return filters, form_state
+DEFAULT_PER_PAGE = 25
+PER_PAGE_CHOICES = (10, 25, 50, 100)
 
 
 @bp.get("/")
 def list_transactions():
-    """Display ledger transactions with filters and rollups."""
+    """Display ledger transactions with filters, pagination, and rollups."""
 
-    filters, form_state = _extract_filters(request.args)
-    repo = SqlModelLedgerRepository(g.sqlmodel_session)
-    transactions = repo.list_transactions(filters=filters)
-    categories = repo.list_categories()
+    session = g.get("sqlmodel_session")
+    if session is None:
+        raise RuntimeError("Database session not initialized for request")
 
-    # TODO(@ledger-squad): wire pagination + rollup summary calculations.
-    return render_template(
-        "ledger/index.html",
-        filters=filters,
-        filter_state=form_state,
-        transactions=transactions,
-        categories=categories,
+    requested_page = _coerce_int(request.args.get("page"), default=1)
+    requested_per_page = _coerce_int(
+        request.args.get("per_page"), default=DEFAULT_PER_PAGE, minimum=1, maximum=100
     )
+
+    filters = {
+        key: value
+        for key, value in request.args.items()
+        if key not in {"page", "per_page"} and value
+    }
+
+    repository = SQLModelLedgerRepository(session=session)
+    transactions, total = repository.list_transactions(
+        filters=filters, page=requested_page, per_page=requested_per_page
+    )
+
+    total_pages = max(ceil(total / requested_per_page), 1) if total else 1
+    current_page = min(max(requested_page, 1), total_pages)
+
+    if total and current_page != requested_page:
+        transactions, _ = repository.list_transactions(
+            filters=filters, page=current_page, per_page=requested_per_page
+        )
+
+    start_index = (current_page - 1) * requested_per_page
+    page_start = start_index + 1 if total else 0
+    page_end = min(start_index + len(transactions), total) if total else 0
+
+    pagination = {
+        "page": current_page,
+        "per_page": requested_per_page,
+        "total": total,
+        "pages": total_pages,
+        "has_prev": current_page > 1,
+        "has_next": current_page < total_pages,
+        "start": page_start,
+        "end": page_end,
+        "window": _pagination_window(current_page, total_pages),
+    }
+
+    def page_url(target_page: int) -> str:
+        params = dict(filters)
+        params["page"] = target_page
+        params["per_page"] = requested_per_page
+        return url_for("ledger.list_transactions", **params)
+
+    context = {
+        "filters": filters,
+        "transactions": transactions,
+        "pagination": pagination,
+        "page_url": page_url,
+        "per_page_options": _per_page_options(requested_per_page),
+    }
+
+    return render_template("ledger/index.html", **context)
 
 
 @bp.get("/new")
@@ -120,3 +114,57 @@ def update_transaction(transaction_id: int):
     # TODO(@ledger-squad): apply optimistic locking + repository update.
     flash("Ledger transaction update not yet implemented", "warning")
     return redirect(url_for("ledger.list_transactions"))
+
+
+def _coerce_int(
+    value: str | None,
+    *,
+    default: int,
+    minimum: int | None = None,
+    maximum: int | None = None,
+) -> int:
+    """Convert ``value`` to an ``int`` within optional bounds."""
+
+    try:
+        result = int(value) if value is not None else default
+    except (TypeError, ValueError):
+        result = default
+    if minimum is not None:
+        result = max(result, minimum)
+    if maximum is not None:
+        result = min(result, maximum)
+    return result
+
+
+def _pagination_window(current_page: int, total_pages: int, width: int = 2) -> list[int | None]:
+    """Return a condensed pagination range with ellipses."""
+
+    if total_pages <= (width * 2 + 5):
+        return list(range(1, total_pages + 1))
+
+    window_start = max(current_page - width, 1)
+    window_end = min(current_page + width, total_pages)
+
+    window: list[int | None] = [1]
+
+    if window_start > 2:
+        window.append(None)
+
+    window.extend(range(window_start, window_end + 1))
+
+    if window_end < total_pages - 1:
+        window.append(None)
+
+    if total_pages not in window:
+        window.append(total_pages)
+
+    return window
+
+
+def _per_page_options(selected: int) -> tuple[int, ...]:
+    """Return a sorted tuple of available page sizes including ``selected``."""
+
+    options = list(PER_PAGE_CHOICES)
+    if selected not in options:
+        options.append(selected)
+    return tuple(sorted(dict.fromkeys(options)))

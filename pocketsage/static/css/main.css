@@ -360,6 +360,18 @@ body[data-theme='light'] {
     gap: var(--space-sm);
 }
 
+.sr-only {
+    border: 0 !important;
+    clip: rect(0, 0, 0, 0) !important;
+    height: 1px !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    position: absolute !important;
+    width: 1px !important;
+    white-space: nowrap !important;
+}
+
 .portfolio-dashboard {
     display: grid;
     gap: var(--space-xl);
@@ -720,94 +732,217 @@ body[data-theme='light'] {
     flex-wrap: wrap;
 }
 
-.ledger-pagination-count {
-    margin: 0;
-    color: rgba(255, 255, 255, 0.7);
+.ledger-layout {
+    display: grid;
+    gap: 1.5rem;
 }
 
-.ledger-pagination-controls {
+.ledger-header {
     display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.ledger-subtitle {
+    margin: 0.25rem 0 0;
+    color: rgba(255, 255, 255, 0.6);
+    max-width: 40ch;
+}
+
+.ledger-filters {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    align-items: end;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+}
+
+.filter-field label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.filter-field input,
+.filter-field select {
+    width: 100%;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(15, 23, 42, 0.6);
+    color: inherit;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.95rem;
+}
+
+.filter-field input:focus,
+.filter-field select:focus {
+    outline: 2px solid rgba(59, 130, 246, 0.6);
+    outline-offset: 1px;
+}
+
+.filter-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.ledger-summary {
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.ledger-table-wrapper {
+    overflow-x: auto;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(15, 23, 42, 0.45);
+}
+
+.ledger-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 600px;
+}
+
+.ledger-table th,
+.ledger-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    vertical-align: top;
+}
+
+.ledger-table thead th {
+    text-align: left;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.ledger-amount-header,
+.ledger-amount {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.ledger-amount[data-amount='inflow'] {
+    color: #22c55e;
+}
+
+.ledger-amount[data-amount='outflow'] {
+    color: #f97316;
+}
+
+.ledger-memo {
+    font-weight: 600;
+}
+
+.ledger-reference {
+    margin-top: 0.25rem;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.ledger-pagination {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    padding: 1rem 1.25rem;
+    display: grid;
     gap: 0.75rem;
 }
 
-.ledger-pagination-button {
-    border-radius: 0.5rem;
-    border: 1px solid rgba(56, 189, 248, 0.6);
-    padding: 0.5rem 1.25rem;
-    font-weight: 600;
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.pagination-pages {
+    list-style: none;
+    display: flex;
+    gap: 0.5rem;
+    padding: 0;
+    margin: 0;
+}
+
+.pagination-page {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.15);
+    color: rgba(255, 255, 255, 0.9);
     text-decoration: none;
-    color: #38bdf8;
-    background: rgba(56, 189, 248, 0.08);
-    transition: background 150ms ease, border-color 150ms ease;
+    font-weight: 600;
+    padding: 0 0.75rem;
 }
 
-.ledger-pagination-button:hover {
-    background: rgba(56, 189, 248, 0.18);
-    border-color: rgba(56, 189, 248, 0.9);
+.pagination-page.is-active {
+    background: #3b82f6;
+    color: #0f172a;
 }
 
-.ledger-pagination-button.is-disabled {
+.pagination-ellipsis {
+    opacity: 0.6;
+    padding: 0 0.5rem;
+}
+
+.pagination-prev.is-disabled,
+.pagination-next.is-disabled {
     opacity: 0.45;
     pointer-events: none;
 }
 
-.ledger-empty {
-    border: 1px dashed rgba(148, 163, 184, 0.4);
-    border-radius: 0.75rem;
-    padding: 2.5rem 2rem;
-    text-align: center;
+.pagination-hint,
+.pagination-noscript {
+    margin: 0;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.ledger-sentinel {
     display: grid;
     gap: 0.75rem;
-    background: rgba(255, 255, 255, 0.02);
+    justify-items: start;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    padding: 1rem 1.25rem;
 }
 
-.ledger-empty h2 {
+.ledger-sentinel-status {
     margin: 0;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.75);
 }
 
-.ledger-empty p {
-    margin: 0;
-    color: rgba(255, 255, 255, 0.7);
+.ledger-sentinel[data-inactive="true"] {
+    opacity: 0.7;
 }
 
 @media (max-width: 720px) {
-    .ledger-summary {
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    }
-
-    .ledger-transactions {
+    .ledger-table {
         min-width: 100%;
     }
 
-    .ledger-transactions thead {
-        display: none;
+    .ledger-filters {
+        grid-template-columns: 1fr;
     }
 
-    .ledger-transactions tbody tr {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.5rem 1rem;
-        padding: 1rem 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .ledger-transactions td {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        padding: 0;
-        border: none;
-    }
-
-    .ledger-transactions td::before {
-        content: attr(data-label);
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.65);
-        margin-right: 1rem;
-    }
-
-    .ledger-transactions td.ledger-amount {
-        justify-content: flex-end;
+    .pagination-controls {
+        flex-direction: column;
+        align-items: stretch;
     }
 }
 

@@ -18,6 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initFlashDismissal();
     initAdminDashboard();
     initPortfolioUpload();
+    initLedger();
 });
 
 function initFlashDismissal() {
@@ -254,6 +255,147 @@ function initPortfolioUpload() {
             }
         }
     });
+}
+
+function initLedger() {
+    const ledgerRoot = document.querySelector("[data-ledger-root]");
+    if (!ledgerRoot) {
+        return;
+    }
+
+    const tableBody = ledgerRoot.querySelector("[data-ledger-rows]");
+    const pagination = ledgerRoot.querySelector("[data-ledger-pagination]");
+    const sentinel = ledgerRoot.querySelector("[data-ledger-sentinel]");
+
+    if (!tableBody || !pagination) {
+        return;
+    }
+
+    if (sentinel) {
+        sentinel.hidden = false;
+    }
+
+    let nextUrl = null;
+    const nextAnchor = pagination.querySelector("[data-pagination-next]");
+    if (nextAnchor && nextAnchor.getAttribute("href")) {
+        nextUrl = nextAnchor.getAttribute("href");
+    }
+
+    if (!sentinel || !nextUrl) {
+        return;
+    }
+
+    const status = sentinel.querySelector("[data-ledger-status]");
+    const loadMoreButton = sentinel.querySelector("[data-ledger-load-more]");
+
+    const updateStatus = (message, state = "idle") => {
+        if (!status) {
+            return;
+        }
+        status.textContent = message;
+        status.dataset.state = state;
+    };
+
+    const refreshPagination = (doc) => {
+        const newPagination = doc.querySelector("[data-ledger-pagination]");
+        if (newPagination) {
+            pagination.innerHTML = newPagination.innerHTML;
+        }
+        const updatedNext = pagination.querySelector("[data-pagination-next]");
+        if (updatedNext && updatedNext.getAttribute("href")) {
+            nextUrl = updatedNext.getAttribute("href");
+        } else {
+            nextUrl = null;
+        }
+    };
+
+    let observer = null;
+    let loading = false;
+
+    const teardown = () => {
+        if (observer) {
+            observer.disconnect();
+            observer = null;
+        }
+        if (sentinel) {
+            sentinel.dataset.inactive = "true";
+        }
+    };
+
+    const fetchNextPage = async () => {
+        if (loading || !nextUrl) {
+            return;
+        }
+        loading = true;
+        ledgerRoot.dataset.loading = "true";
+        updateStatus("Loading more transactions…", "loading");
+        if (loadMoreButton) {
+            loadMoreButton.disabled = true;
+        }
+
+        try {
+            const response = await fetch(nextUrl, { headers: { Accept: "text/html" } });
+            if (!response.ok) {
+                throw new Error(`Request failed with status ${response.status}`);
+            }
+            const html = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, "text/html");
+            const newRows = doc.querySelectorAll("[data-ledger-rows] tr");
+            if (newRows.length === 0) {
+                nextUrl = null;
+                updateStatus("No additional transactions found.", "done");
+                teardown();
+                return;
+            }
+            newRows.forEach((row) => tableBody.appendChild(row));
+
+            const newSummary = doc.querySelector("[data-ledger-summary]");
+            const currentSummary = ledgerRoot.querySelector("[data-ledger-summary]");
+            if (newSummary && currentSummary) {
+                currentSummary.innerHTML = newSummary.innerHTML;
+            }
+
+            refreshPagination(doc);
+
+            if (nextUrl) {
+                updateStatus("Scroll to load more transactions.");
+            } else {
+                updateStatus("You’re all caught up.", "done");
+                teardown();
+            }
+        } catch (error) {
+            console.warn("Ledger infinite scroll failed", error);
+            updateStatus("Automatic loading paused. Use pagination links above.", "error");
+            teardown();
+        } finally {
+            ledgerRoot.dataset.loading = "false";
+            if (loadMoreButton) {
+                loadMoreButton.disabled = false;
+            }
+            loading = false;
+        }
+    };
+
+    if (loadMoreButton) {
+        loadMoreButton.addEventListener("click", fetchNextPage);
+    }
+
+    observer = new IntersectionObserver(
+        (entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    fetchNextPage();
+                }
+            });
+        },
+        { rootMargin: "0px 0px 200px 0px" }
+    );
+
+    observer.observe(sentinel);
+
+    ledgerRoot.dataset.enhanced = "true";
+    updateStatus("Scroll to load more transactions.");
 }
 
 function safeParseJSON(value) {
