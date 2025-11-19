@@ -68,7 +68,10 @@ def load_overview_summary() -> dict:
         for entry in entries:
             entries_by_habit[entry.habit_id].append(entry)
         best_streak = max(
-            (_compute_current_streak(habit_entries, today=today) for habit_entries in entries_by_habit.values()),
+            (
+                _compute_current_streak(habit_entries, today=today)
+                for habit_entries in entries_by_habit.values()
+            ),
             default=0,
         )
 

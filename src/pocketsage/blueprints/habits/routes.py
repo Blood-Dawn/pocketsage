@@ -80,9 +80,7 @@ def list_habits():
 
             last_week = history[-7:]
             completed_last_week = sum(1 for day in last_week if day["completed"])
-            summary = (
-                f"{streak} day streak · {completed_last_week} of last 7 days completed"
-            )
+            summary = f"{streak} day streak · {completed_last_week} of last 7 days completed"
 
             habits_view.append(
                 {

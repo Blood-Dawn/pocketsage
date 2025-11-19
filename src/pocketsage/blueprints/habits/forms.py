@@ -23,7 +23,9 @@ class HabitForm(BaseModel):
     model_config = ConfigDict(validate_default=False, str_strip_whitespace=True)
 
     name: str = Field(default="", description="Short label for the habit", max_length=100)
-    description: str = Field(default="", description="Optional details about the habit", max_length=400)
+    description: str = Field(
+        default="", description="Optional details about the habit", max_length=400
+    )
     cadence: HabitCadence = Field(default=HabitCadence.DAILY, description="Habit frequency")
     custom_interval_days: int | None = Field(
         default=None,

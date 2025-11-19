@@ -1,6 +1,8 @@
 """Ledger category definitions."""
 
-from typing import TYPE_CHECKING, List, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -17,6 +19,6 @@ class Category(SQLModel, table=True):
     category_type: str = Field(default="expense", nullable=False, max_length=32)
     color: Optional[str] = Field(default=None, max_length=7)
 
-    transactions: List["Transaction"] = Relationship(back_populates="category")
+    transactions: list["Transaction"] = Relationship(back_populates="category")
 
     # TODO(@ux-team): enforce palette uniqueness + icon set once design assets land.

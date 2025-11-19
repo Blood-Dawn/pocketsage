@@ -5,9 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Iterable, Mapping
-
-from flask import flash, redirect, render_template, request, url_for
+from typing import Any, Iterable, Mapping
 
 from flask import current_app, flash, redirect, render_template, request, url_for
 from werkzeug.exceptions import NotFound
@@ -138,9 +136,7 @@ def _summarize_transactions(
     for key, label, absolute in metric_definitions:
         current_value = monthly_totals[current_period_key][key]
         has_comparison = previous_period_key is not None
-        previous_value = (
-            monthly_totals[previous_period_key][key] if has_comparison else 0.0
-        )
+        previous_value = monthly_totals[previous_period_key][key] if has_comparison else 0.0
         change = current_value - previous_value if has_comparison else 0.0
 
         direction = "flat"
@@ -163,9 +159,7 @@ def _summarize_transactions(
         elif percent_change is None and abs(change) > 1e-2:
             trend_value = "New this period"
             trend_caption = f"Previously 0 in {previous_label}"
-            trend_sr_text = (
-                f"{label} introduced this period after no activity in {previous_label}."
-            )
+            trend_sr_text = f"{label} introduced this period after no activity in {previous_label}."
         else:
             magnitude = abs(percent_change) if percent_change is not None else 0.0
             if direction == "flat":
@@ -307,9 +301,11 @@ def update_transaction(transaction_id: int):
     """Handle update submissions for an existing transaction."""
 
     filters = request.args.to_dict(flat=True)
-    redirect_to_edit = lambda: redirect(
-        url_for("ledger.edit_transaction", transaction_id=transaction_id, **filters)
-    )
+
+    def redirect_to_edit():
+        return redirect(
+            url_for("ledger.edit_transaction", transaction_id=transaction_id, **filters)
+        )
 
     occurred_raw = request.form.get("occurred_at")
     amount_raw = request.form.get("amount")
@@ -347,9 +343,7 @@ def update_transaction(transaction_id: int):
             transaction.category_id = category_id
             session.add(transaction)
     except Exception:  # pragma: no cover - surfaced via flash for user feedback
-        current_app.logger.exception(
-            "Failed to update ledger transaction %s", transaction_id
-        )
+        current_app.logger.exception("Failed to update ledger transaction %s", transaction_id)
         flash("An unexpected error occurred while updating the transaction.", "danger")
         return redirect_to_edit()
 

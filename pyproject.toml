@@ -13,6 +13,7 @@ dependencies = [
 	"argon2-cffi==23.1.0",
 	"cryptography==43.0.1",
 	"flask==3.0.0",
+	"flet>=0.24.0",
 	"jinja2==3.1.4",
 	"matplotlib==3.8.4",
 	"pandas==2.2.2",
@@ -27,8 +28,11 @@ watcher = ["watchdog>=3.0.0"]
 dev = [
 	"black==24.8.0",
 	"pytest==8.2.0",
+	"pytest-cov==5.0.0",
+	"pytest-xdist==3.6.1",
 	"ruff==0.6.2",
 	"pre-commit==3.8.0",
+	"bandit[toml]==1.7.9",
 ]
 
 [project.urls]
@@ -47,5 +51,35 @@ select = ["E", "F", "I", "W"]
 ignore = []
 
 [tool.pytest.ini_options]
-addopts = "-q"
+addopts = "-q --strict-markers"
 pythonpath = ["."]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+[tool.coverage.run]
+source = ["src/pocketsage"]
+omit = [
+    "*/tests/*",
+    "*/migrations/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]

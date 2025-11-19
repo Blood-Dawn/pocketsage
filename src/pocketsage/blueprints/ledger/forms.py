@@ -92,7 +92,9 @@ class LedgerEntryForm:
                 self._add_error("category_id", "Category must be a whole number.")
             else:
                 if parsed_category <= 0:
-                    self._add_error("category_id", "Category must be greater than zero if provided.")
+                    self._add_error(
+                        "category_id", "Category must be greater than zero if provided."
+                    )
                 else:
                     self.category_id = parsed_category
 

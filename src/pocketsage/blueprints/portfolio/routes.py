@@ -40,6 +40,7 @@ COLUMN_ALIASES: Dict[str, tuple[str, ...]] = {
     "external_id": ("external_id", "externalid", "id", "uid"),
 }
 
+
 class SortConfig(TypedDict):
     label: str
     key: Callable[[dict], object]
@@ -409,6 +410,15 @@ def upload_portfolio():
     return render_template("portfolio/upload.html")
 
 
+def _sanitize_csv_value(value):
+    """Sanitize CSV values to prevent CSV injection attacks."""
+    if isinstance(value, str):
+        # Prevent CSV injection by escaping formula-starting characters
+        if value and value[0] in ("=", "+", "-", "@", "\t", "\r"):
+            return "'" + value
+    return value
+
+
 @bp.get("/export")
 def export_holdings():
     """Download current holdings as a CSV export."""
@@ -427,14 +437,16 @@ def export_holdings():
             quantity = float(holding.quantity or 0)
             avg_price = float(holding.avg_price or 0)
             value = quantity * avg_price
-            rows.append((holding.symbol, quantity, avg_price, value))
+            # Sanitize symbol to prevent CSV injection
+            safe_symbol = _sanitize_csv_value(holding.symbol)
+            rows.append((safe_symbol, quantity, avg_price, value))
 
     if not rows:
         flash("No holdings available to export.", "warning")
         return redirect(url_for("portfolio.list_portfolio"))
 
     output = StringIO()
-    writer = csv.writer(output)
+    writer = csv.writer(output, quoting=csv.QUOTE_NONNUMERIC)
     writer.writerow(["symbol", "quantity", "avg_price", "value"])
     writer.writerows(rows)
 
@@ -444,4 +456,5 @@ def export_holdings():
     response.headers["Content-Disposition"] = (
         f"attachment; filename=pocketsage_holdings_{timestamp}.csv"
     )
+    response.headers["X-Content-Type-Options"] = "nosniff"
     return response

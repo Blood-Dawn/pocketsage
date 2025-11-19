@@ -5,7 +5,7 @@
     class="admin-dashboard"
     data-admin-dashboard
     data-job-status-endpoint="{{ url_for('admin.job_status', job_id='__JOB__') }}"
-    data-initial-jobs='{{ jobs | tojson | safe }}'
+    data-initial-jobs='{{ jobs | tojson }}'
   >
     <header class="admin-header">
       <h1>Admin Dashboard</h1>

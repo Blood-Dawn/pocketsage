@@ -1,7 +1,9 @@
 """Budgeting tables."""
 
+from __future__ import annotations
+
 from datetime import date
-from typing import List, Optional
+from typing import Optional
 
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -14,7 +16,7 @@ class Budget(SQLModel, table=True):
     period_end: date = Field(index=True, nullable=False)
     label: str = Field(default="", max_length=64)
 
-    lines: List["BudgetLine"] = Relationship(back_populates="budget")
+    lines: list["BudgetLine"] = Relationship(back_populates="budget")
 
     # TODO(@budgeting): enforce non-overlapping windows per user.
 

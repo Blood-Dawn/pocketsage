@@ -5,10 +5,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
-from sqlmodel import select
-
 from pocketsage import create_app
 from pocketsage.services.jobs import clear_jobs, set_async_execution
+from sqlmodel import select
 
 
 @pytest.fixture()
