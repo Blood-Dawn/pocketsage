@@ -3,21 +3,18 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Optional, List
+from typing import TYPE_CHECKING, Optional
 
-from sqlmodel import Field, SQLModel, Relationship
+from sqlmodel import Field, Relationship, SQLModel
 
-
-class Transaction(SQLModel, table=True):
-    """Placeholder for the Transaction model to define a relationship."""
-    id: Optional[int] = Field(default=None, primary_key=True)
-    # Other transaction fields would go here, such as date, amount, etc.
-    # For now, we just need the relationship field.
-    liability_id: Optional[int] = Field(default=None, foreign_key="liability.id")
+if TYPE_CHECKING:
+    from .transaction import Transaction
 
 
 class Liability(SQLModel, table=True):
     """Installment or revolving debt tracked in PocketSage."""
+
+    __tablename__ = "liability"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(nullable=False, max_length=80, index=True)
@@ -27,8 +24,8 @@ class Liability(SQLModel, table=True):
     due_day: int = Field(default=1, ge=1, le=28)
     opened_on: Optional[date] = Field(default=None)
     payoff_strategy: str = Field(default="snowball", max_length=32)
-    
+
     # Relationships for linking to other tables
-    transactions: List[Transaction] = Relationship(back_populates="liability")
+    transactions: list["Transaction"] = Relationship(back_populates="liability")
     # For a dedicated payment history table, you would define another relationship here.
-    # For example: payment_history: List[PaymentHistory] = Relationship(back_populates="liability")
+    # For example: payment_history: list[PaymentHistory] = Relationship(back_populates="liability")

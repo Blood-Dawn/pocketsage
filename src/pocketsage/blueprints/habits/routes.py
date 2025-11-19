@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import date, time
+from datetime import date, time, timedelta
 
 from flask import flash, redirect, render_template, request, url_for
 
 from ...extensions import session_scope
 from . import bp
 from .forms import HabitCadence, HabitForm
+from .repository import SqlModelHabitsRepository
+
+# Constants for habit tracking
+HISTORY_DAYS = 30  # Number of days to show in habit history
+STREAK_LOOKBACK_DAYS = 7  # Number of days to consider for streak calculation
 
 
 @bp.get("/")

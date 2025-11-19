@@ -8,10 +8,13 @@ from sqlmodel import Field, Relationship, SQLModel
 if TYPE_CHECKING:  # pragma: no cover - import guard for circular dependency
     from .account import Account
     from .category import Category
+    from .liability import Liability
 
 
 class Transaction(SQLModel, table=True):
     """A single ledger transaction imported or hand-entered."""
+
+    __tablename__ = "transaction"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     occurred_at: datetime = Field(nullable=False, index=True)
@@ -27,11 +30,17 @@ class Transaction(SQLModel, table=True):
     account: Optional["Account"] = Relationship(back_populates="transactions")
     currency: str = Field(default="USD", max_length=3, description="ISO-4217 currency code")
 
+    # Link to liability for debt-related transactions
+    liability_id: Optional[int] = Field(default=None, foreign_key="liability.id")
+    liability: Optional["Liability"] = Relationship(back_populates="transactions")
+
     # TODO(@data-team): enforce account linkage + currency once multi-account support lands.
 
 
 class TransactionTagLink(SQLModel, table=True):
     """Association table enabling many-to-many tagging."""
+
+    __tablename__ = "transaction_tag_link"
 
     transaction_id: int = Field(foreign_key="transaction.id", primary_key=True)
     tag_id: int = Field(foreign_key="category.id", primary_key=True)
