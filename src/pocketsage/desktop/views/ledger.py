@@ -138,10 +138,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     def toggle_form(e):
         """Toggle the add transaction form."""
         current = form_visible.current
-        if current.visible:
-            current.visible = False
-        else:
-            current.visible = True
+        current.visible = not current.visible
         page.update()
 
     def add_transaction(e):
@@ -150,11 +147,16 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             # Validate and parse amount
             amount = float(amount_field.value or 0)
 
-            # Parse date
+            # Parse date with proper validation
             try:
                 occurred_at = datetime.strptime(date_field.value, "%Y-%m-%d")
             except ValueError:
-                occurred_at = datetime.now()
+                show_error_dialog(
+                    page,
+                    "Invalid Date",
+                    f"Please enter date in YYYY-MM-DD format. Got: {date_field.value}"
+                )
+                return
 
             # Create transaction
             txn = Transaction(

@@ -37,15 +37,22 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
             today_entry = ctx.habit_repo.get_entry(habit.id, today)
             is_completed = today_entry is not None and today_entry.value > 0
 
-            def toggle_habit(e, habit_id=habit.id, completed=is_completed):
-                """Toggle habit completion for today."""
-                if completed:
+            def toggle_habit(e, habit_id=habit.id):
+                """Toggle habit completion for today.
+
+                Checks current completion status dynamically to avoid stale closure values.
+                """
+                # Check current state from database, not from cached value
+                entry = ctx.habit_repo.get_entry(habit_id, today)
+                is_currently_completed = entry is not None and entry.value > 0
+
+                if is_currently_completed:
                     # Remove entry
                     ctx.habit_repo.delete_entry(habit_id, today)
                 else:
                     # Add entry
-                    entry = HabitEntry(habit_id=habit_id, occurred_on=today, value=1)
-                    ctx.habit_repo.upsert_entry(entry)
+                    new_entry = HabitEntry(habit_id=habit_id, occurred_on=today, value=1)
+                    ctx.habit_repo.upsert_entry(new_entry)
 
                 refresh_habit_list()
 

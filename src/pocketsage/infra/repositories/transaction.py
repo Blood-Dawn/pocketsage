@@ -107,25 +107,30 @@ class SQLModelTransactionRepository:
     def delete(self, transaction_id: int) -> None:
         """Delete a transaction by ID."""
         with self.session_factory() as session:
-            transaction = session.get(Transaction, transaction_id)
-            if transaction:
+            if transaction := session.get(Transaction, transaction_id):
                 session.delete(transaction)
                 session.commit()
 
     def get_monthly_summary(self, year: int, month: int) -> dict[str, float]:
-        """Get income/expense summary for a month."""
+        """Get income/expense summary for a month.
+
+        Note: Uses naive datetimes matching the Transaction model's occurred_at field.
+        The boundary logic uses [start, end) to correctly include all transactions
+        within the month without overlap.
+        """
         with self.session_factory() as session:
-            # Create date range for the month
-            start_date = datetime(year, month, 1)
+            # Create date range: first day at 00:00:00 to first day of next month at 00:00:00
+            # This gives us [start, end) which includes all timestamps in the target month
+            start_date = datetime(year, month, 1, 0, 0, 0, 0)
             if month == 12:
-                end_date = datetime(year + 1, 1, 1)
+                end_date = datetime(year + 1, 1, 1, 0, 0, 0, 0)
             else:
-                end_date = datetime(year, month + 1, 1)
+                end_date = datetime(year, month + 1, 1, 0, 0, 0, 0)
 
             statement = (
                 select(Transaction)
                 .where(Transaction.occurred_at >= start_date)
-                .where(Transaction.occurred_at < end_date)
+                .where(Transaction.occurred_at < end_date)  # Exclusive end boundary
             )
             transactions = session.exec(statement).all()
 

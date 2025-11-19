@@ -53,8 +53,7 @@ class SQLModelAccountRepository:
     def delete(self, account_id: int) -> None:
         """Delete an account by ID."""
         with self.session_factory() as session:
-            account = session.get(Account, account_id)
-            if account:
+            if account := session.get(Account, account_id):
                 session.delete(account)
                 session.commit()
 

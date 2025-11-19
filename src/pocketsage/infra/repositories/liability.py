@@ -62,8 +62,7 @@ class SQLModelLiabilityRepository:
     def delete(self, liability_id: int) -> None:
         """Delete a liability by ID."""
         with self.session_factory() as session:
-            liability = session.get(Liability, liability_id)
-            if liability:
+            if liability := session.get(Liability, liability_id):
                 session.delete(liability)
                 session.commit()
 

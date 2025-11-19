@@ -61,8 +61,7 @@ class SQLModelHabitRepository:
     def delete(self, habit_id: int) -> None:
         """Delete a habit by ID."""
         with self.session_factory() as session:
-            habit = session.get(Habit, habit_id)
-            if habit:
+            if habit := session.get(Habit, habit_id):
                 session.delete(habit)
                 session.commit()
 

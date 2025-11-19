@@ -62,20 +62,23 @@ class SQLModelCategoryRepository:
     def delete(self, category_id: int) -> None:
         """Delete a category by ID."""
         with self.session_factory() as session:
-            category = session.get(Category, category_id)
-            if category:
+            if category := session.get(Category, category_id):
                 session.delete(category)
                 session.commit()
 
     def upsert_by_slug(self, category: Category) -> Category:
-        """Insert or update a category by slug."""
+        """Insert or update a category by slug.
+
+        Updates all mutable fields (name, category_type, color).
+        The slug field is used for matching and is not updated.
+        """
         with self.session_factory() as session:
             existing = session.exec(
                 select(Category).where(Category.slug == category.slug)
             ).first()
 
             if existing:
-                # Update existing
+                # Update all mutable fields (slug is the match key, so not updated)
                 existing.name = category.name
                 existing.category_type = category.category_type
                 existing.color = category.color

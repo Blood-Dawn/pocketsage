@@ -68,8 +68,7 @@ class SQLModelHoldingRepository:
     def delete(self, holding_id: int) -> None:
         """Delete a holding by ID."""
         with self.session_factory() as session:
-            holding = session.get(Holding, holding_id)
-            if holding:
+            if holding := session.get(Holding, holding_id):
                 session.delete(holding)
                 session.commit()
 
@@ -85,12 +84,19 @@ class SQLModelHoldingRepository:
             return sum(h.quantity * h.avg_price for h in holdings)
 
     def upsert_by_symbol(self, holding: Holding) -> Holding:
-        """Insert or update a holding by symbol."""
+        """Insert or update a holding by symbol.
+
+        When account_id is None, only matches holdings with NULL account_id
+        to avoid unintended updates across different accounts.
+        """
         with self.session_factory() as session:
             statement = select(Holding).where(Holding.symbol == holding.symbol)
 
-            if holding.account_id:
+            # Explicitly handle None to avoid ambiguous matches
+            if holding.account_id is not None:
                 statement = statement.where(Holding.account_id == holding.account_id)
+            else:
+                statement = statement.where(Holding.account_id.is_(None))  # type: ignore
 
             existing = session.exec(statement).first()
 

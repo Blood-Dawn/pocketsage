@@ -34,16 +34,21 @@ class SQLModelBudgetRepository:
             return session.exec(statement).first()
 
     def get_for_month(self, year: int, month: int) -> Optional[Budget]:
-        """Get budget for a specific month."""
+        """Get budget for a specific month.
+
+        Returns the budget that exactly matches the month boundaries to avoid
+        returning budgets that span multiple months.
+        """
         start_date = date(year, month, 1)
         last_day = monthrange(year, month)[1]
         end_date = date(year, month, last_day)
 
         with self.session_factory() as session:
+            # Use exact match to avoid overlapping periods
             statement = (
                 select(Budget)
-                .where(Budget.period_start <= start_date)
-                .where(Budget.period_end >= end_date)
+                .where(Budget.period_start == start_date)
+                .where(Budget.period_end == end_date)
             )
             return session.exec(statement).first()
 
@@ -72,8 +77,7 @@ class SQLModelBudgetRepository:
     def delete(self, budget_id: int) -> None:
         """Delete a budget by ID."""
         with self.session_factory() as session:
-            budget = session.get(Budget, budget_id)
-            if budget:
+            if budget := session.get(Budget, budget_id):
                 session.delete(budget)
                 session.commit()
 
@@ -108,7 +112,6 @@ class SQLModelBudgetRepository:
     def delete_line(self, line_id: int) -> None:
         """Delete a budget line."""
         with self.session_factory() as session:
-            line = session.get(BudgetLine, line_id)
-            if line:
+            if line := session.get(BudgetLine, line_id):
                 session.delete(line)
                 session.commit()
