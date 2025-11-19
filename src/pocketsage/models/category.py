@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
+from sqlalchemy.orm import relationship
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -19,6 +20,9 @@ class Category(SQLModel, table=True):
     category_type: str = Field(default="expense", nullable=False, max_length=32)
     color: Optional[str] = Field(default=None, max_length=7)
 
-    transactions: list["Transaction"] = Relationship(back_populates="category")
+    transactions: list["Transaction"] = Relationship(
+        back_populates="category",
+        sa_relationship=relationship("Transaction", back_populates="category"),
+    )
 
     # TODO(@ux-team): enforce palette uniqueness + icon set once design assets land.

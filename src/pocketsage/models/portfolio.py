@@ -22,4 +22,4 @@ class Holding(SQLModel, table=True):
     account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     currency: str = Field(default="USD", max_length=3)
 
-    account: Optional["Account"] = Relationship(back_populates="holdings")
+    account: "Account | None" = Relationship(back_populates="holdings")

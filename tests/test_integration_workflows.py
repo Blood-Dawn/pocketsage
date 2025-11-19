@@ -11,15 +11,15 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pytest
-from src.pocketsage.infra.repositories.budget import SQLModelBudgetRepository
-from src.pocketsage.infra.repositories.habit import SQLModelHabitRepository
-from src.pocketsage.infra.repositories.liability import SQLModelLiabilityRepository
-from src.pocketsage.infra.repositories.transaction import SQLModelTransactionRepository
-from src.pocketsage.models.budget import Budget, BudgetLine
-from src.pocketsage.models.habit import HabitEntry
-from src.pocketsage.models.transaction import Transaction
-from src.pocketsage.services.debts import DebtAccount, snowball_schedule
-from src.pocketsage.services.import_csv import ColumnMapping, import_csv_file
+from pocketsage.infra.repositories.budget import SQLModelBudgetRepository
+from pocketsage.infra.repositories.habit import SQLModelHabitRepository
+from pocketsage.infra.repositories.liability import SQLModelLiabilityRepository
+from pocketsage.infra.repositories.transaction import SQLModelTransactionRepository
+from pocketsage.models.budget import Budget, BudgetLine
+from pocketsage.models.habit import HabitEntry
+from pocketsage.models.transaction import Transaction
+from pocketsage.services.debts import DebtAccount, snowball_schedule
+from pocketsage.services.import_csv import ColumnMapping, import_csv_file
 from tests.conftest import assert_float_equal
 
 
@@ -281,7 +281,7 @@ class TestCSVImportToDatabase:
 
             # Now we need to actually persist to database
             # (import_csv_file just parses, doesn't persist)
-            from src.pocketsage.services.import_csv import normalize_frame, upsert_transactions
+            from pocketsage.services.import_csv import normalize_frame, upsert_transactions
 
             frame = normalize_frame(file_path=csv_path)
             rows = [dict(row) for _, row in frame.iterrows()]

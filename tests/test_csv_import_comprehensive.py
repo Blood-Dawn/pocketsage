@@ -15,7 +15,7 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from src.pocketsage.services.import_csv import (
+from pocketsage.services.import_csv import (
     ColumnMapping,
     import_csv_file,
     normalize_frame,

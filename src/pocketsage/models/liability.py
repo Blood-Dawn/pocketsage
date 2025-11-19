@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar, Optional
 
+from sqlalchemy.orm import relationship
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
 class Liability(SQLModel, table=True):
     """Installment or revolving debt tracked in PocketSage."""
 
-    __tablename__ = "liability"
+    __tablename__: ClassVar[str] = "liability"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(nullable=False, max_length=80, index=True)
@@ -26,6 +27,9 @@ class Liability(SQLModel, table=True):
     payoff_strategy: str = Field(default="snowball", max_length=32)
 
     # Relationships for linking to other tables
-    transactions: list["Transaction"] = Relationship(back_populates="liability")
+    transactions: list["Transaction"] = Relationship(
+        back_populates="liability",
+        sa_relationship=relationship("Transaction", back_populates="liability"),
+    )
     # For a dedicated payment history table, you would define another relationship here.
     # For example: payment_history: list[PaymentHistory] = Relationship(back_populates="liability")

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Iterable, Protocol
@@ -31,7 +31,7 @@ class AmortizationWriter(Protocol):
 
 def _calculate_schedule(*, debts: Iterable[DebtAccount], surplus: float) -> list[dict]:
     """Helper function to perform the amortization math."""
-    debts = [d.__dict__ for d in debts]  # Convert to mutable dicts
+    debts = [asdict(d) for d in debts]  # Convert to mutable dicts
     payoff_schedule = []
     current_date = date.today().replace(day=1)
 

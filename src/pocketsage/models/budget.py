@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Optional
 
+from sqlalchemy.orm import relationship
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -16,7 +17,10 @@ class Budget(SQLModel, table=True):
     period_end: date = Field(index=True, nullable=False)
     label: str = Field(default="", max_length=64)
 
-    lines: list["BudgetLine"] = Relationship(back_populates="budget")
+    lines: list["BudgetLine"] = Relationship(
+        back_populates="budget",
+        sa_relationship=relationship("BudgetLine", back_populates="budget"),
+    )
 
     # TODO(@budgeting): enforce non-overlapping windows per user.
 
