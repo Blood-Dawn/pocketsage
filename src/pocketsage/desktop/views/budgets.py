@@ -72,24 +72,47 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             [
                                 ft.Column(
                                     [
-                                        ft.Text("Total Budgeted", size=14, color=ft.colors.ON_SURFACE_VARIANT),
-                                        ft.Text(f"${total_planned:,.2f}", size=24, weight=ft.FontWeight.BOLD),
+                                        ft.Text(
+                                            "Total Budgeted",
+                                            size=14,
+                                            color=ft.colors.ON_SURFACE_VARIANT,
+                                        ),
+                                        ft.Text(
+                                            f"${total_planned:,.2f}",
+                                            size=24,
+                                            weight=ft.FontWeight.BOLD,
+                                        ),
                                     ],
                                 ),
                                 ft.Column(
                                     [
-                                        ft.Text("Total Spent", size=14, color=ft.colors.ON_SURFACE_VARIANT),
-                                        ft.Text(f"${total_spent:,.2f}", size=24, weight=ft.FontWeight.BOLD, color=ft.colors.ORANGE),
+                                        ft.Text(
+                                            "Total Spent",
+                                            size=14,
+                                            color=ft.colors.ON_SURFACE_VARIANT,
+                                        ),
+                                        ft.Text(
+                                            f"${total_spent:,.2f}",
+                                            size=24,
+                                            weight=ft.FontWeight.BOLD,
+                                            color=ft.colors.ORANGE,
+                                        ),
                                     ],
                                 ),
                                 ft.Column(
                                     [
-                                        ft.Text("Remaining", size=14, color=ft.colors.ON_SURFACE_VARIANT),
+                                        ft.Text(
+                                            "Remaining", size=14, color=ft.colors.ON_SURFACE_VARIANT
+                                        ),
                                         ft.Text(
                                             f"${total_planned - total_spent:,.2f}",
                                             size=24,
                                             weight=ft.FontWeight.BOLD,
-                                            color=ft.colors.GREEN if total_spent <= total_planned else ft.colors.RED,
+                                            color=(
+                                                ft.colors.GREEN
+                                                if total_spent <= total_planned
+                                                else ft.colors.RED
+                                            ),
                                         ),
                                     ],
                                 ),
@@ -120,7 +143,11 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
         budget_content = ft.Container(
             content=ft.Column(
                 [
-                    ft.Icon(ft.icons.ACCOUNT_BALANCE_OUTLINED, size=64, color=ft.colors.ON_SURFACE_VARIANT),
+                    ft.Icon(
+                        ft.icons.ACCOUNT_BALANCE_OUTLINED,
+                        size=64,
+                        color=ft.colors.ON_SURFACE_VARIANT,
+                    ),
                     ft.Container(height=16),
                     ft.Text(
                         "No budget set for this month",

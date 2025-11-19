@@ -21,9 +21,7 @@ class SQLModelHoldingRepository:
         with self.session_factory() as session:
             return session.get(Holding, holding_id)
 
-    def get_by_symbol(
-        self, symbol: str, account_id: Optional[int] = None
-    ) -> Optional[Holding]:
+    def get_by_symbol(self, symbol: str, account_id: Optional[int] = None) -> Optional[Holding]:
         """Retrieve a holding by symbol and optionally account."""
         with self.session_factory() as session:
             statement = select(Holding).where(Holding.symbol == symbol)

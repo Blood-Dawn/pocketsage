@@ -40,10 +40,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     categories = ctx.category_repo.list_all()
     category_dropdown = ft.Dropdown(
         label="Category",
-        options=[
-            ft.dropdown.Option(key=str(cat.id), text=cat.name)
-            for cat in categories
-        ],
+        options=[ft.dropdown.Option(key=str(cat.id), text=cat.name) for cat in categories],
         width=200,
     )
 
@@ -51,10 +48,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     accounts = ctx.account_repo.list_all()
     account_dropdown = ft.Dropdown(
         label="Account",
-        options=[
-            ft.dropdown.Option(key=str(acc.id), text=acc.name)
-            for acc in accounts
-        ],
+        options=[ft.dropdown.Option(key=str(acc.id), text=acc.name) for acc in accounts],
         width=200,
     )
 
@@ -154,7 +148,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 show_error_dialog(
                     page,
                     "Invalid Date",
-                    f"Please enter date in YYYY-MM-DD format. Got: {date_field.value}"
+                    f"Please enter date in YYYY-MM-DD format. Got: {date_field.value}",
                 )
                 return
 
@@ -269,9 +263,22 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             content=ft.Row(
                                 [
                                     ft.Text("Date", size=14, weight=ft.FontWeight.BOLD, width=100),
-                                    ft.Text("Category", size=14, weight=ft.FontWeight.BOLD, width=150),
-                                    ft.Text("Description", size=14, weight=ft.FontWeight.BOLD, expand=True),
-                                    ft.Text("Amount", size=14, weight=ft.FontWeight.BOLD, width=120, text_align=ft.TextAlign.RIGHT),
+                                    ft.Text(
+                                        "Category", size=14, weight=ft.FontWeight.BOLD, width=150
+                                    ),
+                                    ft.Text(
+                                        "Description",
+                                        size=14,
+                                        weight=ft.FontWeight.BOLD,
+                                        expand=True,
+                                    ),
+                                    ft.Text(
+                                        "Amount",
+                                        size=14,
+                                        weight=ft.FontWeight.BOLD,
+                                        width=120,
+                                        text_align=ft.TextAlign.RIGHT,
+                                    ),
                                     ft.Container(width=48),
                                 ],
                             ),

@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from sqlmodel import Session, SQLModel, create_engine
-
 from pocketsage.blueprints.ledger.repository import SQLModelLedgerRepository
 from pocketsage.models.transaction import Transaction
+from sqlmodel import Session, SQLModel, create_engine
 
 
 def build_session() -> Session:
@@ -56,12 +55,16 @@ def test_list_transactions_applies_filters() -> None:
         assert total == 1
         assert rows[0].memo == "Item 2"
 
-        rows, total = repository.list_transactions(filters={"start": "2024-01-03"}, page=1, per_page=10)
+        rows, total = repository.list_transactions(
+            filters={"start": "2024-01-03"}, page=1, per_page=10
+        )
         assert total == 2
         assert rows[0].memo == "Item 3"
         assert rows[1].memo == "Item 2"
 
-        rows, total = repository.list_transactions(filters={"end": "2024-01-02"}, page=1, per_page=10)
+        rows, total = repository.list_transactions(
+            filters={"end": "2024-01-02"}, page=1, per_page=10
+        )
         assert total == 3
         assert rows[-1].memo == "Item 0"
     finally:

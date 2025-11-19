@@ -96,12 +96,16 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.Container(height=16),
                     ft.Row(
                         [
-                            ft.Icon(ft.icons.ACCOUNT_BALANCE_WALLET, size=48, color=ft.colors.PRIMARY),
+                            ft.Icon(
+                                ft.icons.ACCOUNT_BALANCE_WALLET, size=48, color=ft.colors.PRIMARY
+                            ),
                             ft.Container(width=16),
                             ft.Column(
                                 [
                                     ft.Text("PocketSage", size=20, weight=ft.FontWeight.BOLD),
-                                    ft.Text("Version 0.1.0", size=14, color=ft.colors.ON_SURFACE_VARIANT),
+                                    ft.Text(
+                                        "Version 0.1.0", size=14, color=ft.colors.ON_SURFACE_VARIANT
+                                    ),
                                     ft.Text(
                                         "Offline-first finance and habit tracking",
                                         size=14,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import flet as ft
@@ -18,8 +18,6 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     # Fetch summary data
     today = datetime.now()
-    start_of_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    end_of_month = (start_of_month + timedelta(days=32)).replace(day=1) - timedelta(seconds=1)
 
     # Get monthly summary
     monthly_summary = ctx.transaction_repo.get_monthly_summary(today.year, today.month)
@@ -150,9 +148,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 ),
                 padding=10,
-                border=ft.border.only(
-                    bottom=ft.border.BorderSide(1, ft.colors.OUTLINE_VARIANT)
-                ),
+                border=ft.border.only(bottom=ft.border.BorderSide(1, ft.colors.OUTLINE_VARIANT)),
             )
         )
 

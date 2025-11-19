@@ -26,18 +26,51 @@ def run_demo_seed() -> None:
     """
 
     with session_scope() as session:
-        now = datetime.now(timezone.utc)
-
         # Seed canonical categories covering common inflows and outflows.
         categories_seed = [
-            {"name": "Groceries", "slug": "groceries", "category_type": "expense", "color": "#4CAF50"},
-            {"name": "Dining Out", "slug": "dining-out", "category_type": "expense", "color": "#FF7043"},
-            {"name": "Utilities", "slug": "utilities", "category_type": "expense", "color": "#29B6F6"},
-            {"name": "Transportation", "slug": "transportation", "category_type": "expense", "color": "#AB47BC"},
-            {"name": "Wellness", "slug": "wellness", "category_type": "expense", "color": "#8D6E63"},
+            {
+                "name": "Groceries",
+                "slug": "groceries",
+                "category_type": "expense",
+                "color": "#4CAF50",
+            },
+            {
+                "name": "Dining Out",
+                "slug": "dining-out",
+                "category_type": "expense",
+                "color": "#FF7043",
+            },
+            {
+                "name": "Utilities",
+                "slug": "utilities",
+                "category_type": "expense",
+                "color": "#29B6F6",
+            },
+            {
+                "name": "Transportation",
+                "slug": "transportation",
+                "category_type": "expense",
+                "color": "#AB47BC",
+            },
+            {
+                "name": "Wellness",
+                "slug": "wellness",
+                "category_type": "expense",
+                "color": "#8D6E63",
+            },
             {"name": "Paycheck", "slug": "paycheck", "category_type": "income", "color": "#2E7D32"},
-            {"name": "Interest Income", "slug": "interest-income", "category_type": "income", "color": "#1B5E20"},
-            {"name": "Transfer In", "slug": "transfer-in", "category_type": "income", "color": "#00796B"},
+            {
+                "name": "Interest Income",
+                "slug": "interest-income",
+                "category_type": "income",
+                "color": "#1B5E20",
+            },
+            {
+                "name": "Transfer In",
+                "slug": "transfer-in",
+                "category_type": "income",
+                "color": "#00796B",
+            },
         ]
         categories: dict[str, Category] = {}
         for payload in categories_seed:
@@ -58,7 +91,9 @@ def run_demo_seed() -> None:
         session.flush()
 
         # Use timezone-aware UTC datetimes for persisted rows with staggered activity.
-        base_timestamp = datetime.now(timezone.utc).replace(hour=9, minute=0, second=0, microsecond=0, day=1)
+        base_timestamp = datetime.now(timezone.utc).replace(
+            hour=9, minute=0, second=0, microsecond=0, day=1
+        )
         transactions_seed = [
             {
                 "offset_days": 0,

@@ -65,9 +65,7 @@ class Router:
         dialog = ft.AlertDialog(
             title=ft.Text("Error"),
             content=ft.Text(message),
-            actions=[
-                ft.TextButton("OK", on_click=lambda _: self.close_dialog(dialog))
-            ],
+            actions=[ft.TextButton("OK", on_click=lambda _: self.close_dialog(dialog))],
         )
         self.page.dialog = dialog
         dialog.open = True

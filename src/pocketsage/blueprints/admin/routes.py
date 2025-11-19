@@ -54,13 +54,9 @@ def _recent_exports_metadata(exports_dir: Path, *, limit: int = 5) -> list[dict]
             {
                 "name": archive.name,
                 "path": str(archive),
-                "modified_at": datetime.fromtimestamp(
-                    stat.st_mtime, tz=timezone.utc
-                ).isoformat(),
+                "modified_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
                 "size": stat.st_size,
-                "download_url": url_for(
-                    "admin.export_download", filename=archive.name
-                ),
+                "download_url": url_for("admin.export_download", filename=archive.name),
             }
         )
 

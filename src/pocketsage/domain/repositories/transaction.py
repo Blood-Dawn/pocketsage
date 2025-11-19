@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 from typing import Optional, Protocol
 
 from ...models.transaction import Transaction
@@ -19,9 +19,7 @@ class TransactionRepository(Protocol):
         """List all transactions with pagination."""
         ...
 
-    def filter_by_date_range(
-        self, start_date: datetime, end_date: datetime
-    ) -> list[Transaction]:
+    def filter_by_date_range(self, start_date: datetime, end_date: datetime) -> list[Transaction]:
         """Get transactions within a date range."""
         ...
 
@@ -57,8 +55,6 @@ class TransactionRepository(Protocol):
         """Delete a transaction by ID."""
         ...
 
-    def get_monthly_summary(
-        self, year: int, month: int
-    ) -> dict[str, float]:
+    def get_monthly_summary(self, year: int, month: int) -> dict[str, float]:
         """Get income/expense summary for a month."""
         ...

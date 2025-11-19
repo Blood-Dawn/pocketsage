@@ -8,7 +8,6 @@ from typing import Iterator
 
 import pytest
 from flask import template_rendered
-
 from pocketsage import create_app
 from pocketsage.extensions import session_scope
 from pocketsage.models import Category, Transaction
@@ -106,7 +105,7 @@ def test_ledger_filters_apply_query_parameters(
     assert transactions[0].memo == "Morning Coffee"
 
     body = response.get_data(as_text=True)
-    assert "value=\"2024-01-06\"" in body
+    assert 'value="2024-01-06"' in body
     assert f'<option value="{expense_id}" selected' in body
     assert 'value="coffee"' in body
 
@@ -128,4 +127,3 @@ def test_invalid_filters_reset_state(ledger_client, captured_templates, sample_l
 
     transactions = context["transactions"]
     assert len(transactions) == sample_ledger_data["transaction_count"]
-

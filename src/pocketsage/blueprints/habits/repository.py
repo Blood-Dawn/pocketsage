@@ -39,9 +39,7 @@ class SqlModelHabitsRepository:
         )
         return list(self.session.exec(statement).all())
 
-    def recent_entries(
-        self, *, habit_ids: Sequence[int], since: date
-    ) -> list[HabitEntry]:
+    def recent_entries(self, *, habit_ids: Sequence[int], since: date) -> list[HabitEntry]:
         if not habit_ids:
             return []
 
@@ -52,4 +50,3 @@ class SqlModelHabitsRepository:
             .order_by(HabitEntry.occurred_on.asc())
         )
         return list(self.session.exec(statement).all())
-

@@ -1,6 +1,8 @@
 """Account model for transaction linkage."""
 
-from typing import TYPE_CHECKING, List, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -14,5 +16,5 @@ class Account(SQLModel, table=True):
     name: str = Field(nullable=False, max_length=128)
     currency: str = Field(default="USD", max_length=3)
 
-    transactions: List["Transaction"] = Relationship(back_populates="account")
-    holdings: List["Holding"] = Relationship(back_populates="account")
+    transactions: list["Transaction"] = Relationship(back_populates="account")
+    holdings: list["Holding"] = Relationship(back_populates="account")

@@ -8,23 +8,18 @@ from __future__ import annotations
 
 import tempfile
 from datetime import date, datetime, timedelta
-from decimal import Decimal
 from pathlib import Path
 
 import pytest
-
 from src.pocketsage.infra.repositories.budget import SQLModelBudgetRepository
-from src.pocketsage.infra.repositories.category import SQLModelCategoryRepository
 from src.pocketsage.infra.repositories.habit import SQLModelHabitRepository
 from src.pocketsage.infra.repositories.liability import SQLModelLiabilityRepository
 from src.pocketsage.infra.repositories.transaction import SQLModelTransactionRepository
 from src.pocketsage.models.budget import Budget, BudgetLine
-from src.pocketsage.models.category import Category
-from src.pocketsage.models.habit import Habit, HabitEntry
-from src.pocketsage.models.liability import Liability
+from src.pocketsage.models.habit import HabitEntry
 from src.pocketsage.models.transaction import Transaction
 from src.pocketsage.services.debts import DebtAccount, snowball_schedule
-from src.pocketsage.services.import_csv import ColumnMapping, import_csv_file, upsert_transactions
+from src.pocketsage.services.import_csv import ColumnMapping, import_csv_file
 from tests.conftest import assert_float_equal
 
 
@@ -59,7 +54,7 @@ class TestMonthlyBudgetTracking:
             BudgetLine(category_id=dining.id, planned_amount=200.00, budget_id=None),
         ]
 
-        created_budget = budget_repo.create(budget)
+        budget_repo.create(budget)
 
         # Add some actual transactions
         txn_repo = SQLModelTransactionRepository(session_factory)
@@ -162,9 +157,7 @@ class TestDebtPayoffProjection:
 
         # Calculate weighted average APR
         weighted_apr = liability_repo.get_weighted_apr()
-        expected_weighted_apr = (
-            2500 * 22.0 + 8000 * 6.0 + 15000 * 4.5
-        ) / 25500
+        expected_weighted_apr = (2500 * 22.0 + 8000 * 6.0 + 15000 * 4.5) / 25500
         assert_float_equal(weighted_apr, expected_weighted_apr)
 
         # Convert to DebtAccount for payoff calculation

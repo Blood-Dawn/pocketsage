@@ -73,9 +73,7 @@ class SQLModelCategoryRepository:
         The slug field is used for matching and is not updated.
         """
         with self.session_factory() as session:
-            existing = session.exec(
-                select(Category).where(Category.slug == category.slug)
-            ).first()
+            existing = session.exec(select(Category).where(Category.slug == category.slug)).first()
 
             if existing:
                 # Update all mutable fields (slug is the match key, so not updated)

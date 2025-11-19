@@ -40,16 +40,26 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 content=ft.Row(
                     [
                         ft.Text(holding.symbol, size=14, weight=ft.FontWeight.BOLD, width=100),
-                        ft.Text(f"{holding.quantity:,.4f}", size=14, width=120, text_align=ft.TextAlign.RIGHT),
-                        ft.Text(f"${holding.avg_price:,.2f}", size=14, width=120, text_align=ft.TextAlign.RIGHT),
-                        ft.Text(f"${cost_basis:,.2f}", size=14, width=150, text_align=ft.TextAlign.RIGHT),
+                        ft.Text(
+                            f"{holding.quantity:,.4f}",
+                            size=14,
+                            width=120,
+                            text_align=ft.TextAlign.RIGHT,
+                        ),
+                        ft.Text(
+                            f"${holding.avg_price:,.2f}",
+                            size=14,
+                            width=120,
+                            text_align=ft.TextAlign.RIGHT,
+                        ),
+                        ft.Text(
+                            f"${cost_basis:,.2f}", size=14, width=150, text_align=ft.TextAlign.RIGHT
+                        ),
                         ft.Text(account_name, size=14, width=150),
                     ],
                 ),
                 padding=12,
-                border=ft.border.only(
-                    bottom=ft.border.BorderSide(1, ft.colors.OUTLINE_VARIANT)
-                ),
+                border=ft.border.only(bottom=ft.border.BorderSide(1, ft.colors.OUTLINE_VARIANT)),
             )
         )
 
@@ -57,7 +67,9 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
         holdings_content = ft.Container(
             content=ft.Column(
                 [
-                    ft.Icon(ft.icons.TRENDING_UP_OUTLINED, size=64, color=ft.colors.ON_SURFACE_VARIANT),
+                    ft.Icon(
+                        ft.icons.TRENDING_UP_OUTLINED, size=64, color=ft.colors.ON_SURFACE_VARIANT
+                    ),
                     ft.Container(height=16),
                     ft.Text(
                         "No Holdings",
@@ -83,9 +95,27 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         content=ft.Row(
                             [
                                 ft.Text("Symbol", size=14, weight=ft.FontWeight.BOLD, width=100),
-                                ft.Text("Quantity", size=14, weight=ft.FontWeight.BOLD, width=120, text_align=ft.TextAlign.RIGHT),
-                                ft.Text("Avg Price", size=14, weight=ft.FontWeight.BOLD, width=120, text_align=ft.TextAlign.RIGHT),
-                                ft.Text("Cost Basis", size=14, weight=ft.FontWeight.BOLD, width=150, text_align=ft.TextAlign.RIGHT),
+                                ft.Text(
+                                    "Quantity",
+                                    size=14,
+                                    weight=ft.FontWeight.BOLD,
+                                    width=120,
+                                    text_align=ft.TextAlign.RIGHT,
+                                ),
+                                ft.Text(
+                                    "Avg Price",
+                                    size=14,
+                                    weight=ft.FontWeight.BOLD,
+                                    width=120,
+                                    text_align=ft.TextAlign.RIGHT,
+                                ),
+                                ft.Text(
+                                    "Cost Basis",
+                                    size=14,
+                                    weight=ft.FontWeight.BOLD,
+                                    width=150,
+                                    text_align=ft.TextAlign.RIGHT,
+                                ),
                                 ft.Text("Account", size=14, weight=ft.FontWeight.BOLD, width=150),
                             ],
                         ),
@@ -112,8 +142,15 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ),
                     ft.Column(
                         [
-                            ft.Text("Total Cost Basis", size=14, color=ft.colors.ON_SURFACE_VARIANT),
-                            ft.Text(f"${total_cost_basis:,.2f}", size=28, weight=ft.FontWeight.BOLD, color=ft.colors.PRIMARY),
+                            ft.Text(
+                                "Total Cost Basis", size=14, color=ft.colors.ON_SURFACE_VARIANT
+                            ),
+                            ft.Text(
+                                f"${total_cost_basis:,.2f}",
+                                size=28,
+                                weight=ft.FontWeight.BOLD,
+                                color=ft.colors.PRIMARY,
+                            ),
                         ],
                     ),
                 ],

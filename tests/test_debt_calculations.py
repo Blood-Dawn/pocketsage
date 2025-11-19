@@ -12,10 +12,7 @@ including:
 
 from __future__ import annotations
 
-from decimal import Decimal
-
 import pytest
-
 from src.pocketsage.services.debts import (
     DebtAccount,
     avalanche_schedule,
@@ -351,9 +348,15 @@ class TestEdgeCases:
     def test_multiple_debts_all_paid_off(self):
         """All debts should eventually reach zero balance."""
         debts = [
-            DebtAccount(id=1, balance=1000.00, apr=12.0, minimum_payment=50.00, statement_due_day=15),
-            DebtAccount(id=2, balance=2000.00, apr=18.0, minimum_payment=75.00, statement_due_day=15),
-            DebtAccount(id=3, balance=500.00, apr=15.0, minimum_payment=30.00, statement_due_day=15),
+            DebtAccount(
+                id=1, balance=1000.00, apr=12.0, minimum_payment=50.00, statement_due_day=15
+            ),
+            DebtAccount(
+                id=2, balance=2000.00, apr=18.0, minimum_payment=75.00, statement_due_day=15
+            ),
+            DebtAccount(
+                id=3, balance=500.00, apr=15.0, minimum_payment=30.00, statement_due_day=15
+            ),
         ]
 
         schedule = snowball_schedule(debts=debts, surplus=200.00)

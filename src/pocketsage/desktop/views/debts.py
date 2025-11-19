@@ -21,7 +21,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
     # Calculate totals
     total_debt = ctx.liability_repo.get_total_debt()
     weighted_apr = ctx.liability_repo.get_weighted_apr()
-    total_min_payment = sum(l.minimum_payment for l in liabilities)
+    total_min_payment = sum(liability.minimum_payment for liability in liabilities)
 
     # Summary cards
     summary = ft.Row(
@@ -31,7 +31,12 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     content=ft.Column(
                         [
                             ft.Text("Total Debt", size=14, color=ft.colors.ON_SURFACE_VARIANT),
-                            ft.Text(f"${total_debt:,.2f}", size=28, weight=ft.FontWeight.BOLD, color=ft.colors.RED),
+                            ft.Text(
+                                f"${total_debt:,.2f}",
+                                size=28,
+                                weight=ft.FontWeight.BOLD,
+                                color=ft.colors.RED,
+                            ),
                         ],
                     ),
                     padding=20,
@@ -55,7 +60,9 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     content=ft.Column(
                         [
                             ft.Text("Min. Payment", size=14, color=ft.colors.ON_SURFACE_VARIANT),
-                            ft.Text(f"${total_min_payment:,.2f}", size=28, weight=ft.FontWeight.BOLD),
+                            ft.Text(
+                                f"${total_min_payment:,.2f}", size=28, weight=ft.FontWeight.BOLD
+                            ),
                         ],
                     ),
                     padding=20,
@@ -89,7 +96,11 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                         f"${liability.balance:,.2f}",
                                         size=18,
                                         weight=ft.FontWeight.BOLD,
-                                        color=ft.colors.RED if liability.balance > 0 else ft.colors.GREEN,
+                                        color=(
+                                            ft.colors.RED
+                                            if liability.balance > 0
+                                            else ft.colors.GREEN
+                                        ),
                                     ),
                                 ],
                                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -99,26 +110,46 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 [
                                     ft.Column(
                                         [
-                                            ft.Text("APR", size=12, color=ft.colors.ON_SURFACE_VARIANT),
+                                            ft.Text(
+                                                "APR", size=12, color=ft.colors.ON_SURFACE_VARIANT
+                                            ),
                                             ft.Text(f"{liability.apr:.2f}%", size=14),
                                         ],
                                     ),
                                     ft.Column(
                                         [
-                                            ft.Text("Min. Payment", size=12, color=ft.colors.ON_SURFACE_VARIANT),
+                                            ft.Text(
+                                                "Min. Payment",
+                                                size=12,
+                                                color=ft.colors.ON_SURFACE_VARIANT,
+                                            ),
                                             ft.Text(f"${liability.minimum_payment:,.2f}", size=14),
                                         ],
                                     ),
                                     ft.Column(
                                         [
-                                            ft.Text("Monthly Interest", size=12, color=ft.colors.ON_SURFACE_VARIANT),
-                                            ft.Text(f"${monthly_interest:,.2f}", size=14, color=ft.colors.ORANGE),
+                                            ft.Text(
+                                                "Monthly Interest",
+                                                size=12,
+                                                color=ft.colors.ON_SURFACE_VARIANT,
+                                            ),
+                                            ft.Text(
+                                                f"${monthly_interest:,.2f}",
+                                                size=14,
+                                                color=ft.colors.ORANGE,
+                                            ),
                                         ],
                                     ),
                                     ft.Column(
                                         [
-                                            ft.Text("Strategy", size=12, color=ft.colors.ON_SURFACE_VARIANT),
-                                            ft.Text(liability.payoff_strategy.capitalize(), size=14),
+                                            ft.Text(
+                                                "Strategy",
+                                                size=12,
+                                                color=ft.colors.ON_SURFACE_VARIANT,
+                                            ),
+                                            ft.Text(
+                                                liability.payoff_strategy.capitalize(), size=14
+                                            ),
                                         ],
                                     ),
                                 ],

@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
 import pytest
-
 from pocketsage import create_app
 from pocketsage.extensions import session_scope
 from pocketsage.models import Transaction
@@ -59,7 +58,7 @@ def test_edit_transaction_populates_form(ledger_app, ledger_client):
     assert "Groceries" in body
     assert "-25.00" in body
     assert "2024-01-01T12:00" in body
-    assert "value=\"7\"" in body
+    assert 'value="7"' in body
 
 
 def test_update_transaction_redirects_with_filters(ledger_app, ledger_client):

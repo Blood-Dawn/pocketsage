@@ -13,10 +13,8 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-import pytest
-
 from src.pocketsage.infra.repositories.habit import SQLModelHabitRepository
-from src.pocketsage.models.habit import Habit, HabitEntry
+from src.pocketsage.models.habit import HabitEntry
 
 
 class TestCurrentStreak:
@@ -44,7 +42,9 @@ class TestCurrentStreak:
         streak = repo.get_current_streak(habit.id)
         assert streak == 1
 
-    def test_consecutive_days_returns_correct_streak(self, session_factory, habit_factory, db_session):
+    def test_consecutive_days_returns_correct_streak(
+        self, session_factory, habit_factory, db_session
+    ):
         """Consecutive days should calculate streak correctly."""
         habit = habit_factory(name="Meditation")
         repo = SQLModelHabitRepository(session_factory)
@@ -69,13 +69,19 @@ class TestCurrentStreak:
 
         # Add entries for today and yesterday
         db_session.add(HabitEntry(habit_id=habit.id, occurred_on=today, value=1))
-        db_session.add(HabitEntry(habit_id=habit.id, occurred_on=today - timedelta(days=1), value=1))
+        db_session.add(
+            HabitEntry(habit_id=habit.id, occurred_on=today - timedelta(days=1), value=1)
+        )
 
         # Skip day before yesterday (gap)
 
         # Add older entries (before the gap)
-        db_session.add(HabitEntry(habit_id=habit.id, occurred_on=today - timedelta(days=3), value=1))
-        db_session.add(HabitEntry(habit_id=habit.id, occurred_on=today - timedelta(days=4), value=1))
+        db_session.add(
+            HabitEntry(habit_id=habit.id, occurred_on=today - timedelta(days=3), value=1)
+        )
+        db_session.add(
+            HabitEntry(habit_id=habit.id, occurred_on=today - timedelta(days=4), value=1)
+        )
         db_session.commit()
 
         # Current streak should only be 2 (today + yesterday)
@@ -108,8 +114,12 @@ class TestCurrentStreak:
 
         # Add entries, but middle one has value=0
         db_session.add(HabitEntry(habit_id=habit.id, occurred_on=today, value=1))
-        db_session.add(HabitEntry(habit_id=habit.id, occurred_on=today - timedelta(days=1), value=0))  # Skipped
-        db_session.add(HabitEntry(habit_id=habit.id, occurred_on=today - timedelta(days=2), value=1))
+        db_session.add(
+            HabitEntry(habit_id=habit.id, occurred_on=today - timedelta(days=1), value=0)
+        )  # Skipped
+        db_session.add(
+            HabitEntry(habit_id=habit.id, occurred_on=today - timedelta(days=2), value=1)
+        )
         db_session.commit()
 
         # Current streak should only be 1 (today), since yesterday was 0
@@ -236,7 +246,9 @@ class TestLongestStreak:
         streak = repo.get_longest_streak(habit.id)
         assert streak == 2
 
-    def test_non_consecutive_dates_creates_multiple_streaks(self, session_factory, habit_factory, db_session):
+    def test_non_consecutive_dates_creates_multiple_streaks(
+        self, session_factory, habit_factory, db_session
+    ):
         """Non-consecutive dates should create separate streaks."""
         habit = habit_factory(name="Study")
         repo = SQLModelHabitRepository(session_factory)

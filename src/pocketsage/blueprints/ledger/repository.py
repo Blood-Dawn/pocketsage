@@ -4,15 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, time, timezone
+from math import ceil
 from typing import Protocol, Sequence
 
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from sqlalchemy import func
-from sqlmodel import Session, select
-
-from ...models.category import Category
 from ...models.transaction import Transaction
 
 

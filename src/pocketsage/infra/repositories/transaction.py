@@ -25,12 +25,15 @@ class SQLModelTransactionRepository:
     def list_all(self, limit: int = 100, offset: int = 0) -> list[Transaction]:
         """List all transactions with pagination."""
         with self.session_factory() as session:
-            statement = select(Transaction).order_by(Transaction.occurred_at.desc()).offset(offset).limit(limit)  # type: ignore
+            statement = (
+                select(Transaction)
+                .order_by(Transaction.occurred_at.desc())  # type: ignore
+                .offset(offset)
+                .limit(limit)
+            )
             return list(session.exec(statement).all())
 
-    def filter_by_date_range(
-        self, start_date: datetime, end_date: datetime
-    ) -> list[Transaction]:
+    def filter_by_date_range(self, start_date: datetime, end_date: datetime) -> list[Transaction]:
         """Get transactions within a date range."""
         with self.session_factory() as session:
             statement = (

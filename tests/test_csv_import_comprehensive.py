@@ -13,11 +13,7 @@ Tests cover:
 from __future__ import annotations
 
 import tempfile
-from datetime import datetime
 from pathlib import Path
-
-import pandas as pd
-import pytest
 
 from src.pocketsage.services.import_csv import (
     ColumnMapping,
@@ -80,7 +76,9 @@ class TestNormalizeFrame:
 
     def test_handles_utf8_encoding(self):
         """Should handle UTF-8 encoded files with special characters."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False, encoding="utf-8") as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False, encoding="utf-8"
+        ) as f:
             f.write("date,amount,description\n")
             f.write("2024-01-01,-25.00,Café lunch\n")
             f.write("2024-01-02,100.00,Paychèque\n")
@@ -416,12 +414,22 @@ class TestIdempotentImport:
         """External ID should be used to identify unique transactions."""
         # First import
         rows1 = [
-            {"transaction_id": "TXN-001", "date": "2024-01-01", "amount": "100.00", "memo": "Original"},
+            {
+                "transaction_id": "TXN-001",
+                "date": "2024-01-01",
+                "amount": "100.00",
+                "memo": "Original",
+            },
         ]
 
         # Second import (same transaction_id, different amount - should update)
         rows2 = [
-            {"transaction_id": "TXN-001", "date": "2024-01-01", "amount": "150.00", "memo": "Updated"},
+            {
+                "transaction_id": "TXN-001",
+                "date": "2024-01-01",
+                "amount": "150.00",
+                "memo": "Updated",
+            },
         ]
 
         mapping = ColumnMapping(

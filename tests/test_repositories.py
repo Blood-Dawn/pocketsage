@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 from sqlmodel import Session, SQLModel, create_engine
-
 from src.pocketsage.infra.repositories import (
     SQLModelAccountRepository,
     SQLModelCategoryRepository,
@@ -64,7 +63,9 @@ def test_category_repository_crud(session_factory):
     repo = SQLModelCategoryRepository(session_factory)
 
     # Create
-    category = Category(name="Groceries", slug="groceries", category_type="expense", color="#FF5733")
+    category = Category(
+        name="Groceries", slug="groceries", category_type="expense", color="#FF5733"
+    )
     created = repo.create(category)
 
     assert created.id is not None
@@ -100,7 +101,9 @@ def test_category_repository_upsert(session_factory):
     assert upserted1.id is not None
 
     # Update existing
-    category2 = Category(name="Transportation", slug="transport", category_type="expense", color="#0000FF")
+    category2 = Category(
+        name="Transportation", slug="transport", category_type="expense", color="#0000FF"
+    )
     upserted2 = repo.upsert_by_slug(category2)
 
     # Should have same ID

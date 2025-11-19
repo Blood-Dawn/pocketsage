@@ -8,10 +8,8 @@ from __future__ import annotations
 
 import tempfile
 from contextlib import contextmanager
-from datetime import date, datetime, timedelta
-from decimal import Decimal
+from datetime import date, datetime
 from pathlib import Path
-from typing import Iterator
 
 import pytest
 from sqlmodel import Session, SQLModel, create_engine
@@ -23,12 +21,10 @@ from src.pocketsage.models import (
     BudgetLine,
     Category,
     Habit,
-    HabitEntry,
     Liability,
     Transaction,
 )
 from src.pocketsage.models.portfolio import Holding
-
 
 # =============================================================================
 # Database Fixtures
@@ -512,6 +508,6 @@ def assert_float_equal(actual: float, expected: float, tolerance: float = 0.01):
     Raises:
         AssertionError: If values differ by more than tolerance
     """
-    assert abs(actual - expected) < tolerance, (
-        f"Expected {expected}, got {actual} (diff: {abs(actual - expected)})"
-    )
+    assert (
+        abs(actual - expected) < tolerance
+    ), f"Expected {expected}, got {actual} (diff: {abs(actual - expected)})"

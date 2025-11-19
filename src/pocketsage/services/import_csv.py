@@ -47,7 +47,12 @@ def upsert_transactions(*, rows: Iterable[Mapping], mapping: ColumnMapping) -> l
             continue
         try:
             amount = float(amount_raw)
-        except Exception:
+        except (ValueError, TypeError) as exc:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Skipping row due to invalid amount value %r: %s", amount_raw, exc
+            )
             continue
 
         occurred_at = row.get(mapping.occurred_at)

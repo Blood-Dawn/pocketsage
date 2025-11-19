@@ -84,7 +84,11 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                     [
                                         ft.Row(
                                             [
-                                                ft.Icon(ft.icons.LOCAL_FIRE_DEPARTMENT, size=20, color=ft.colors.ORANGE),
+                                                ft.Icon(
+                                                    ft.icons.LOCAL_FIRE_DEPARTMENT,
+                                                    size=20,
+                                                    color=ft.colors.ORANGE,
+                                                ),
                                                 ft.Text(
                                                     f"{current_streak} days",
                                                     size=14,
@@ -114,7 +118,11 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 ft.Container(
                     content=ft.Column(
                         [
-                            ft.Icon(ft.icons.CHECK_CIRCLE_OUTLINE, size=64, color=ft.colors.ON_SURFACE_VARIANT),
+                            ft.Icon(
+                                ft.icons.CHECK_CIRCLE_OUTLINE,
+                                size=64,
+                                color=ft.colors.ON_SURFACE_VARIANT,
+                            ),
                             ft.Container(height=16),
                             ft.Text(
                                 "No active habits",

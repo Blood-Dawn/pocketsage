@@ -70,7 +70,7 @@ class SQLModelLiabilityRepository:
         """Calculate total outstanding debt."""
         with self.session_factory() as session:
             liabilities = session.exec(select(Liability)).all()
-            return sum(l.balance for l in liabilities)
+            return sum(liability.balance for liability in liabilities)
 
     def get_weighted_apr(self) -> float:
         """Calculate weighted average APR across all liabilities."""
@@ -80,9 +80,9 @@ class SQLModelLiabilityRepository:
             if not liabilities:
                 return 0.0
 
-            total_balance = sum(l.balance for l in liabilities)
+            total_balance = sum(liability.balance for liability in liabilities)
             if total_balance == 0:
                 return 0.0
 
-            weighted_sum = sum(l.balance * l.apr for l in liabilities)
+            weighted_sum = sum(liability.balance * liability.apr for liability in liabilities)
             return weighted_sum / total_balance

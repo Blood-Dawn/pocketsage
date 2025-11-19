@@ -1,7 +1,9 @@
 """Habits tracking data structures."""
 
+from __future__ import annotations
+
 from datetime import date
-from typing import List, Optional
+from typing import Optional
 
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -15,7 +17,7 @@ class Habit(SQLModel, table=True):
     cadence: str = Field(default="daily", max_length=32)
     is_active: bool = Field(default=True, nullable=False)
 
-    entries: List["HabitEntry"] = Relationship(back_populates="habit")
+    entries: list["HabitEntry"] = Relationship(back_populates="habit")
 
     # TODO(@habits-squad): add owner foreign key when multi-user support arrives.
 

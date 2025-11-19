@@ -40,6 +40,7 @@ COLUMN_ALIASES: Dict[str, tuple[str, ...]] = {
     "external_id": ("external_id", "externalid", "id", "uid"),
 }
 
+
 class SortConfig(TypedDict):
     label: str
     key: Callable[[dict], object]
@@ -413,7 +414,7 @@ def _sanitize_csv_value(value):
     """Sanitize CSV values to prevent CSV injection attacks."""
     if isinstance(value, str):
         # Prevent CSV injection by escaping formula-starting characters
-        if value and value[0] in ('=', '+', '-', '@', '\t', '\r'):
+        if value and value[0] in ("=", "+", "-", "@", "\t", "\r"):
             return "'" + value
     return value
 

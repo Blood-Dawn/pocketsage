@@ -58,9 +58,11 @@ def create_app(config_name: str | None = None) -> Flask:
     # Register CLI commands
     try:
         _cli.init_app(app)
-    except Exception:
-        # avoid breaking app startup if CLI wiring fails in some environments
-        pass
+    except (ImportError, AttributeError, RuntimeError, ModuleNotFoundError) as exc:
+        # Skip CLI initialization if CLI wiring is unavailable in some environments
+        import logging
+
+        logging.getLogger(__name__).debug("Skipping CLI init_app: %s", exc)
 
     # TODO(@framework-owner): register CLI commands, logging, and background services.
 
