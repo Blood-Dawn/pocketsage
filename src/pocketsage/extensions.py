@@ -33,7 +33,7 @@ def init_db(app: Flask) -> None:
             # TODO(@db-team): bulk seed default data when session boots.
 
     @app.teardown_appcontext
-    def _shutdown_session(exception: Exception | None) -> None:  # pragma: no cover
+    def _shutdown_session(exception: BaseException | None) -> None:  # pragma: no cover
         session = g.pop("sqlmodel_session", None)
         if session is not None:
             session.close()

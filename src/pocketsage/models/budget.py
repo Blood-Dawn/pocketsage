@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Optional
 
+from sqlalchemy.orm import relationship
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -16,7 +17,9 @@ class Budget(SQLModel, table=True):
     period_end: date = Field(index=True, nullable=False)
     label: str = Field(default="", max_length=64)
 
-    lines: list["BudgetLine"] = Relationship(back_populates="budget")
+    lines: list["BudgetLine"] = Relationship(
+        sa_relationship=relationship("BudgetLine", back_populates="budget")
+    )
 
     # TODO(@budgeting): enforce non-overlapping windows per user.
 
@@ -30,6 +33,8 @@ class BudgetLine(SQLModel, table=True):
     planned_amount: float = Field(nullable=False)
     rollover_enabled: bool = Field(default=False, nullable=False)
 
-    budget: "Budget" = Relationship(back_populates="lines")
+    budget: "Budget" = Relationship(
+        sa_relationship=relationship("Budget", back_populates="lines")
+    )
 
     # TODO(@budgeting): track actual spend + available with materialized views.

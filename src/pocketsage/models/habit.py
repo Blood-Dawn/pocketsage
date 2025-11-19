@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Optional
 
+from sqlalchemy.orm import relationship
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -17,7 +18,9 @@ class Habit(SQLModel, table=True):
     cadence: str = Field(default="daily", max_length=32)
     is_active: bool = Field(default=True, nullable=False)
 
-    entries: list["HabitEntry"] = Relationship(back_populates="habit")
+    entries: list["HabitEntry"] = Relationship(
+        sa_relationship=relationship("HabitEntry", back_populates="habit")
+    )
 
     # TODO(@habits-squad): add owner foreign key when multi-user support arrives.
 
@@ -29,6 +32,8 @@ class HabitEntry(SQLModel, table=True):
     occurred_on: date = Field(primary_key=True, index=True)
     value: int = Field(default=1, nullable=False)
 
-    habit: "Habit" = Relationship(back_populates="entries")
+    habit: "Habit" = Relationship(
+        sa_relationship=relationship("Habit", back_populates="entries")
+    )
 
     # TODO(@analytics): enforce timezone-aware capture for cross-region tracking.

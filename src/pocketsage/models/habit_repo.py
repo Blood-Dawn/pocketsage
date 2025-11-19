@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from sqlmodel import Session, select
 
-from pocketsage.models.habits import HabitEntry
+from pocketsage.models.habit import HabitEntry
 
 
 class HabitRepository:

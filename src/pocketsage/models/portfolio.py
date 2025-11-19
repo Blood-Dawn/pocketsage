@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
+from sqlalchemy.orm import relationship
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -22,4 +23,6 @@ class Holding(SQLModel, table=True):
     account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     currency: str = Field(default="USD", max_length=3)
 
-    account: Optional["Account"] = Relationship(back_populates="holdings")
+    account: Optional["Account"] = Relationship(
+        sa_relationship=relationship("Account", back_populates="holdings")
+    )

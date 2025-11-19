@@ -9,6 +9,7 @@ Description-Content-Type: text/markdown
 Requires-Dist: argon2-cffi==23.1.0
 Requires-Dist: cryptography==43.0.1
 Requires-Dist: flask==3.0.0
+Requires-Dist: flet>=0.24.0
 Requires-Dist: jinja2==3.1.4
 Requires-Dist: matplotlib==3.8.4
 Requires-Dist: pandas==2.2.2
@@ -21,8 +22,11 @@ Requires-Dist: watchdog>=3.0.0; extra == "watcher"
 Provides-Extra: dev
 Requires-Dist: black==24.8.0; extra == "dev"
 Requires-Dist: pytest==8.2.0; extra == "dev"
+Requires-Dist: pytest-cov==5.0.0; extra == "dev"
+Requires-Dist: pytest-xdist==3.6.1; extra == "dev"
 Requires-Dist: ruff==0.6.2; extra == "dev"
 Requires-Dist: pre-commit==3.8.0; extra == "dev"
+Requires-Dist: bandit[toml]==1.7.9; extra == "dev"
 
 # PocketSage · Offline Finance + Habits Scaffold
 
@@ -36,13 +40,16 @@ Framework Owner checkpoint for the PocketSage desktop-first Flask app. Focus are
 > **Pattern** – Methods, services, and docs include explicit `# TODO(@assignee)` markers. Teammates own implementations in follow-up PRs.
 
 ## Stack Snapshot
-- Python 3.11, Flask app-factory + Blueprints
+- Python 3.11, Flask app-factory + Blueprints + **Flet Desktop UI**
 - SQLModel over SQLite with SQLCipher toggle
 - Matplotlib PNG chart generation (server-rendered)
+- **Flet** for cross-platform desktop UI (offline-first)
 - pytest + ruff + black + pre-commit
-- PyInstaller onefile packaging
+- PyInstaller onefile packaging (Flask) + Flet Pack (Desktop)
 
-## Quickstart (Local)
+## Quickstart
+
+### Web Mode (Flask)
 1. `python -m venv .venv && .venv\Scripts\activate` *(Windows)*
    - macOS/Linux: `python3 -m venv .venv && source .venv/bin/activate`
 2. `pip install -e ".[dev]"`
@@ -50,18 +57,60 @@ Framework Owner checkpoint for the PocketSage desktop-first Flask app. Focus are
 4. `python run.py`
 5. Visit http://127.0.0.1:5000 to view the landing page and navigate to scaffolded blueprints
 
+### Desktop Mode (Flet) ⭐ NEW
+1. `python -m venv .venv && .venv\Scripts\activate` *(Windows)*
+   - macOS/Linux: `python3 -m venv .venv && source .venv/bin/activate`
+2. `pip install -e ".[dev]"`
+3. `cp .env.example .env`
+4. `python run_desktop.py`
+5. The desktop app window will open automatically with Dashboard, Ledger, Budgets, Habits, Debts, Portfolio, and Settings
+
 ## Packaging
+
+### Flask Web Mode
 - The PyInstaller build mirrors `run.py`, which calls `create_app()` and then `app.run(debug=True)` for a development-friendly binary entry point.
 - `make package` → run PyInstaller using `PocketSage.spec` (outputs to `dist/`).
 - Launch the bundled app the same way as the script (`./dist/PocketSage/PocketSage` on macOS/Linux, `dist\\PocketSage\\PocketSage.exe` on Windows) to confirm parity with local execution.
 
+### Desktop Mode (Flet) ⭐ NEW
+Build a standalone desktop executable using Flet Pack:
+
+**Linux/macOS:**
+```bash
+bash scripts/build_desktop.sh
+```
+
+**Windows:**
+```cmd
+scripts\build_desktop.bat
+```
+
+The build script will:
+1. Create/activate a virtual environment
+2. Install all dependencies
+3. Run tests
+4. Package the app using `flet pack`
+5. Output binary to `dist/` directory
+
+**Launch the desktop app:**
+- Windows: `dist\PocketSage\PocketSage.exe`
+- macOS: `dist/PocketSage.app`
+- Linux: `dist/PocketSage/PocketSage`
+
+The desktop app is fully offline and stores all data in the same SQLite database as the Flask version (`instance/pocketsage.db`).
+
 ### Make Targets
 - `make setup` → install deps, enable pre-commit
-- `make dev` → run Flask dev server
+- `make dev` → run Flask dev server (web mode)
 - `make test` → pytest (currently skipped TODOs)
 - `make lint` → ruff + black check
-- `make package` → PyInstaller stub build
+- `make package` → PyInstaller stub build (Flask)
 - `make demo-seed` → populate the local database with curated demo data
+
+### Desktop App Commands
+- `python run_desktop.py` → run desktop app in development mode
+- `bash scripts/build_desktop.sh` → build desktop executable (Linux/macOS)
+- `scripts\build_desktop.bat` → build desktop executable (Windows)
 
 #### No GNU Make? Use the setup script
 Teams on platforms without GNU Make can run the equivalent bootstrap steps with the provided shell script:
@@ -95,16 +144,53 @@ To store data somewhere else, override `POCKETSAGE_DATA_DIR` in your `.env` file
 - SQLCipher support planned; see TODOs in `config.py` for key exchange
 
 ## Folder Highlights
-- `pocketsage/` – app factory, config, extensions, models, services, blueprints, templates, static
-- `scripts/` – demo seeding + CSV samples
-- `docs/` – architecture, code review, demo runbook, troubleshooting matrix
+- `src/pocketsage/` – app factory, config, extensions, models, services
+  - `blueprints/` – Flask blueprints (web UI)
+  - `templates/` – Jinja2 templates (web UI)
+  - `static/` – CSS/JS assets (web UI)
+  - `domain/` – Repository protocols (domain layer) ⭐ NEW
+  - `infra/` – Database setup and repository implementations ⭐ NEW
+  - `desktop/` – Flet desktop UI (views, components, navigation) ⭐ NEW
+- `scripts/` – demo seeding, CSV samples, build scripts
+- `docs/` – architecture, code review, demo runbook, troubleshooting matrix, **Flet architecture** ⭐ NEW
 - `tests/` – pytest scaffolding with skips awaiting implementations
 
+## Desktop App Features ⭐ NEW
+
+The Flet desktop app provides a modern, cross-platform UI with:
+
+### Screens
+- **Dashboard** - Net worth, monthly income/expenses, total debt, active habits, quick actions
+- **Ledger** - Transaction list with add/edit/delete, filtering, CSV import/export
+- **Budgets** - Budget vs actual tracking with progress bars, monthly summaries
+- **Habits** - Daily habit tracking with streaks and completion stats
+- **Debts** - Liability management with snowball/avalanche projections
+- **Portfolio** - Holdings tracking with cost basis and allocation
+- **Settings** - Theme toggle, database management, data import/export
+
+### Architecture
+The desktop app follows a clean architecture pattern:
+
+- **Domain Layer** (`src/pocketsage/domain/`) - Repository protocols and business logic interfaces
+- **Infrastructure Layer** (`src/pocketsage/infra/`) - SQLModel repository implementations, database setup
+- **Desktop UI Layer** (`src/pocketsage/desktop/`) - Flet views, components, and navigation
+
+All domain logic (models, services, CSV import/export) is shared between Flask and Flet modes. See `docs/FLET_ARCHITECTURE.md` for detailed architecture documentation.
+
+### Key Benefits
+- ✅ **Offline-first** - No internet required, all data local
+- ✅ **Cross-platform** - Windows, macOS, Linux from single codebase
+- ✅ **Shared logic** - Flask and Flet use same models and services
+- ✅ **Type-safe** - Full type annotations with Protocol-based dependency injection
+- ✅ **Testable** - Repository pattern enables easy unit testing
+
 ## Next Steps for Teammates
-- Replace repository protocols with SQLModel CRUD implementations
-- Implement Matplotlib chart rendering + CSV import idempotency
+- ~~Replace repository protocols with SQLModel CRUD implementations~~ ✅ **DONE**
+- Implement Matplotlib chart rendering + native Flet charts
+- Add CSV import/export UI to desktop app
 - Wire watchdog optional observer when extra installed
 - Fill Admin tasks, seeding, and export flows
+- Add unit tests for repository implementations
 
 See `TODO.md` for the full itemization with owners.
 
