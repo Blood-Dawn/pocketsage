@@ -4,7 +4,7 @@ Comprehensive automated testing infrastructure for PocketSage domain logic, repo
 
 ## Overview
 
-This test suite is designed to verify all domain logic **without requiring the UI** (Flask or Flet). Tests run against an isolated in-memory SQLite database and cover:
+This test suite is designed to verify all domain logic **without requiring the UI**. Tests run against an isolated in-memory SQLite database and cover:
 
 - **Financial calculations** (debt payoff, budget tracking, cash flow)
 - **Repository operations** (CRUD, queries, filters, upsert logic)
@@ -298,7 +298,7 @@ pytest --cov=src/pocketsage --cov-report=xml
 As of the current test suite, the following areas need more coverage:
 
 1. **Budget variance calculations** - `services/budgeting.py` has NotImplementedError stubs
-2. **CLI commands** - Flask CLI commands need Click testing
+2. **Desktop admin flows** - Settings/Reports actions and admin task triggers need lightweight smoke coverage
 3. **Export CSV** - CSV export formatting and security (CSV injection prevention)
 4. **Chart generation** - Matplotlib PNG generation (if applicable)
 5. **Watchdog integration** - File watcher automation logic

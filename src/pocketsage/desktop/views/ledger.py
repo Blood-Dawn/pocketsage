@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 from datetime import datetime
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 import math
 
 import flet as ft
+from sqlmodel import select
 
+from ...models.account import Account
+from ...models.category import Category
 from ...models.transaction import Transaction
-from ...services.import_csv import ColumnMapping, import_csv_file
+from ...services.import_csv import ColumnMapping, load_transactions_from_csv
 from ...services.export_csv import export_transactions_csv
 from ..components import build_app_bar, build_main_layout
 from ..components.dialogs import show_confirm_dialog, show_error_dialog
@@ -64,6 +68,108 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         except ValueError:
             return None
 
+    def _parse_occurred_at(raw_value):
+        if raw_value is None:
+            return None
+        if isinstance(raw_value, datetime):
+            return raw_value
+        try:
+            return datetime.fromisoformat(str(raw_value))
+        except ValueError:
+            return None
+
+    def _slugify(label: str) -> str:
+        cleaned = re.sub(r"[^a-z0-9]+", "-", (label or "").strip().lower())
+        cleaned = cleaned.strip("-")
+        return cleaned or "uncategorized"
+
+    def _resolve_category_id(session, raw_value, amount: float | None) -> int | None:
+        if raw_value in (None, ""):
+            return None
+        if isinstance(raw_value, (int, float)):
+            try:
+                existing = session.get(Category, int(raw_value))
+                if existing:
+                    return existing.id
+            except Exception:
+                pass
+        label = str(raw_value).strip()
+        if not label:
+            return None
+        slug = _slugify(label)
+        existing = session.exec(select(Category).where(Category.slug == slug)).first()
+        if existing:
+            return existing.id
+
+        category_type = "income" if amount is not None and amount >= 0 else "expense"
+        category = Category(name=label, slug=slug, category_type=category_type)
+        session.add(category)
+        session.flush()
+        return category.id
+
+    def _resolve_account_id(session, raw_id, account_name) -> int | None:
+        source = account_name if account_name not in (None, "") else raw_id
+        if source in (None, ""):
+            return None
+
+        # Try numeric id first
+        try:
+            candidate_id = int(source)
+            existing = session.get(Account, candidate_id)
+            if existing:
+                return existing.id
+        except Exception:
+            pass
+
+        name = str(source).strip()
+        if not name:
+            return None
+        existing = session.exec(select(Account).where(Account.name == name)).first()
+        if existing:
+            return existing.id
+
+        account = Account(name=name, currency="USD")
+        session.add(account)
+        session.flush()
+        return account.id
+
+    def _persist_transactions(rows: list[dict]) -> int:
+        """Persist parsed transaction dicts into the database."""
+        created = 0
+        with ctx.session_factory() as session:
+            for tx in rows:
+                occurred_at = _parse_occurred_at(tx.get("occurred_at"))
+                amount = tx.get("amount")
+                if occurred_at is None or amount is None:
+                    continue
+
+                external = tx.get("external_id")
+                if external:
+                    existing = session.exec(
+                        select(Transaction).where(Transaction.external_id == str(external))
+                    ).first()
+                    if existing:
+                        continue
+
+                category_id = _resolve_category_id(session, tx.get("category_id"), amount)
+                account_id = _resolve_account_id(session, tx.get("account_id"), tx.get("account_name"))
+                currency = (tx.get("currency") or "USD")[:3]
+                memo = str(tx.get("memo") or "")
+
+                txn = Transaction(
+                    occurred_at=occurred_at,
+                    amount=float(amount),
+                    memo=memo,
+                    external_id=str(external) if external else None,
+                    category_id=category_id,
+                    account_id=account_id,
+                    currency=currency,
+                )
+                session.add(txn)
+                created += 1
+
+        return created
+
     def apply_filters(page_index: int = 1):
         nonlocal filtered, current_page, total_pages
         start_dt = parse_date(start_field.value or "")
@@ -108,7 +214,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         ft.DataCell(
                             ft.Text(
                                 f"${tx.amount:,.2f}",
-                                color=ft.colors.GREEN if tx.amount >= 0 else ft.colors.RED,
+                                color=ft.Colors.GREEN if tx.amount >= 0 else ft.Colors.RED,
                             )
                         ),
                         ft.DataCell(ft.Text(tx.currency)),
@@ -116,9 +222,9 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             ft.Row(
                                 [
                                     ft.IconButton(
-                                        icon=ft.icons.DELETE_OUTLINE,
+                                        icon=ft.Icons.DELETE_OUTLINE,
                                         tooltip="Delete",
-                                        icon_color=ft.colors.RED,
+                                        icon_color=ft.Colors.RED,
                                         on_click=lambda _, tx_id=tx.id: delete_transaction(tx_id),
                                     )
                                 ]
@@ -235,8 +341,27 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     def import_csv(_):
         # Simple text-path prompt to keep headless-safe; real UI would use FilePicker.
         path_field = ft.TextField(label="CSV path", width=320)
+        guidance = ft.Text(
+            "Headers: date, amount, memo, category, account, currency?, transaction_id?",
+            size=12,
+            color=ft.Colors.ON_SURFACE_VARIANT,
+        )
+        example = ft.Text(
+            "Example: 2024-01-14,-42.50,Coffee,Coffee,Everyday Checking,USD,tx-123",
+            size=11,
+            color=ft.Colors.ON_SURFACE_VARIANT,
+        )
+
+        def open_help(_):
+            dlg.open = False
+            page.update()
+            page.go("/help")
 
         def do_import(_):
+            csv_path = Path(path_field.value)
+            if not csv_path.exists():
+                show_error_dialog(page, "Import failed", "File not found.")
+                return
             try:
                 mapping = ColumnMapping(
                     amount="amount",
@@ -244,10 +369,12 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     memo="memo",
                     external_id="transaction_id",
                     category="category",
-                    account_id="account",
+                    account_name="account",
+                    currency="currency",
                 )
-                count = import_csv_file(csv_path=Path(path_field.value), mapping=mapping)
-                page.snack_bar = ft.SnackBar(content=ft.Text(f"Imported {count} rows"))
+                parsed = load_transactions_from_csv(csv_path=csv_path, mapping=mapping)
+                created = _persist_transactions(parsed)
+                page.snack_bar = ft.SnackBar(content=ft.Text(f"Imported {created} rows"))
                 page.snack_bar.open = True
                 apply_filters(current_page)
             except Exception as exc:
@@ -257,9 +384,10 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         dlg = ft.AlertDialog(
             title=ft.Text("Import CSV"),
-            content=path_field,
+            content=ft.Column([path_field, guidance, example], tight=True, spacing=8),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: setattr(dlg, "open", False)),
+                ft.TextButton("CSV Help", on_click=open_help),
                 ft.FilledButton("Import", on_click=do_import),
             ],
         )
@@ -274,7 +402,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             type_field,
             category_field,
             search_field,
-            ft.FilledButton("Apply", icon=ft.icons.FILTER_ALT, on_click=lambda _: apply_filters(1)),
+            ft.FilledButton("Apply", icon=ft.Icons.FILTER_ALT, on_click=lambda _: apply_filters(1)),
             ft.TextButton("Reset", on_click=reset_filters),
         ],
         run_spacing=8,
@@ -308,12 +436,13 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     pagination = ft.Row(
         [
-            ft.IconButton(icon=ft.icons.ARROW_BACK, on_click=lambda _: paginate(-1)),
+            ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda _: paginate(-1)),
             ft.Text("", ref=page_label),
-            ft.IconButton(icon=ft.icons.ARROW_FORWARD, on_click=lambda _: paginate(1)),
-            ft.FilledButton("Add transaction", icon=ft.icons.ADD, on_click=add_transaction_dialog),
+            ft.IconButton(icon=ft.Icons.ARROW_FORWARD, on_click=lambda _: paginate(1)),
+            ft.FilledButton("Add transaction", icon=ft.Icons.ADD, on_click=add_transaction_dialog),
             ft.TextButton("Import CSV", on_click=import_csv),
             ft.TextButton("Export CSV", on_click=export_csv),
+            ft.TextButton("CSV Help", on_click=lambda _: page.go("/help")),
         ],
         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
     )

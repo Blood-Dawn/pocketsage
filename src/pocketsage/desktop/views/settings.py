@@ -7,7 +7,7 @@ from pathlib import Path
 
 import flet as ft
 
-from ...blueprints.admin.tasks import run_demo_seed, run_export
+from ...services.admin_tasks import run_demo_seed, run_export
 from ..components import build_app_bar, build_main_layout
 
 if TYPE_CHECKING:
@@ -62,13 +62,13 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
     def export_data(_):
         try:
             exports_dir = ctx.config.DATA_DIR
-            path = run_export(Path(exports_dir))
+            path = run_export(Path(exports_dir), session_factory=ctx.session_factory)
             _notify(f"Export ready: {path}")
         except Exception as exc:
             _notify(f"Export failed: {exc}")
 
     def seed_demo(_):
-        run_demo_seed()
+        run_demo_seed(session_factory=ctx.session_factory)
         _notify("Demo data seeded")
 
     database_section = ft.Card(
@@ -79,7 +79,7 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.Container(height=16),
                     ft.Row(
                         [
-                            ft.Text("Database Path:", size=14, color=ft.colors.ON_SURFACE_VARIANT),
+                            ft.Text("Database Path:", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
                             ft.Text(str(db_path), size=14, selectable=True),
                         ],
                         spacing=8,
@@ -89,15 +89,15 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         [
                             ft.FilledButton(
                                 "Backup Database",
-                                icon=ft.icons.BACKUP,
+                                icon=ft.Icons.BACKUP,
                                 on_click=lambda _: _notify("Backup not yet implemented"),
                             ),
                             ft.FilledButton(
                                 "Export Data",
-                                icon=ft.icons.DOWNLOAD,
+                                icon=ft.Icons.DOWNLOAD,
                                 on_click=export_data,
                             ),
-                            ft.TextButton("Run Demo Seed", icon=ft.icons.DATA_THRESHOLDING, on_click=seed_demo),
+                            ft.TextButton("Run Demo Seed", icon=ft.Icons.DATA_THRESHOLDING, on_click=seed_demo),
                         ],
                         spacing=8,
                     ),
@@ -117,19 +117,19 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.Row(
                         [
                             ft.Icon(
-                                ft.icons.ACCOUNT_BALANCE_WALLET, size=48, color=ft.colors.PRIMARY
+                                ft.Icons.ACCOUNT_BALANCE_WALLET, size=48, color=ft.Colors.PRIMARY
                             ),
                             ft.Container(width=16),
                             ft.Column(
                                 [
                                     ft.Text("PocketSage", size=20, weight=ft.FontWeight.BOLD),
                                     ft.Text(
-                                        "Version 0.1.0", size=14, color=ft.colors.ON_SURFACE_VARIANT
+                                        "Version 0.1.0", size=14, color=ft.Colors.ON_SURFACE_VARIANT
                                     ),
                                     ft.Text(
                                         "Offline-first finance and habit tracking",
                                         size=14,
-                                        color=ft.colors.ON_SURFACE_VARIANT,
+                                        color=ft.Colors.ON_SURFACE_VARIANT,
                                     ),
                                 ],
                             ),
@@ -152,21 +152,26 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.Text(
                         "Manage your data and imports",
                         size=14,
-                        color=ft.colors.ON_SURFACE_VARIANT,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
                     ft.Container(height=16),
                     ft.Row(
                         [
                             ft.FilledButton(
                                 "Import Transactions",
-                                icon=ft.icons.UPLOAD_FILE,
-                                on_click=lambda _: page.snack_bar.open,
+                                icon=ft.Icons.UPLOAD_FILE,
+                                on_click=lambda _: (
+                                    _notify("Opening Ledger to run Import CSV...") or page.go("/ledger")
+                                ),
                             ),
                             ft.FilledButton(
                                 "Import Portfolio",
-                                icon=ft.icons.UPLOAD,
-                                on_click=lambda _: page.snack_bar.open,
+                                icon=ft.Icons.UPLOAD,
+                                on_click=lambda _: (
+                                    _notify("Portfolio import coming soon; see CSV help") or page.go("/help")
+                                ),
                             ),
+                            ft.TextButton("CSV Help", icon=ft.Icons.HELP_OUTLINE, on_click=lambda _: page.go("/help")),
                         ],
                         spacing=8,
                     ),

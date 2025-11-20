@@ -2,7 +2,7 @@
 
 ## Export Retention Policy
 
-PocketSage's admin export task writes zipped bundles to the instance's export directory and automatically manages disk usage. The task keeps only the **five** most recent export archives, as controlled by the `EXPORT_RETENTION = 5` constant in `pocketsage/blueprints/admin/tasks.py`. Older archives beyond that threshold are deleted each time a new export completes, so operators should retrieve or mirror any exports they need to retain before triggering additional runs.
+PocketSage's admin export task writes zipped bundles to the instance's export directory and automatically manages disk usage. The task keeps only the **five** most recent export archives, as controlled by the `EXPORT_RETENTION = 5` constant in `pocketsage/services/admin_tasks.py`. Older archives beyond that threshold are deleted each time a new export completes, so operators should retrieve or mirror any exports they need to retain before triggering additional runs.
 
 ### Adjusting the Retention Count
 

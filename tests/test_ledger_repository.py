@@ -1,71 +1,72 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
+from typing import Callable, Iterator
 
-from pocketsage.blueprints.ledger.repository import SQLModelLedgerRepository
+from pocketsage.infra.repositories import SQLModelTransactionRepository
 from pocketsage.models.transaction import Transaction
 from sqlmodel import Session, SQLModel, create_engine
 
 
-def build_session() -> Session:
+def build_session_factory() -> Callable[[], Iterator[Session]]:
     engine = create_engine("sqlite:///:memory:")
     SQLModel.metadata.create_all(engine)
-    return Session(engine)
+
+    @contextmanager
+    def session_context():
+        session = Session(engine, expire_on_commit=False)
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    return session_context
 
 
-def seed_transactions(session: Session, count: int = 5) -> None:
+def seed_transactions(factory: Callable[[], Iterator[Session]], count: int = 5) -> None:
     base = datetime(2024, 1, 1, tzinfo=timezone.utc)
-    for idx in range(count):
-        session.add(
-            Transaction(
-                occurred_at=base + timedelta(days=idx),
-                amount=float(idx),
-                memo=f"Item {idx}",
-                currency="USD",
+    with factory() as session:
+        for idx in range(count):
+            session.add(
+                Transaction(
+                    occurred_at=base + timedelta(days=idx),
+                    amount=float(idx),
+                    memo=f"Item {idx}",
+                    currency="USD",
+                )
             )
-        )
-    session.commit()
 
 
-def test_list_transactions_returns_total_and_page() -> None:
-    session = build_session()
-    try:
-        seed_transactions(session, count=5)
+def test_list_all_orders_by_occurred_at_desc() -> None:
+    session_factory = build_session_factory()
+    seed_transactions(session_factory, count=5)
 
-        repository = SQLModelLedgerRepository(session=session)
+    repository = SQLModelTransactionRepository(session_factory)
+    rows = repository.list_all(limit=3, offset=0)
 
-        rows, total = repository.list_transactions(filters={}, page=1, per_page=2)
-
-        assert total == 5
-        assert len(rows) == 2
-        assert rows[0].memo == "Item 4"
-        assert rows[1].memo == "Item 3"
-    finally:
-        session.close()
+    assert len(rows) == 3
+    assert [row.memo for row in rows] == ["Item 4", "Item 3", "Item 2"]
 
 
-def test_list_transactions_applies_filters() -> None:
-    session = build_session()
-    try:
-        seed_transactions(session, count=4)
+def test_search_filters_by_date_and_text() -> None:
+    session_factory = build_session_factory()
+    seed_transactions(session_factory, count=4)
 
-        repository = SQLModelLedgerRepository(session=session)
+    repository = SQLModelTransactionRepository(session_factory)
 
-        rows, total = repository.list_transactions(filters={"q": "Item 2"}, page=1, per_page=10)
-        assert total == 1
-        assert rows[0].memo == "Item 2"
+    rows = repository.search(text="Item 2")
+    assert len(rows) == 1
+    assert rows[0].memo == "Item 2"
 
-        rows, total = repository.list_transactions(
-            filters={"start": "2024-01-03"}, page=1, per_page=10
-        )
-        assert total == 2
-        assert rows[0].memo == "Item 3"
-        assert rows[1].memo == "Item 2"
+    rows = repository.search(start_date=datetime(2024, 1, 3, tzinfo=timezone.utc))
+    assert len(rows) == 1
+    assert rows[0].memo == "Item 3"
 
-        rows, total = repository.list_transactions(
-            filters={"end": "2024-01-02"}, page=1, per_page=10
-        )
-        assert total == 3
-        assert rows[-1].memo == "Item 0"
-    finally:
-        session.close()
+    rows = repository.search(end_date=datetime(2024, 1, 2, tzinfo=timezone.utc))
+    assert len(rows) == 3
+    assert rows[-1].memo == "Item 0"

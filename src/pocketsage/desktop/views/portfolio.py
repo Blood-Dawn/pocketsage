@@ -60,7 +60,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ],
                 ),
                 padding=12,
-                border=ft.border.only(bottom=ft.border.BorderSide(1, ft.colors.OUTLINE_VARIANT)),
+                border=ft.border.only(bottom=ft.border.BorderSide(1, ft.Colors.OUTLINE_VARIANT)),
             )
         )
 
@@ -69,7 +69,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
             content=ft.Column(
                 [
                     ft.Icon(
-                        ft.icons.TRENDING_UP_OUTLINED, size=64, color=ft.colors.ON_SURFACE_VARIANT
+                        ft.Icons.TRENDING_UP_OUTLINED, size=64, color=ft.Colors.ON_SURFACE_VARIANT
                     ),
                     ft.Container(height=16),
                     ft.Text(
@@ -81,7 +81,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.Text(
                         "Add your first holding to track your portfolio",
                         size=14,
-                        color=ft.colors.ON_SURFACE_VARIANT,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -121,7 +121,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             ],
                         ),
                         padding=12,
-                        bgcolor=ft.colors.SURFACE_VARIANT,
+                        bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
                     ),
                     ft.Column(holding_rows, spacing=0),
                 ],
@@ -138,16 +138,16 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 [
                     ft.Column(
                         [
-                            ft.Text("Total Holdings", size=14, color=ft.colors.ON_SURFACE_VARIANT),
+                            ft.Text("Total Holdings", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
                             ft.Text(str(len(holdings)), size=28, weight=ft.FontWeight.BOLD),
                             ft.Text(
-                                "Total Cost Basis", size=14, color=ft.colors.ON_SURFACE_VARIANT
+                                "Total Cost Basis", size=14, color=ft.Colors.ON_SURFACE_VARIANT
                             ),
                             ft.Text(
                                 f"${total_cost_basis:,.2f}",
                                 size=28,
                                 weight=ft.FontWeight.BOLD,
-                                color=ft.colors.PRIMARY,
+                                color=ft.Colors.PRIMARY,
                             ),
                         ],
                         spacing=4,

@@ -45,37 +45,37 @@ def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
     quick_actions: List[ft.Control] = [
         month_selector,
         ft.IconButton(
-            icon=ft.icons.ADD,
+            icon=ft.Icons.ADD,
             tooltip="Add transaction (Ctrl+N)",
             on_click=lambda _: _go("/ledger"),
         ),
         ft.IconButton(
-            icon=ft.icons.CHECK_CIRCLE,
+            icon=ft.Icons.CHECK_CIRCLE,
             tooltip="Add habit (Ctrl+Shift+H)",
             on_click=lambda _: _go("/habits"),
         ),
         ft.IconButton(
-            icon=ft.icons.DOWNLOAD,
+            icon=ft.Icons.DOWNLOAD,
             tooltip="Run demo seed",
-            on_click=lambda _: _run_seed(page),
+            on_click=lambda _: _run_seed(ctx, page),
         ),
     ]
 
     return ft.AppBar(
-        leading=ft.Icon(ft.icons.ACCOUNT_BALANCE_WALLET),
+        leading=ft.Icon(ft.Icons.ACCOUNT_BALANCE_WALLET),
         title=ft.Text(title, size=20, weight=ft.FontWeight.BOLD),
         center_title=False,
-        bgcolor=ft.colors.SURFACE_VARIANT,
+        bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
         actions=quick_actions,
     )
 
 
-def _run_seed(page: ft.Page) -> None:
+def _run_seed(ctx: AppContext, page: ft.Page) -> None:
     """Trigger demo seed and notify user."""
     try:
-        from pocketsage.blueprints.admin.tasks import run_demo_seed
+        from pocketsage.services.admin_tasks import run_demo_seed
 
-        run_demo_seed()
+        run_demo_seed(session_factory=ctx.session_factory)
         page.snack_bar = ft.SnackBar(content=ft.Text("Demo data seeded"))
     except Exception as exc:  # pragma: no cover - surface friendly error
         page.snack_bar = ft.SnackBar(content=ft.Text(f"Seed failed: {exc}"))
@@ -86,23 +86,6 @@ def _run_seed(page: ft.Page) -> None:
 def build_navigation_rail(page: ft.Page, current_route: str) -> ft.NavigationRail:
     """Build the navigation rail with route selection."""
 
-    def route_changed(e):
-        """Handle navigation selection."""
-        destinations = [
-            "/dashboard",
-            "/ledger",
-            "/budgets",
-            "/habits",
-            "/debts",
-            "/portfolio",
-            "/reports",
-            "/settings",
-        ]
-        selected_idx = e.control.selected_index
-        if 0 <= selected_idx < len(destinations):
-            page.go(destinations[selected_idx])
-
-    # Find current index
     routes = [
         "/dashboard",
         "/ledger",
@@ -111,8 +94,16 @@ def build_navigation_rail(page: ft.Page, current_route: str) -> ft.NavigationRai
         "/debts",
         "/portfolio",
         "/reports",
+        "/help",
         "/settings",
     ]
+
+    def route_changed(e):
+        """Handle navigation selection."""
+        selected_idx = e.control.selected_index
+        if 0 <= selected_idx < len(routes):
+            page.go(routes[selected_idx])
+
     try:
         selected_index = routes.index(current_route)
     except ValueError:
@@ -126,43 +117,48 @@ def build_navigation_rail(page: ft.Page, current_route: str) -> ft.NavigationRai
         group_alignment=-0.9,
         destinations=[
             ft.NavigationRailDestination(
-                icon=ft.icons.DASHBOARD_OUTLINED,
-                selected_icon=ft.icons.DASHBOARD,
+                icon=ft.Icons.DASHBOARD_OUTLINED,
+                selected_icon=ft.Icons.DASHBOARD,
                 label="Dashboard",
             ),
             ft.NavigationRailDestination(
-                icon=ft.icons.RECEIPT_LONG_OUTLINED,
-                selected_icon=ft.icons.RECEIPT_LONG,
+                icon=ft.Icons.RECEIPT_LONG_OUTLINED,
+                selected_icon=ft.Icons.RECEIPT_LONG,
                 label="Ledger",
             ),
             ft.NavigationRailDestination(
-                icon=ft.icons.ACCOUNT_BALANCE_OUTLINED,
-                selected_icon=ft.icons.ACCOUNT_BALANCE,
+                icon=ft.Icons.ACCOUNT_BALANCE_OUTLINED,
+                selected_icon=ft.Icons.ACCOUNT_BALANCE,
                 label="Budgets",
             ),
             ft.NavigationRailDestination(
-                icon=ft.icons.CHECK_CIRCLE_OUTLINE,
-                selected_icon=ft.icons.CHECK_CIRCLE,
+                icon=ft.Icons.CHECK_CIRCLE_OUTLINE,
+                selected_icon=ft.Icons.CHECK_CIRCLE,
                 label="Habits",
             ),
             ft.NavigationRailDestination(
-                icon=ft.icons.CREDIT_CARD_OUTLINED,
-                selected_icon=ft.icons.CREDIT_CARD,
+                icon=ft.Icons.CREDIT_CARD_OUTLINED,
+                selected_icon=ft.Icons.CREDIT_CARD,
                 label="Debts",
             ),
             ft.NavigationRailDestination(
-                icon=ft.icons.TRENDING_UP_OUTLINED,
-                selected_icon=ft.icons.TRENDING_UP,
+                icon=ft.Icons.TRENDING_UP_OUTLINED,
+                selected_icon=ft.Icons.TRENDING_UP,
                 label="Portfolio",
             ),
             ft.NavigationRailDestination(
-                icon=ft.icons.ASSESSMENT_OUTLINED,
-                selected_icon=ft.icons.ASSESSMENT,
+                icon=ft.Icons.ASSESSMENT_OUTLINED,
+                selected_icon=ft.Icons.ASSESSMENT,
                 label="Reports",
             ),
             ft.NavigationRailDestination(
-                icon=ft.icons.SETTINGS_OUTLINED,
-                selected_icon=ft.icons.SETTINGS,
+                icon=ft.Icons.HELP_OUTLINE,
+                selected_icon=ft.Icons.HELP,
+                label="Help",
+            ),
+            ft.NavigationRailDestination(
+                icon=ft.Icons.SETTINGS_OUTLINED,
+                selected_icon=ft.Icons.SETTINGS,
                 label="Settings",
             ),
         ],
@@ -190,7 +186,7 @@ def build_main_layout(
             spacing=12,
         ),
         padding=ft.padding.symmetric(vertical=8, horizontal=12),
-        bgcolor=ft.colors.SURFACE_VARIANT,
+        bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
     )
 
     return [

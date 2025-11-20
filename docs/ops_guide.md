@@ -2,14 +2,14 @@
 
 ## Secure export directory handling
 
-PocketSage writes CSV and PNG artifacts to a staging directory before bundling them into downloadable ZIP archives. The `_ensure_secure_directory` helper ensures this directory exists before writing:
+PocketSage writes CSV and PNG artifacts to a staging directory before bundling them into downloadable ZIP archives. The `_ensure_secure_directory` helper in `pocketsage/services/admin_tasks.py` ensures this directory exists before writing:
 
 * The function always creates the directory (and any missing parents) before exports begin.
-* After creation, it attempts to set permissions to `0700`, restricting read, write, and execute access to the PocketSage process owner only. 【F:pocketsage/pocketsage/blueprints/admin/tasks.py†L43-L55】
+* After creation, it attempts to set permissions to `0700`, restricting read, write, and execute access to the PocketSage process owner only.
 
 ### Platform caveats
 
-`os.chmod` is a best-effort operation. On Windows hosts or filesystems that do not support POSIX-style permission bits, `_ensure_secure_directory` silently ignores `NotImplementedError` and `PermissionError`. In those environments, administrators should fall back to the host's native access control mechanisms (e.g., NTFS ACLs) to restrict export directories. 【F:pocketsage/pocketsage/blueprints/admin/tasks.py†L51-L55】
+`os.chmod` is a best-effort operation. On Windows hosts or filesystems that do not support POSIX-style permission bits, `_ensure_secure_directory` silently ignores `NotImplementedError` and `PermissionError`. In those environments, administrators should fall back to the host's native access control mechanisms (e.g., NTFS ACLs) to restrict export directories.
 
 ## Troubleshooting export permission issues
 

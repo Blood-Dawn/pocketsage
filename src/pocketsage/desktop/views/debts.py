@@ -32,12 +32,12 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 content=ft.Container(
                     content=ft.Column(
                         [
-                            ft.Text("Total Debt", size=14, color=ft.colors.ON_SURFACE_VARIANT),
+                            ft.Text("Total Debt", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
                             ft.Text(
                                 f"${total_debt:,.2f}",
                                 size=28,
                                 weight=ft.FontWeight.BOLD,
-                                color=ft.colors.RED,
+                                color=ft.Colors.RED,
                             ),
                         ],
                     ),
@@ -49,7 +49,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 content=ft.Container(
                     content=ft.Column(
                         [
-                            ft.Text("Weighted APR", size=14, color=ft.colors.ON_SURFACE_VARIANT),
+                            ft.Text("Weighted APR", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
                             ft.Text(f"{weighted_apr:.2f}%", size=28, weight=ft.FontWeight.BOLD),
                         ],
                     ),
@@ -61,7 +61,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 content=ft.Container(
                     content=ft.Column(
                         [
-                            ft.Text("Min. Payment", size=14, color=ft.colors.ON_SURFACE_VARIANT),
+                            ft.Text("Min. Payment", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
                             ft.Text(
                                 f"${total_min_payment:,.2f}", size=28, weight=ft.FontWeight.BOLD
                             ),
@@ -102,7 +102,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     schedule_rows, payoff_date = run_projection(strategy_state["value"])
     payoff_text = ft.Text(
-        f"Projected payoff: {payoff_date or 'N/A'}", size=14, color=ft.colors.ON_SURFACE_VARIANT
+        f"Projected payoff: {payoff_date or 'N/A'}", size=14, color=ft.Colors.ON_SURFACE_VARIANT
     )
 
     # Liability list
@@ -176,7 +176,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.Card(content=ft.Container(content=table, padding=12), expand=True),
             ft.Text(
                 "Strategy toggle uses the debt payoff service (snowball/avalanche) to project payoff.",
-                color=ft.colors.ON_SURFACE_VARIANT,
+                color=ft.Colors.ON_SURFACE_VARIANT,
                 size=12,
             ),
         ],

@@ -6,7 +6,7 @@ logs or interactive debugging sessions.
 
 | Symptom | Checks | Notes |
 | --- | --- | --- |
-| SQLCipher connection fails or the SQLite URL is treated as a file path instead of a URI | 1. Confirm `POCKETSAGE_USE_SQLCIPHER=true` in the environment.<br>2. Inspect `app.config["SQLALCHEMY_ENGINE_OPTIONS"]` or instantiate `BaseConfig().sqlalchemy_engine_options()` during startup.<br>3. Ensure your SQLCipher key material is available via `POCKETSAGE_SQLCIPHER_KEY` (once the handshake TODO is implemented). | `BaseConfig.sqlalchemy_engine_options()` flips `connect_args["uri"]` to `True` when SQLCipher mode is enabled so SQLAlchemy treats the database URL (with cipher query params) as a URI. The method also exposes a top-level `execution_options` mapping that future SQLCipher pragma handshakes will populate with key negotiation details without polluting the SQLite `connect_args`. |
+| SQLCipher connection fails or the SQLite URL is treated as a file path instead of a URI | 1. Confirm `POCKETSAGE_USE_SQLCIPHER=true` in the environment.<br>2. Instantiate `BaseConfig().sqlalchemy_engine_options()` during startup to verify `uri=True`.<br>3. Ensure your SQLCipher key material is available via `POCKETSAGE_SQLCIPHER_KEY` (once the handshake TODO is implemented). | `BaseConfig.sqlalchemy_engine_options()` flips `connect_args["uri"]` to `True` when SQLCipher mode is enabled so SQLAlchemy treats the database URL (with cipher query params) as a URI. The method also exposes a top-level `execution_options` mapping that future SQLCipher pragma handshakes will populate with key negotiation details without polluting the SQLite `connect_args`. |
 
 ## SQLCipher Engine Option Details
 
@@ -19,23 +19,15 @@ important adjustments:
 
 ## Verifying at Runtime
 
-To confirm these settings while the app is running:
+To confirm these settings while the desktop app (or tests) are running:
 
-- Add a one-time log statement in your application factory or extension setup:
+- Add a one-time log statement during startup:
   ```python
-  from flask import current_app
+  from pocketsage.config import BaseConfig
 
-  current_app.logger.info("Engine options: %s", current_app.config["SQLALCHEMY_ENGINE_OPTIONS"])
+  cfg = BaseConfig()
+  print("Engine options:", cfg.sqlalchemy_engine_options())
   ```
-  With debug logging enabled, the entry should show `{"connect_args": {"check_same_thread": False, "uri": True}, "execution_options": {}}` after SQLCipher is toggled on.
-- Launch `flask shell` (or `python -m flask shell`) and inspect the config interactively:
-  ```python
-  from pocketsage import create_app
-
-  app = create_app()
-  app.config["SQLALCHEMY_ENGINE_OPTIONS"]
-  app.config["POCKETSAGE_CONFIG"].sqlalchemy_engine_options()
-  ```
-  Toggling the environment variable before the shell session lets you verify the `connect_args` adjustments without restarting your development server.
+  With SQLCipher toggled on, the output should include `{"connect_args": {"check_same_thread": False, "uri": True}, "execution_options": {}}`.
 
 These quick checks keep the SQLCipher pathway verifiable even before the full key exchange TODOs are implemented.

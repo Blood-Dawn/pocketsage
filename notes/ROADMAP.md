@@ -7,7 +7,7 @@
 
 ## Phase 1 - Unblock ORM & Data Model
 - [ ] Fix Holding<->Account relationship mapping and add explicit `__tablename__` where missing.
-- [ ] Standardize DB bootstrap (shared engine/session options) for Flask, desktop, and tests.
+- [ ] Standardize DB bootstrap (shared engine/session options) for desktop and tests.
 - [ ] Clarify money field behavior/tolerances; document float usage.
 - [ ] Remove or align legacy/duplicate models and wiring.
 
@@ -20,13 +20,13 @@
 ## Phase 3 - Repos, Import/Export, Seeding
 - [ ] Harden repositories (pagination, filters, idempotent upsert) to align with tests.
 - [ ] Build CSV import/export persistence path for transactions/holdings with idempotency.
-- [ ] Create shared fixtures/seed data for web/desktop/tests across budgets/habits/debts/portfolio.
+- [ ] Create shared fixtures/seed data for desktop/tests across budgets/habits/debts/portfolio.
 - [ ] Make demo seed idempotent and map to updated schema.
 
 ## Phase 4 - Admin & Backups
 - [ ] Make export/backup jobs succeed (zip, retention, download) with regression tests.
 - [ ] Add restore path and safe filesystem handling under `instance/`.
-- [ ] Wire CLI/Flask endpoints and desktop settings actions to backup/seed/restore with error handling.
+- [ ] Wire desktop settings actions and CLI/script helpers to backup/seed/restore with error handling.
 
 ## Phase 5 - Desktop Shell & Plumbing
 - [ ] Strengthen `AppContext` (shared session factory, error handling, theming, selectors).

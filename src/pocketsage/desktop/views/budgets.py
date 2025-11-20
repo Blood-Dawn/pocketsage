@@ -56,7 +56,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     content=progress,
                     padding=16,
                     border=ft.border.only(
-                        bottom=ft.border.BorderSide(1, ft.colors.OUTLINE_VARIANT)
+                        bottom=ft.border.BorderSide(1, ft.Colors.OUTLINE_VARIANT)
                     ),
                 )
             )
@@ -75,7 +75,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                         ft.Text(
                                             "Total Budgeted",
                                             size=14,
-                                            color=ft.colors.ON_SURFACE_VARIANT,
+                                            color=ft.Colors.ON_SURFACE_VARIANT,
                                         ),
                                         ft.Text(
                                             f"${total_planned:,.2f}",
@@ -89,29 +89,29 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                         ft.Text(
                                             "Total Spent",
                                             size=14,
-                                            color=ft.colors.ON_SURFACE_VARIANT,
+                                            color=ft.Colors.ON_SURFACE_VARIANT,
                                         ),
                                         ft.Text(
                                             f"${total_spent:,.2f}",
                                             size=24,
                                             weight=ft.FontWeight.BOLD,
-                                            color=ft.colors.ORANGE,
+                                            color=ft.Colors.ORANGE,
                                         ),
                                     ],
                                 ),
                                 ft.Column(
                                     [
                                         ft.Text(
-                                            "Remaining", size=14, color=ft.colors.ON_SURFACE_VARIANT
+                                            "Remaining", size=14, color=ft.Colors.ON_SURFACE_VARIANT
                                         ),
                                         ft.Text(
                                             f"${total_planned - total_spent:,.2f}",
                                             size=24,
                                             weight=ft.FontWeight.BOLD,
                                             color=(
-                                                ft.colors.GREEN
+                                                ft.Colors.GREEN
                                                 if total_spent <= total_planned
-                                                else ft.colors.RED
+                                                else ft.Colors.RED
                                             ),
                                         ),
                                     ],
@@ -144,9 +144,9 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
             content=ft.Column(
                 [
                     ft.Icon(
-                        ft.icons.ACCOUNT_BALANCE_OUTLINED,
+                        ft.Icons.ACCOUNT_BALANCE_OUTLINED,
                         size=64,
-                        color=ft.colors.ON_SURFACE_VARIANT,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
                     ft.Container(height=16),
                     ft.Text(
@@ -158,12 +158,12 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.Text(
                         "Create a budget to track your spending against your goals",
                         size=14,
-                        color=ft.colors.ON_SURFACE_VARIANT,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
                     ft.Container(height=24),
                     ft.FilledButton(
                         "Create Budget",
-                        icon=ft.icons.ADD,
+                        icon=ft.Icons.ADD,
                         on_click=lambda _: None,  # TODO: Implement budget creation
                     ),
                 ],
@@ -181,7 +181,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.Text(
                         f"{today.strftime('%B %Y')}",
                         size=18,
-                        color=ft.colors.ON_SURFACE_VARIANT,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,

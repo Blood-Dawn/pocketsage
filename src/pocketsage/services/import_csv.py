@@ -110,12 +110,22 @@ def upsert_transactions(*, rows: Iterable[Mapping], mapping: ColumnMapping) -> l
 def import_csv_file(*, csv_path: Path, mapping: ColumnMapping) -> int:
     """Parse the file, create domain dicts, and return number of parsed rows."""
 
-    frame = normalize_frame(file_path=csv_path)
+    transactions = load_transactions_from_csv(csv_path=csv_path, mapping=mapping)
+    # Caller will persist; return count of parsed transaction dicts
+    return len(transactions)
+
+
+def load_transactions_from_csv(
+    *,
+    csv_path: Path,
+    mapping: ColumnMapping,
+    encoding: str = "utf-8",
+) -> list[dict]:
+    """Load CSV rows and return parsed transaction dicts without persisting them."""
+
+    frame = normalize_frame(file_path=csv_path, encoding=encoding)
 
     # Build rows as dicts using lowercase column names
     rows: list[dict] = [{c: r[c] for c in frame.columns} for _, r in frame.iterrows()]
 
-    transactions = upsert_transactions(rows=rows, mapping=mapping)
-
-    # Caller will persist; return count of parsed transaction dicts
-    return len(transactions)
+    return upsert_transactions(rows=rows, mapping=mapping)

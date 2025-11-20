@@ -1,19 +1,17 @@
 # PocketSage Architecture Guide
 
 ## Overview
-- Flask 3.0 app-factory pattern (`pocketsage.create_app`).
-- Blueprints per domain (`ledger`, `habits`, `liabilities`, `portfolio`, `admin`).
-- Persistence via SQLModel on SQLite/SQLCipher toggle.
-- Services layer encapsulates business logic contracts with TODO markers for teammates.
+- Desktop-only Flet shell (`run_desktop.py` -> `desktop/app.py`) with a router and `AppContext` for dependencies.
+- Persistence via SQLModel on SQLite with a SQLCipher-ready toggle exposed by `BaseConfig`.
+- Services layer encapsulates business logic and admin utilities (`services/admin_tasks.py` for seeding/exports) with TODO markers for teammates.
 
 ## Application Flow
-1. `create_app` loads configuration, registers blueprints, and initializes the database engine.
-2. `extensions.init_db` wires SQLModel session handling and creates tables (pending migrations TODO).
-3. Blueprints use repository protocols to decouple views from persistence.
-4. Services provide math/reporting helpers (budgeting, debts, CSV import, watcher, reporting).
+1. `desktop/context.py` builds configuration, database engine (`infra/database.py`), initializes tables, and creates a session factory.
+2. The `AppContext` wires SQLModel repositories from `infra/repositories` and shares UI state (theme, selected account/month) with Flet views.
+3. Views in `desktop/views` consume repositories/services directly; admin/export actions call `services/admin_tasks.py` helpers.
 
 ## Configuration Strategy
-- `.env` variables prefixed with `POCKETSAGE_` feed `BaseConfig`.
+- `.env` variables prefixed with `POCKETSAGE_` feed `BaseConfig` (data dir, DB URL override, SQLCipher flags).
 - `USE_SQLCIPHER` flip changes database URL builder (TODO: implement pragma handshake).
 - Development defaults to local SQLite file under `instance/`.
 
@@ -24,23 +22,16 @@
 - `Liability` standalone table (future joins to scheduled payments, TODO).
 - `AppSetting` key/value store for runtime preferences.
 
-## Rendering & UI
-- Templates share `base.html` with `_nav` and `_flash` partials.
-- Each blueprint folder holds its own view templates with TODO scaffolding.
-- Static assets live under `pocketsage/static/` (CSS/JS placeholder).
+## UI Layer
+- Flet views per area (dashboard, ledger, budgets, habits, debts, portfolio, reports, settings) with shared components in `desktop/components` and navigation in `desktop/navigation.py`.
 - Charts planned via Matplotlib generating PNGs (TODO in `services/reports`).
 
 ## Packaging
-- PyInstaller spec (`PocketSage.spec`) bundles CLI app, templates, and static assets.
-- `make package` runs `pyinstaller PocketSage.spec --clean` (TODO: refine hidden imports & bundling).
-
-### Packaging checklist
-- [ ] Confirm `PocketSage.spec` exists at the repository root before packaging.
-  - If the file is missing, restore it from version control or regenerate with `pyinstaller run.py --name PocketSage --specpath .`.
-- [ ] Run `make package` to build the binary with PyInstaller.
+- Desktop binaries are produced with `flet pack run_desktop.py` (see Makefile `package` target or `scripts/build_desktop.*`).
+- Outputs land in `dist/` (`PocketSage.exe` on Windows, `.app` on macOS, binary on Linux).
 
 ## TODO Highlights
-- Replace repository protocols with SQLModel implementations.
-- Wire forms using WTForms or alternative validation.
+- Fix Holding <-> Account mapper error and money precision risks.
+- Fill budgeting service/calculations and debt payoff correctness.
 - Implement CSV idempotent upsert and optional watchdog observer.
-- Add migrations, CLI commands, and error handling middleware.
+- Add richer desktop CRUD flows, charts, and report exports.

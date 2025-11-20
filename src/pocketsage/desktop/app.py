@@ -13,6 +13,7 @@ from .views.habits import build_habits_view
 from .views.ledger import build_ledger_view
 from .views.portfolio import build_portfolio_view
 from .views.reports import build_reports_view
+from .views.help import build_help_view
 from .views.settings import build_settings_view
 
 
@@ -37,12 +38,14 @@ def main(page: ft.Page) -> None:
 
     # Register routes
     router.register("/dashboard", build_dashboard_view)
+    router.register("/", build_dashboard_view)
     router.register("/ledger", build_ledger_view)
     router.register("/budgets", build_budgets_view)
     router.register("/habits", build_habits_view)
     router.register("/debts", build_debts_view)
     router.register("/portfolio", build_portfolio_view)
     router.register("/reports", build_reports_view)
+    router.register("/help", build_help_view)
     router.register("/settings", build_settings_view)
 
     # Set up event handlers

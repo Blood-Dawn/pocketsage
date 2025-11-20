@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import flet as ft
-
 from pathlib import Path
+
+import flet as ft
 
 from ..components import build_app_bar, build_main_layout, empty_state
 from ..context import AppContext
-from ...blueprints.admin.tasks import run_export
+from ...services.admin_tasks import run_export
 
 
 def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
@@ -22,7 +22,7 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
     def export_all(_):
         try:
             exports_dir = Path(ctx.config.DATA_DIR) / "exports"
-            path = run_export(exports_dir)
+            path = run_export(exports_dir, session_factory=ctx.session_factory)
             notify(f"Export ready: {path}")
         except Exception as exc:
             notify(f"Export failed: {exc}")
@@ -57,7 +57,7 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
     content = ft.Column(
         [
             ft.Text("Reports & Exports", size=24, weight=ft.FontWeight.BOLD),
-            ft.Text("Generate CSVs/ZIPs for archives or sharing.", color=ft.colors.ON_SURFACE_VARIANT),
+            ft.Text("Generate CSVs/ZIPs for archives or sharing.", color=ft.Colors.ON_SURFACE_VARIANT),
             ft.Container(height=12),
             cards,
             ft.Container(height=16),
@@ -87,9 +87,9 @@ def _report_card(title: str, description: str, on_click):
                 content=ft.Column(
                     [
                         ft.Text(title, size=18, weight=ft.FontWeight.BOLD),
-                        ft.Text(description, color=ft.colors.ON_SURFACE_VARIANT, size=13),
+                        ft.Text(description, color=ft.Colors.ON_SURFACE_VARIANT, size=13),
                         ft.Container(height=8),
-                        ft.FilledTonalButton("Download", icon=ft.icons.DOWNLOAD, on_click=on_click),
+                        ft.FilledTonalButton("Download", icon=ft.Icons.DOWNLOAD, on_click=on_click),
                     ]
                 ),
             )

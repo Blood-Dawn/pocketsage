@@ -1,16 +1,15 @@
 # QA Roadmap
 
-## Route Rendering Coverage
+## Navigation Coverage
 
-**Goal:** Restore the `test_routes_render` smoke test once the UI templates are available so navigation regressions are caught automatically.
+**Goal:** Add a `test_desktop_routes` smoke test once the Flet views stabilize so navigation regressions are caught automatically.
 
-**Acceptance Criteria for Re-enabling `test_routes_render`:**
-- Shared base layout and section-specific templates exist for each tracked route (`/`, `/ledger/`, `/ledger/new`, `/habits/`, `/habits/new`, `/liabilities/`, `/liabilities/new`, `/portfolio/`, `/portfolio/upload`, `/admin/`).
-- Flask view functions render the correct template without raising `TemplateNotFound` or other server errors.
-- Smoke test responses return HTTP 200 with non-empty HTML bodies that include a `<title>` element describing the page.
-- Navigation links in the rendered templates allow users to reach the listed routes without manual URL entry (verified via template inspection or integration test).
-- Skip marker in `tests/test_routes_smoke.py` removed and test added back into the continuous integration workflow.
+**Acceptance Criteria:**
+- Each desktop route (`/dashboard`, `/ledger`, `/budgets`, `/habits`, `/debts`, `/portfolio`, `/reports`, `/settings`) builds without raising exceptions.
+- Navigation rail selections update the current view and route.
+- Settings/Reports actions (demo seed/export) handle success/failure without crashing.
+- Skip markers for desktop smoke tests removed and test added back into the continuous integration workflow.
 
 **Next Steps:**
-- Coordinate with the frontend squad delivering the templates to ensure selectors and copy are stable before updating assertions.
-- Add lightweight assertions (e.g., `contains` checks on key headings) once templates are available to increase coverage without introducing fragility.
+- Coordinate with the desktop squad to stabilize headings/copy before updating assertions.
+- Add lightweight assertions (e.g., presence of key headings/controls) once views are fleshed out to increase coverage without introducing fragility.

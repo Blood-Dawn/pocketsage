@@ -45,8 +45,8 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 content=build_stat_card(
                     "Net Worth",
                     f"${net_worth:,.2f}",
-                    icon=ft.icons.ACCOUNT_BALANCE_WALLET,
-                    color=ft.colors.PRIMARY,
+                    icon=ft.Icons.ACCOUNT_BALANCE_WALLET,
+                    color=ft.Colors.PRIMARY,
                 ),
                 expand=True,
             ),
@@ -54,8 +54,8 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 content=build_stat_card(
                     "This Month's Income",
                     f"${income:,.2f}",
-                    icon=ft.icons.TRENDING_UP,
-                    color=ft.colors.GREEN,
+                    icon=ft.Icons.TRENDING_UP,
+                    color=ft.Colors.GREEN,
                 ),
                 expand=True,
             ),
@@ -63,8 +63,8 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 content=build_stat_card(
                     "This Month's Expenses",
                     f"${expenses:,.2f}",
-                    icon=ft.icons.TRENDING_DOWN,
-                    color=ft.colors.ORANGE,
+                    icon=ft.Icons.TRENDING_DOWN,
+                    color=ft.Colors.ORANGE,
                 ),
                 expand=True,
             ),
@@ -72,8 +72,8 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 content=build_stat_card(
                     "Net This Month",
                     f"${net:,.2f}",
-                    icon=ft.icons.MONETIZATION_ON,
-                    color=ft.colors.GREEN if net >= 0 else ft.colors.RED,
+                    icon=ft.Icons.MONETIZATION_ON,
+                    color=ft.Colors.GREEN if net >= 0 else ft.Colors.RED,
                 ),
                 expand=True,
             ),
@@ -88,8 +88,8 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 content=build_stat_card(
                     "Total Debt",
                     f"${total_debt:,.2f}",
-                    icon=ft.icons.CREDIT_CARD,
-                    color=ft.colors.RED if total_debt > 0 else ft.colors.GREEN,
+                    icon=ft.Icons.CREDIT_CARD,
+                    color=ft.Colors.RED if total_debt > 0 else ft.Colors.GREEN,
                     subtitle=f"{len(ctx.liability_repo.list_active())} active liabilities",
                 ),
                 expand=True,
@@ -98,8 +98,8 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 content=build_stat_card(
                     "Active Habits",
                     str(habit_count),
-                    icon=ft.icons.CHECK_CIRCLE,
-                    color=ft.colors.BLUE,
+                    icon=ft.Icons.CHECK_CIRCLE,
+                    color=ft.Colors.BLUE,
                     subtitle="Track your daily progress",
                 ),
                 expand=True,
@@ -108,8 +108,8 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 content=build_stat_card(
                     "Accounts",
                     str(len(accounts)),
-                    icon=ft.icons.ACCOUNT_BALANCE,
-                    color=ft.colors.PURPLE,
+                    icon=ft.Icons.ACCOUNT_BALANCE,
+                    color=ft.Colors.PURPLE,
                     subtitle="Linked accounts",
                 ),
                 expand=True,
@@ -123,7 +123,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
     txn_rows = []
 
     for txn in recent_txns:
-        amount_color = ft.colors.GREEN if txn.amount > 0 else ft.colors.RED
+        amount_color = ft.Colors.GREEN if txn.amount > 0 else ft.Colors.RED
         txn_rows.append(
             ft.Container(
                 content=ft.Row(
@@ -150,7 +150,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 ),
                 padding=10,
-                border=ft.border.only(bottom=ft.border.BorderSide(1, ft.colors.OUTLINE_VARIANT)),
+                border=ft.border.only(bottom=ft.border.BorderSide(1, ft.Colors.OUTLINE_VARIANT)),
             )
         )
 
@@ -159,7 +159,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.Container(
                 content=ft.Text(
                     "No recent transactions",
-                    color=ft.colors.ON_SURFACE_VARIANT,
+                    color=ft.Colors.ON_SURFACE_VARIANT,
                 ),
                 padding=20,
             )
@@ -195,17 +195,17 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         [
                             ft.FilledButton(
                                 "Add Transaction",
-                                icon=ft.icons.ADD,
+                                icon=ft.Icons.ADD,
                                 on_click=lambda _: page.go("/ledger"),
                             ),
                             ft.FilledButton(
                                 "Track Habit",
-                                icon=ft.icons.CHECK_CIRCLE_OUTLINE,
+                                icon=ft.Icons.CHECK_CIRCLE_OUTLINE,
                                 on_click=lambda _: page.go("/habits"),
                             ),
                             ft.FilledButton(
                                 "View Budget",
-                                icon=ft.icons.ACCOUNT_BALANCE,
+                                icon=ft.Icons.ACCOUNT_BALANCE,
                                 on_click=lambda _: page.go("/budgets"),
                             ),
                         ],
@@ -222,26 +222,39 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
     month_start = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     next_month = (month_start + timedelta(days=32)).replace(day=1)
     month_txs = ctx.transaction_repo.filter_by_date_range(month_start, next_month)
-    spending_png = spending_chart_png(month_txs)
+    spending_png = None
+    try:
+        spending_png = spending_chart_png(month_txs)
+    except Exception:
+        spending_png = None
 
     # Cashflow trend: pull a wider slice
     all_recent = ctx.transaction_repo.list_all(limit=500)
-    cashflow_png = cashflow_trend_png(all_recent, months=6)
+    try:
+        cashflow_png = cashflow_trend_png(all_recent, months=6)
+    except Exception:
+        cashflow_png = None
 
     charts_row = ft.ResponsiveRow(
         controls=[
             ft.Container(
                 content=ft.Column(
-                    [ft.Text("Spending by Category (This Month)", weight=ft.FontWeight.BOLD), ft.Image(src=str(spending_png), height=260)],
-                    spacing=8,
+                        [
+                            ft.Text("Spending by Category (This Month)", weight=ft.FontWeight.BOLD),
+                            ft.Image(src=str(spending_png), height=260) if spending_png else ft.Text("Chart unavailable"),
+                        ],
+                        spacing=8,
+                    ),
+                    col={"sm": 12, "md": 6},
                 ),
-                col={"sm": 12, "md": 6},
-            ),
-            ft.Container(
-                content=ft.Column(
-                    [ft.Text("Cashflow (Last 6 months)", weight=ft.FontWeight.BOLD), ft.Image(src=str(cashflow_png), height=260)],
-                    spacing=8,
-                ),
+                ft.Container(
+                    content=ft.Column(
+                        [
+                            ft.Text("Cashflow (Last 6 months)", weight=ft.FontWeight.BOLD),
+                            ft.Image(src=str(cashflow_png), height=260) if cashflow_png else ft.Text("Chart unavailable"),
+                        ],
+                        spacing=8,
+                    ),
                 col={"sm": 12, "md": 6},
             ),
         ],
@@ -269,7 +282,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 )
             )
     if not upcoming_rows:
-        upcoming_rows.append(ft.Text("No payments due in next 30 days.", color=ft.colors.ON_SURFACE_VARIANT))
+        upcoming_rows.append(ft.Text("No payments due in next 30 days.", color=ft.Colors.ON_SURFACE_VARIANT))
 
     # Today's habits quick toggle
     today_habit_rows = []
@@ -297,7 +310,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
             )
         )
     if not today_habit_rows:
-        today_habit_rows.append(ft.Text("No active habits yet.", color=ft.colors.ON_SURFACE_VARIANT))
+        today_habit_rows.append(ft.Text("No active habits yet.", color=ft.Colors.ON_SURFACE_VARIANT))
 
     secondary_stats = ft.ResponsiveRow(
         controls=[

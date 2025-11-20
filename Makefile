@@ -1,6 +1,5 @@
 PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
-FLASK_APP ?= pocketsage
 ENV ?= .venv
 
 .PHONY: setup dev test lint package demo-seed
@@ -12,8 +11,7 @@ setup:
 	# TODO(@devops): add SQLCipher installation guidance per platform.
 
 dev:
-	FLASK_ENV=development $(PYTHON) run.py
-	# TODO(@devops): consider `flask --app pocketsage --debug run` once CLI wiring exists.
+	$(PYTHON) run_desktop.py
 
 test:
 	pytest
@@ -24,14 +22,12 @@ lint:
 	black --check .
 	# TODO(@devops): integrate mypy once models stabilized.
 
-
 package:
-	@if [ ! -f PocketSage.spec ]; then \
-		echo "PocketSage.spec is missing. Restore it from version control or regenerate with 'pyinstaller run.py --name PocketSage --specpath .'"; \
-		exit 1; \
-	fi
-	pyinstaller PocketSage.spec --clean
-	# TODO(@release): customize spec and add post-build smoke test.
+	flet pack run_desktop.py \
+		--name "PocketSage" \
+		--product-name "PocketSage" \
+		--product-version "0.1.0" \
+		--file-description "Offline Finance & Habit Tracker"
 
 demo-seed:
 	$(PYTHON) scripts/seed_demo.py

@@ -64,7 +64,7 @@ def build_stat_card(
         icon_widget = ft.Icon(
             icon,
             size=40,
-            color=color or ft.colors.PRIMARY,
+            color=color or ft.Colors.PRIMARY,
         )
 
     value_text = ft.Text(
@@ -77,7 +77,7 @@ def build_stat_card(
     label_text = ft.Text(
         label,
         size=14,
-        color=ft.colors.ON_SURFACE_VARIANT,
+        color=ft.Colors.ON_SURFACE_VARIANT,
     )
 
     content_column = ft.Column(
@@ -88,7 +88,7 @@ def build_stat_card(
 
     if subtitle:
         content_column.controls.append(
-            ft.Text(subtitle, size=12, color=ft.colors.ON_SURFACE_VARIANT)
+            ft.Text(subtitle, size=12, color=ft.Colors.ON_SURFACE_VARIANT)
         )
 
     if icon_widget:
@@ -130,11 +130,11 @@ def build_progress_bar(
     bar_color = color
     if bar_color is None:
         if percentage > 100:
-            bar_color = ft.colors.ERROR
+            bar_color = ft.Colors.ERROR
         elif percentage > 90:
-            bar_color = ft.colors.WARNING
+            bar_color = ft.Colors.WARNING
         else:
-            bar_color = ft.colors.PRIMARY
+            bar_color = ft.Colors.PRIMARY
 
     label_row = ft.Row(
         [
@@ -142,7 +142,7 @@ def build_progress_bar(
             ft.Text(
                 f"${current:,.2f} / ${maximum:,.2f}",
                 size=14,
-                color=ft.colors.ON_SURFACE_VARIANT,
+                color=ft.Colors.ON_SURFACE_VARIANT,
             ),
         ],
         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -151,7 +151,7 @@ def build_progress_bar(
     progress_bar = ft.ProgressBar(
         value=min(progress_value, 1.0),
         color=bar_color,
-        bgcolor=ft.colors.SURFACE_VARIANT,
+        bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
         height=8,
     )
 
@@ -177,8 +177,8 @@ def empty_state(message: str) -> ft.Container:
     return ft.Container(
         content=ft.Column(
             [
-                ft.Icon(ft.icons.INBOX, size=40, color=ft.colors.ON_SURFACE_VARIANT),
-                ft.Text(message, color=ft.colors.ON_SURFACE_VARIANT),
+                ft.Icon(ft.Icons.INBOX, size=40, color=ft.Colors.ON_SURFACE_VARIANT),
+                ft.Text(message, color=ft.Colors.ON_SURFACE_VARIANT),
             ],
             alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,

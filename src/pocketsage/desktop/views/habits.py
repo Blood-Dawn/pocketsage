@@ -33,7 +33,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         day = start
         while day <= today:
             is_done = day in completed
-            color = ft.colors.GREEN if is_done else ft.colors.SURFACE_VARIANT
+            color = ft.Colors.GREEN if is_done else ft.Colors.SURFACE_CONTAINER_HIGHEST
             cells.append(
                 ft.Container(
                     width=20,
@@ -87,8 +87,8 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 ft.Column(
                                     [
                                         ft.Text(habit.name, size=16, weight=ft.FontWeight.BOLD),
-                                        ft.Text(habit.description or "No description", size=12, color=ft.colors.ON_SURFACE_VARIANT),
-                                        ft.Text(f"Current: {current_streak} • Longest: {longest_streak}", size=12, color=ft.colors.ON_SURFACE_VARIANT),
+                                        ft.Text(habit.description or "No description", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+                                        ft.Text(f"Current: {current_streak} • Longest: {longest_streak}", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
                                     ],
                                     expand=True,
                                 ),
@@ -106,9 +106,9 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 ft.Container(
                     content=ft.Column(
                         [
-                            ft.Icon(ft.icons.CHECK_CIRCLE_OUTLINE, size=64, color=ft.colors.ON_SURFACE_VARIANT),
+                            ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, size=64, color=ft.Colors.ON_SURFACE_VARIANT),
                             ft.Text("No active habits", size=20, weight=ft.FontWeight.BOLD),
-                            ft.Text("Create your first habit to start tracking", color=ft.colors.ON_SURFACE_VARIANT),
+                            ft.Text("Create your first habit to start tracking", color=ft.Colors.ON_SURFACE_VARIANT),
                         ],
                         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
@@ -157,7 +157,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.Row(
                         [
                             ft.Text("Habits", size=24, weight=ft.FontWeight.BOLD),
-                            ft.Text(date.today().strftime("%A, %B %d, %Y"), color=ft.colors.ON_SURFACE_VARIANT),
+                            ft.Text(date.today().strftime("%A, %B %d, %Y"), color=ft.Colors.ON_SURFACE_VARIANT),
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     ),

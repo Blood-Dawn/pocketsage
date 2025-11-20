@@ -8,31 +8,31 @@
 - **Watcher extra** – install with `pip install -e ".[watcher]"` to enable filesystem observers that support future watchdog-based background import workflows outlined in the README.
 
 ## Smoke / Sanity Checklist
-- Launch the dev server (`make dev` or `python run.py`) and load the Habits index at `http://127.0.0.1:5000/habits/`.
-  - Confirm the placeholder copy "TODO(@habits-squad): render habits list with streak badges and toggle buttons." still renders.
-  - If the UI has progressed past the placeholder, record the new behavior in the team log so this checklist and related docs stay accurate.
-- Skim other blueprint index pages to ensure they load without template errors.
+- Launch the desktop app (`make dev` or `python run_desktop.py`) and open the Habits view from the navigation rail.
+  - Confirm placeholder copy or streak UI renders without errors.
+  - If the UI has progressed past placeholders, record the new behavior in the team log so this checklist and related docs stay accurate.
+- Skim other desktop views (Ledger, Debts, Portfolio, Settings, Reports) to ensure they load without crashes.
 
 ## Suggested Narrative
 1. **App Launch**
-   - Run `make dev` (Windows: `python run.py`).
-   - To showcase the packaged build, first run `make package`, then execute the binary from `dist/PocketSage/` (`./PocketSage` on macOS/Linux or `PocketSage.exe` on Windows) which mirrors the `run.py` entry point.
+   - Run `make dev` (or `python run_desktop.py`).
+   - To showcase the packaged build, first run `make package`, then execute the binary from `dist/` (`PocketSage.exe` on Windows, `PocketSage.app` on macOS, or `dist/PocketSage/PocketSage` on Linux).
    - Mention offline-first architecture and SQLCipher toggle.
 2. **Ledger Tour**
-   - Show placeholder ledger list; describe upcoming rollups and Matplotlib charts.
-   - Load `/ledger/` to confirm the TODO banner remains visible; capture a screenshot or note any placeholder changes signaling upcoming work.
+   - Show ledger list placeholder; describe upcoming rollups and Matplotlib charts.
+   - Capture a screenshot or note any placeholder changes signaling upcoming work.
 3. **Habits Tracker**
-   - Toggle action posts to `/habits/<id>/toggle`; highlight streak logic TODOs.
+   - Highlight streak logic TODOs and planned toggle actions.
 4. **Liabilities Payoff**
    - Discuss snowball/avalanche services and planned timeline chart.
 5. **Portfolio Upload**
    - Reference `scripts/csv_samples/portfolio.csv`; describe CSV mapping helper.
 6. **Admin Actions**
-   - Show seed/export buttons calling `tasks.py` stubs.
+   - Show Settings/Reports actions that call `services/admin_tasks.py` seed/export helpers.
 
 ## Follow-up Talking Points
 - Emphasize SQLCipher optional mode (`POCKETSAGE_USE_SQLCIPHER=true`).
-- Highlight pre-commit, tests, and PyInstaller packaging targets.
+- Highlight pre-commit, tests, and `flet pack` packaging targets.
 - Reinforce Campus Board TODO assignments for teammates.
 
 ## Test & QA Reminders
@@ -41,9 +41,9 @@
 - Several test modules are currently marked with `@pytest.mark.skip` placeholders; seeing `s`/`SKIPPED` entries in the output is expected until the related TODOs are implemented.
 
 ## TODO Risks for Demo
-- Seeder not implemented; manual DB state may be required.
+- Seeder exists but still depends on SQLModel mappings (Holding bug blocks portfolio flows).
 - Charts and CSV imports pending.
-- Tests currently skipped; mention roadmap for coverage.
+- Some tests remain skipped or red; mention roadmap for coverage.
 
 ## README Focus Follow-Up Tasks
 

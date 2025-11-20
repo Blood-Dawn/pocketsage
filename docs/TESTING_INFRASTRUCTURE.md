@@ -182,10 +182,10 @@ Total Test Code: ~3,550 lines
 | `services/debts.py` | ~90% | ✅ Comprehensive |
 | `infra/repositories/*.py` | ~75% | ✅ Good |
 | `services/import_csv.py` | ~80% | ✅ Good |
+| `services/admin_tasks.py` | ~60% | ⚠️ Moderate |
 | `models/*.py` | ~60% | ⚠️ Moderate |
 | `services/budgeting.py` | ~10% | ❌ Low (NotImplemented stubs) |
 | `services/export_csv.py` | ~20% | ⚠️ Low |
-| `blueprints/*.py` | ~30% | ⚠️ Low (Flask routes) |
 
 **Overall Coverage Goal: 60%+** (achievable with current test suite)
 
@@ -258,32 +258,26 @@ bandit -r src/pocketsage
 
 The following areas were identified but not implemented in this initial test suite:
 
-1. **CLI Command Tests**
-   - Flask CLI commands (`pocketsage-seed`, `pocketsage-export`)
-   - Requires Click testing framework
-   - Should use `CliRunner` for isolated testing
-
-2. **Budget Variance Calculation Tests**
+1. **Budget Variance Calculation Tests**
    - `services/budgeting.py` has NotImplementedError stubs
    - Needs implementation before testing
 
-3. **CSV Export Tests**
+2. **CSV Export Tests**
    - `services/export_csv.py` needs comprehensive tests
    - CSV injection prevention (verify sanitization)
    - Format validation, header verification
 
-4. **Chart Generation Tests**
+3. **Chart Generation Tests**
    - Matplotlib PNG generation
    - May require mock/patch for filesystem operations
 
-5. **Watchdog Integration Tests**
+4. **Watchdog Integration Tests**
    - File watcher automation logic
    - Requires watchdog optional dependency
 
-6. **Flask Route Tests**
-   - Blueprint route testing with test client
-   - Form validation, session handling
-   - Lower priority (UI-focused)
+5. **Desktop View/Navigation Tests**
+   - Smoke tests for routing/navigation rail interactions
+   - Settings/Reports/admin task trigger coverage and error handling
 
 ## Next Steps for Team
 

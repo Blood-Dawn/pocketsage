@@ -5,7 +5,7 @@ Use this log to communicate release readiness, packaging progress, and outstandi
 ## Template
 - **Version / Tag:** `vX.Y.Z`
 - **Date:** YYYY-MM-DD
-- **Packaging Status:** e.g., `PyInstaller onefile binary built via make package`
+- **Packaging Status:** e.g., `Desktop binary built via flet pack (make package)`
 - **Highlights:** Bullet list of completed features or fixes.
 - **Known Issues / TODOs:** Reference remaining `# TODO(@assignee)` items or blockers.
 - **Next Steps:** Outline follow-up work before the next release.
@@ -14,7 +14,7 @@ Use this log to communicate release readiness, packaging progress, and outstandi
 ## Example Entry
 - **Version / Tag:** `v0.1.0`
 - **Date:** 2024-03-01
-- **Packaging Status:** PyInstaller onefile binary produced and smoke-tested on Windows.
+- **Packaging Status:** Flet desktop binary produced and smoke-tested on Windows.
 - **Highlights:**
   - Initial budgeting and habit tracking flows confirmed.
   - Admin reset/export placeholders validated for follow-up owners.
