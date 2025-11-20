@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta, date
 from typing import TYPE_CHECKING
 
 import flet as ft
 
+from ..charts import cashflow_trend_png, spending_chart_png
 from ..components import build_app_bar, build_main_layout, build_stat_card
+from ...models.habit import HabitEntry
 
 if TYPE_CHECKING:
     from ..context import AppContext
@@ -216,16 +218,120 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
         elevation=2,
     )
 
+    # Charts
+    month_start = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    next_month = (month_start + timedelta(days=32)).replace(day=1)
+    month_txs = ctx.transaction_repo.filter_by_date_range(month_start, next_month)
+    spending_png = spending_chart_png(month_txs)
+
+    # Cashflow trend: pull a wider slice
+    all_recent = ctx.transaction_repo.list_all(limit=500)
+    cashflow_png = cashflow_trend_png(all_recent, months=6)
+
+    charts_row = ft.ResponsiveRow(
+        controls=[
+            ft.Container(
+                content=ft.Column(
+                    [ft.Text("Spending by Category (This Month)", weight=ft.FontWeight.BOLD), ft.Image(src=str(spending_png), height=260)],
+                    spacing=8,
+                ),
+                col={"sm": 12, "md": 6},
+            ),
+            ft.Container(
+                content=ft.Column(
+                    [ft.Text("Cashflow (Last 6 months)", weight=ft.FontWeight.BOLD), ft.Image(src=str(cashflow_png), height=260)],
+                    spacing=8,
+                ),
+                col={"sm": 12, "md": 6},
+            ),
+        ],
+        run_spacing=16,
+        spacing=16,
+    )
+
+    # Upcoming payments (next 30 days)
+    upcoming_rows = []
+    horizon = date.today() + timedelta(days=30)
+    for liability in ctx.liability_repo.list_all():
+        due_day = getattr(liability, "due_day", 1) or 1
+        next_due = date.today().replace(day=min(due_day, 28))
+        if next_due < date.today():
+            # shift to next month
+            next_month = (next_due.replace(day=1) + timedelta(days=31)).replace(day=due_day)
+            next_due = next_month
+        if next_due <= horizon:
+            upcoming_rows.append(
+                ft.ListTile(
+                    title=ft.Text(liability.name),
+                    subtitle=ft.Text(f"Due {next_due.isoformat()}"),
+                    trailing=ft.Text(f"${liability.minimum_payment:,.2f}"),
+                    on_click=lambda _, lid=liability.id: page.go("/debts"),
+                )
+            )
+    if not upcoming_rows:
+        upcoming_rows.append(ft.Text("No payments due in next 30 days.", color=ft.colors.ON_SURFACE_VARIANT))
+
+    # Today's habits quick toggle
+    today_habit_rows = []
+    today_date = date.today()
+    for habit in active_habits:
+        entry = ctx.habit_repo.get_entry(habit.id, today_date)
+        is_done = entry is not None and entry.value > 0
+
+        def toggle(_e, hid=habit.id):
+            cur = ctx.habit_repo.get_entry(hid, today_date)
+            if cur:
+                ctx.habit_repo.delete_entry(hid, today_date)
+            else:
+                ctx.habit_repo.upsert_entry(HabitEntry(habit_id=hid, occurred_on=today_date, value=1))
+            page.snack_bar = ft.SnackBar(content=ft.Text("Habit updated"))
+            page.snack_bar.open = True
+            page.update()
+
+        today_habit_rows.append(
+            ft.ListTile(
+                title=ft.Text(habit.name),
+                trailing=ft.Switch(value=is_done, on_change=toggle),
+                subtitle=ft.Text(f"Current streak: {ctx.habit_repo.get_current_streak(habit.id)}"),
+                on_click=lambda _, hid=habit.id: page.go("/habits"),
+            )
+        )
+    if not today_habit_rows:
+        today_habit_rows.append(ft.Text("No active habits yet.", color=ft.colors.ON_SURFACE_VARIANT))
+
+    secondary_stats = ft.ResponsiveRow(
+        controls=[
+            ft.Container(
+                content=ft.Column(
+                    [
+                        ft.Text("Upcoming Payments (30 days)", size=16, weight=ft.FontWeight.BOLD),
+                        ft.Column(upcoming_rows, spacing=4),
+                    ]
+                ),
+                col={"sm": 12, "md": 6},
+            ),
+            ft.Container(
+                content=ft.Column(
+                    [
+                        ft.Text("Today's Habits", size=16, weight=ft.FontWeight.BOLD),
+                        ft.Column(today_habit_rows, spacing=4),
+                    ]
+                ),
+                col={"sm": 12, "md": 6},
+            ),
+        ],
+        run_spacing=16,
+        spacing=16,
+    )
+
     # Build content
     content = ft.Column(
         [
             stat_cards,
             ft.Container(height=16),
-            secondary_stats,
+            charts_row,
             ft.Container(height=24),
-            recent_txns_card,
-            ft.Container(height=16),
-            quick_actions,
+            secondary_stats,
         ],
         spacing=0,
         scroll=ft.ScrollMode.AUTO,

@@ -34,11 +34,11 @@
 - [ ] Ensure desktop mode can bootstrap demo data consistently.
 
 ## Phase 6 - Desktop Feature Screens
-- [ ] Dashboard: net worth/spend/debt widgets plus category and income/expense charts; habit/debt summary.
-- [ ] Ledger: filters, quick-add with validation, inline edit/delete, CSV import/export.
+- [x] Dashboard: net worth/spend/debt widgets plus category and income/expense charts; habit/debt summary.
+- [x] Ledger: filters, quick-add with validation, inline edit/delete, CSV import/export.
 - [ ] Budgets: month selector, copy previous month, CRUD, overspend highlighting, alerts.
-- [ ] Habits: create/edit/archive/reactivate, streak metrics, calendar/heatmap view, completion toggle.
-- [ ] Debts: strategy toggle, payment recording, payoff timeline/projection with charts.
+- [x] Habits: create/edit/archive/reactivate, streak metrics, calendar/heatmap view, completion toggle.
+- [x] Debts: strategy toggle, payment recording, payoff timeline/projection with charts.
 - [ ] Portfolio: holdings CRUD/import/export, allocation visualization, filters.
 - [ ] Settings/Admin: theme toggle, DB path, seed/backup/restore wired with dialogs.
 

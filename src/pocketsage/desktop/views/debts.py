@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 
 import flet as ft
 
+from typing import TYPE_CHECKING
+
+from ...services.debts import DebtAccount, avalanche_schedule, snowball_schedule
 from ..components import build_app_bar, build_main_layout
 
 if TYPE_CHECKING:
@@ -73,121 +75,76 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         spacing=16,
     )
 
+    def to_accounts() -> list[DebtAccount]:
+        return [
+            DebtAccount(
+                id=lb.id or 0,
+                balance=lb.balance,
+                apr=lb.apr,
+                minimum_payment=lb.minimum_payment,
+                statement_due_day=getattr(lb, "due_day", 1) or 1,
+            )
+            for lb in liabilities
+        ]
+
+    strategy_state = {"value": "snowball"}
+
+    def run_projection(strategy: str):
+        debts = to_accounts()
+        if strategy == "avalanche":
+            sched = avalanche_schedule(debts=debts, surplus=0.0)
+        else:
+            sched = snowball_schedule(debts=debts, surplus=0.0)
+        payoff = None
+        if sched:
+            payoff = sched[-1]["date"]
+        return sched, payoff
+
+    schedule_rows, payoff_date = run_projection(strategy_state["value"])
+    payoff_text = ft.Text(
+        f"Projected payoff: {payoff_date or 'N/A'}", size=14, color=ft.colors.ON_SURFACE_VARIANT
+    )
+
     # Liability list
     liability_rows = []
 
     for liability in liabilities:
-        # Calculate monthly interest
         monthly_interest = liability.balance * (liability.apr / 100) / 12
 
         liability_rows.append(
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column(
-                        [
-                            ft.Row(
-                                [
-                                    ft.Text(
-                                        liability.name,
-                                        size=18,
-                                        weight=ft.FontWeight.BOLD,
-                                    ),
-                                    ft.Text(
-                                        f"${liability.balance:,.2f}",
-                                        size=18,
-                                        weight=ft.FontWeight.BOLD,
-                                        color=(
-                                            ft.colors.RED
-                                            if liability.balance > 0
-                                            else ft.colors.GREEN
-                                        ),
-                                    ),
-                                ],
-                                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                            ),
-                            ft.Container(height=12),
-                            ft.Row(
-                                [
-                                    ft.Column(
-                                        [
-                                            ft.Text(
-                                                "APR", size=12, color=ft.colors.ON_SURFACE_VARIANT
-                                            ),
-                                            ft.Text(f"{liability.apr:.2f}%", size=14),
-                                        ],
-                                    ),
-                                    ft.Column(
-                                        [
-                                            ft.Text(
-                                                "Min. Payment",
-                                                size=12,
-                                                color=ft.colors.ON_SURFACE_VARIANT,
-                                            ),
-                                            ft.Text(f"${liability.minimum_payment:,.2f}", size=14),
-                                        ],
-                                    ),
-                                    ft.Column(
-                                        [
-                                            ft.Text(
-                                                "Monthly Interest",
-                                                size=12,
-                                                color=ft.colors.ON_SURFACE_VARIANT,
-                                            ),
-                                            ft.Text(
-                                                f"${monthly_interest:,.2f}",
-                                                size=14,
-                                                color=ft.colors.ORANGE,
-                                            ),
-                                        ],
-                                    ),
-                                    ft.Column(
-                                        [
-                                            ft.Text(
-                                                "Strategy",
-                                                size=12,
-                                                color=ft.colors.ON_SURFACE_VARIANT,
-                                            ),
-                                            ft.Text(
-                                                liability.payoff_strategy.capitalize(), size=14
-                                            ),
-                                        ],
-                                    ),
-                                ],
-                                alignment=ft.MainAxisAlignment.SPACE_AROUND,
-                            ),
-                        ],
-                    ),
-                    padding=20,
-                ),
-                elevation=1,
+            ft.DataRow(
+                cells=[
+                    ft.DataCell(ft.Text(liability.name)),
+                    ft.DataCell(ft.Text(f"${liability.balance:,.2f}")),
+                    ft.DataCell(ft.Text(f"{liability.apr:.2f}%")),
+                    ft.DataCell(ft.Text(f"${liability.minimum_payment:,.2f}")),
+                    ft.DataCell(ft.Text(f"${monthly_interest:,.2f}")),
+                ]
             )
         )
 
     if not liability_rows:
         liability_rows.append(
-            ft.Container(
-                content=ft.Column(
-                    [
-                        ft.Icon(ft.icons.CELEBRATION, size=64, color=ft.colors.GREEN),
-                        ft.Container(height=16),
-                        ft.Text(
-                            "Debt-Free!",
-                            size=24,
-                            weight=ft.FontWeight.BOLD,
-                            color=ft.colors.GREEN,
-                        ),
-                        ft.Container(height=8),
-                        ft.Text(
-                            "You have no outstanding liabilities",
-                            size=14,
-                            color=ft.colors.ON_SURFACE_VARIANT,
-                        ),
-                    ],
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                ),
-                padding=40,
-            )
+            ft.DataRow(cells=[ft.DataCell(ft.Text("No liabilities found")) for _ in range(5)])
         )
+
+    table = ft.DataTable(
+        columns=[
+            ft.DataColumn(ft.Text("Name")),
+            ft.DataColumn(ft.Text("Balance")),
+            ft.DataColumn(ft.Text("APR")),
+            ft.DataColumn(ft.Text("Min. Payment")),
+            ft.DataColumn(ft.Text("Interest/mo")),
+        ],
+        rows=liability_rows,
+        expand=True,
+    )
+
+    def on_strategy_change(e):
+        strategy_state["value"] = e.control.value
+        _, payoff = run_projection(strategy_state["value"])
+        payoff_text.value = f"Projected payoff: {payoff or 'N/A'}"
+        page.update()
 
     # Build content
     content = ft.Column(
@@ -200,7 +157,28 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.Container(height=16),
             summary,
             ft.Container(height=24),
-            ft.Column(liability_rows, spacing=16),
+            ft.Row(
+                [
+                    ft.RadioGroup(
+                        content=ft.Row(
+                            [
+                                ft.Radio(value="snowball", label="Snowball"),
+                                ft.Radio(value="avalanche", label="Avalanche"),
+                            ]
+                        ),
+                        value="snowball",
+                        on_change=on_strategy_change,
+                    ),
+                    payoff_text,
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            ),
+            ft.Card(content=ft.Container(content=table, padding=12), expand=True),
+            ft.Text(
+                "Strategy toggle uses the debt payoff service (snowball/avalanche) to project payoff.",
+                color=ft.colors.ON_SURFACE_VARIANT,
+                size=12,
+            ),
         ],
         spacing=0,
         scroll=ft.ScrollMode.AUTO,

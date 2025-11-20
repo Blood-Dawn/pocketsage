@@ -61,6 +61,15 @@
 - [x] # TODO(@framework-owner) Register background worker or scheduler (e.g., APScheduler/Celery) and wire `run_demo_seed` / `run_export` into it; provide a job-status API.
 - [x] # TODO(@qa-team) Add route and integration tests for `/admin/export/download`, seed confirmation flow, and background task behavior (mocking worker runtimes).
 
+## Desktop UI
+- [x] Shell & navigation (NavigationRail/AppBar/status bar, shortcuts).
+- [x] Dashboard widgets and charts (KPI cards, spending donut, cashflow trend, upcoming payments, habits).
+- [x] Ledger grid with filters/pagination and CSV import/export hooks.
+- [x] Habits heatmap and streak metrics with today toggle.
+- [x] Debts strategy toggle and payoff summary using payoff service.
+- [ ] Budgets progress (month selector, CRUD, alerts).
+- [ ] Portfolio allocations chart and CSV wiring polish.
+- [ ] Settings/Admin wiring for backup/import placeholders.
 ## Testing & QA(KD)
 - [x] # TODO(@qa-team) Replace skipped tests with golden datasets for budgeting/debts services.
 - [x] # TODO(@qa-team) Add route smoke tests verifying template context variables.

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import flet as ft
 
+from ..charts import allocation_chart_png
 from ..components import build_app_bar, build_main_layout
 
 if TYPE_CHECKING:
@@ -129,7 +130,8 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
             elevation=2,
         )
 
-    # Summary card
+    # Summary card and allocation
+    alloc_png = allocation_chart_png(holdings)
     summary_card = ft.Card(
         content=ft.Container(
             content=ft.Row(
@@ -138,10 +140,6 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         [
                             ft.Text("Total Holdings", size=14, color=ft.colors.ON_SURFACE_VARIANT),
                             ft.Text(str(len(holdings)), size=28, weight=ft.FontWeight.BOLD),
-                        ],
-                    ),
-                    ft.Column(
-                        [
                             ft.Text(
                                 "Total Cost Basis", size=14, color=ft.colors.ON_SURFACE_VARIANT
                             ),
@@ -152,9 +150,11 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 color=ft.colors.PRIMARY,
                             ),
                         ],
+                        spacing=4,
                     ),
+                    ft.Image(src=str(alloc_png), height=160),
                 ],
-                alignment=ft.MainAxisAlignment.SPACE_AROUND,
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             ),
             padding=20,
         ),

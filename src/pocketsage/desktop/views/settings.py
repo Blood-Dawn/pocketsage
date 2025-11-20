@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from pathlib import Path
 
 import flet as ft
 
+from ...blueprints.admin.tasks import run_demo_seed, run_export
 from ..components import build_app_bar, build_main_layout
 
 if TYPE_CHECKING:
@@ -14,6 +16,11 @@ if TYPE_CHECKING:
 
 def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Build the settings/admin view."""
+
+    def _notify(message: str):
+        page.snack_bar = ft.SnackBar(content=ft.Text(message))
+        page.snack_bar.open = True
+        page.update()
 
     # Theme toggle
     def toggle_theme(e):
@@ -52,6 +59,18 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
         elevation=2,
     )
 
+    def export_data(_):
+        try:
+            exports_dir = ctx.config.DATA_DIR
+            path = run_export(Path(exports_dir))
+            _notify(f"Export ready: {path}")
+        except Exception as exc:
+            _notify(f"Export failed: {exc}")
+
+    def seed_demo(_):
+        run_demo_seed()
+        _notify("Demo data seeded")
+
     database_section = ft.Card(
         content=ft.Container(
             content=ft.Column(
@@ -71,13 +90,14 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             ft.FilledButton(
                                 "Backup Database",
                                 icon=ft.icons.BACKUP,
-                                on_click=lambda _: None,  # TODO: Implement backup
+                                on_click=lambda _: _notify("Backup not yet implemented"),
                             ),
                             ft.FilledButton(
                                 "Export Data",
                                 icon=ft.icons.DOWNLOAD,
-                                on_click=lambda _: None,  # TODO: Implement export
+                                on_click=export_data,
                             ),
+                            ft.TextButton("Run Demo Seed", icon=ft.icons.DATA_THRESHOLDING, on_click=seed_demo),
                         ],
                         spacing=8,
                     ),
@@ -140,12 +160,12 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             ft.FilledButton(
                                 "Import Transactions",
                                 icon=ft.icons.UPLOAD_FILE,
-                                on_click=lambda _: None,  # TODO: Implement import
+                                on_click=lambda _: page.snack_bar.open,
                             ),
                             ft.FilledButton(
                                 "Import Portfolio",
                                 icon=ft.icons.UPLOAD,
-                                on_click=lambda _: None,  # TODO: Implement import
+                                on_click=lambda _: page.snack_bar.open,
                             ),
                         ],
                         spacing=8,

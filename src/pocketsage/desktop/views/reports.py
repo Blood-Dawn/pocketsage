@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import flet as ft
 
+from pathlib import Path
+
 from ..components import build_app_bar, build_main_layout, empty_state
 from ..context import AppContext
+from ...blueprints.admin.tasks import run_export
 
 
 def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
@@ -16,12 +19,20 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
         page.snack_bar.open = True
         page.update()
 
+    def export_all(_):
+        try:
+            exports_dir = Path(ctx.config.DATA_DIR) / "exports"
+            path = run_export(exports_dir)
+            notify(f"Export ready: {path}")
+        except Exception as exc:
+            notify(f"Export failed: {exc}")
+
     cards = ft.ResponsiveRow(
         controls=[
             _report_card(
                 title="Full data export",
                 description="Generate ZIP with CSVs and charts.",
-                on_click=lambda _: notify("Export started"),
+                on_click=export_all,
             ),
             _report_card(
                 title="Monthly spending report",
