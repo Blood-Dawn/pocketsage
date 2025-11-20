@@ -172,21 +172,16 @@ def build_main_layout(
     current_route: str,
     content: ft.Control,
 ) -> List[ft.Control]:
-    """Build the main layout with navigation rail, content, and status bar."""
+    """Build the main layout with navigation rail and content."""
 
     nav_rail = build_navigation_rail(page, current_route)
 
-    status = ft.Container(
-        content=ft.Row(
-            [
-                ft.Text(f"DB: {ctx.config.DATABASE_URL}", size=11, overflow=ft.TextOverflow.ELLIPSIS),
-                ft.Text(f"Encryption: {'on' if ctx.config.USE_SQLCIPHER else 'off'}", size=11),
-                ft.Text(f"Month: {ctx.current_month.strftime('%b %Y')}", size=11),
-            ],
-            spacing=12,
-        ),
-        padding=ft.padding.symmetric(vertical=8, horizontal=12),
-        bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+    content_column = ft.Column(
+        [
+            ft.Container(content=content, expand=True, padding=20),
+        ],
+        spacing=0,
+        expand=True,
     )
 
     return [
@@ -195,14 +190,7 @@ def build_main_layout(
                 nav_rail,
                 ft.VerticalDivider(width=1),
                 ft.Container(
-                    content=ft.Column(
-                        [
-                            ft.Container(content=content, expand=True, padding=20),
-                            status,
-                        ],
-                        spacing=0,
-                        expand=True,
-                    ),
+                    content=content_column,
                     expand=True,
                 ),
             ],
