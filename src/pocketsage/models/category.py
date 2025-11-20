@@ -21,7 +21,8 @@ class Category(SQLModel, table=True):
     color: Optional[str] = Field(default=None, max_length=7)
 
     transactions: list["Transaction"] = Relationship(
-        sa_relationship=relationship("Transaction", back_populates="category")
+        back_populates="category",
+        sa_relationship=relationship("Transaction", back_populates="category"),
     )
 
     # TODO(@ux-team): enforce palette uniqueness + icon set once design assets land.

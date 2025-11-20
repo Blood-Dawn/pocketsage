@@ -18,7 +18,8 @@ class Budget(SQLModel, table=True):
     label: str = Field(default="", max_length=64)
 
     lines: list["BudgetLine"] = Relationship(
-        sa_relationship=relationship("BudgetLine", back_populates="budget")
+        back_populates="budget",
+        sa_relationship=relationship("BudgetLine", back_populates="budget"),
     )
 
     # TODO(@budgeting): enforce non-overlapping windows per user.

@@ -13,7 +13,7 @@ including:
 from __future__ import annotations
 
 import pytest
-from src.pocketsage.services.debts import (
+from pocketsage.services.debts import (
     DebtAccount,
     avalanche_schedule,
     persist_projection,

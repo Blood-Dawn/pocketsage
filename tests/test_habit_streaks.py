@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from src.pocketsage.infra.repositories.habit import SQLModelHabitRepository
-from src.pocketsage.models.habit import HabitEntry
+from pocketsage.infra.repositories.habit import SQLModelHabitRepository
+from pocketsage.models.habit import HabitEntry
 
 
 class TestCurrentStreak:

@@ -19,7 +19,8 @@ class Habit(SQLModel, table=True):
     is_active: bool = Field(default=True, nullable=False)
 
     entries: list["HabitEntry"] = Relationship(
-        sa_relationship=relationship("HabitEntry", back_populates="habit")
+        back_populates="habit",
+        sa_relationship=relationship("HabitEntry", back_populates="habit"),
     )
 
     # TODO(@habits-squad): add owner foreign key when multi-user support arrives.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Mapping, Optional
@@ -44,6 +45,10 @@ def upsert_transactions(*, rows: Iterable[Mapping], mapping: ColumnMapping) -> l
         # map columns conservatively; missing optional fields default to None/empty
         amount_raw = row.get(mapping.amount)
         if amount_raw is None:
+            continue
+        if isinstance(amount_raw, str) and not amount_raw.strip():
+            continue
+        if isinstance(amount_raw, float) and math.isnan(amount_raw):
             continue
         try:
             amount = float(amount_raw)
@@ -105,9 +110,7 @@ def import_csv_file(*, csv_path: Path, mapping: ColumnMapping) -> int:
     frame = normalize_frame(file_path=csv_path)
 
     # Build rows as dicts using lowercase column names
-    rows: list[dict] = []
-    for _, r in frame.iterrows():
-        rows.append({c: r[c] for c in frame.columns})
+    rows: list[dict] = [{c: r[c] for c in frame.columns} for _, r in frame.iterrows()]
 
     transactions = upsert_transactions(rows=rows, mapping=mapping)
 

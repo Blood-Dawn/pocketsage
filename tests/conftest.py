@@ -12,10 +12,9 @@ from datetime import date, datetime
 from pathlib import Path
 
 import pytest
-from sqlmodel import Session, SQLModel, create_engine
 
 # Import all models to ensure they're registered with SQLModel metadata
-from src.pocketsage.models import (
+from pocketsage.models import (
     Account,
     Budget,
     BudgetLine,
@@ -24,7 +23,8 @@ from src.pocketsage.models import (
     Liability,
     Transaction,
 )
-from src.pocketsage.models.portfolio import Holding
+from pocketsage.models.portfolio import Holding
+from sqlmodel import Session, SQLModel, create_engine
 
 # =============================================================================
 # Database Fixtures

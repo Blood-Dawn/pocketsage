@@ -18,8 +18,10 @@ class Account(SQLModel, table=True):
     currency: str = Field(default="USD", max_length=3)
 
     transactions: list["Transaction"] = Relationship(
-        sa_relationship=relationship("Transaction", back_populates="account")
+        back_populates="account",
+        sa_relationship=relationship("Transaction", back_populates="account"),
     )
     holdings: list["Holding"] = Relationship(
-        sa_relationship=relationship("Holding", back_populates="account")
+        back_populates="account",
+        sa_relationship=relationship("Holding", back_populates="account"),
     )

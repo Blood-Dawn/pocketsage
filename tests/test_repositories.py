@@ -5,14 +5,14 @@ from datetime import date, datetime
 from pathlib import Path
 
 import pytest
-from sqlmodel import Session, SQLModel, create_engine
-from src.pocketsage.infra.repositories import (
+from pocketsage.infra.repositories import (
     SQLModelAccountRepository,
     SQLModelCategoryRepository,
     SQLModelHabitRepository,
     SQLModelTransactionRepository,
 )
-from src.pocketsage.models import Account, Category, Habit, HabitEntry, Transaction
+from pocketsage.models import Account, Category, Habit, HabitEntry, Transaction
+from sqlmodel import Session, SQLModel, create_engine
 
 
 @pytest.fixture
@@ -30,6 +30,7 @@ def db_engine():
     yield engine
 
     # Cleanup
+    engine.dispose()
     db_path.unlink(missing_ok=True)
 
 
