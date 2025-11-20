@@ -169,3 +169,19 @@ def build_progress_bar(
         ],
         spacing=4,
     )
+
+
+def empty_state(message: str) -> ft.Container:
+    """Simple empty-state placeholder."""
+
+    return ft.Container(
+        content=ft.Column(
+            [
+                ft.Icon(ft.icons.INBOX, size=40, color=ft.colors.ON_SURFACE_VARIANT),
+                ft.Text(message, color=ft.colors.ON_SURFACE_VARIANT),
+            ],
+            alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
+        padding=20,
+    )

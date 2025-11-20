@@ -233,8 +233,8 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     # Build main layout
-    app_bar = build_app_bar(ctx, "Dashboard")
-    main_layout = build_main_layout(page, "/dashboard", content)
+    app_bar = build_app_bar(ctx, "Dashboard", page)
+    main_layout = build_main_layout(ctx, page, "/dashboard", content)
 
     return ft.View(
         route="/dashboard",

@@ -34,6 +34,7 @@ Framework Owner checkpoint for the PocketSage desktop-first Flask app. Focus are
 3. `cp .env.example .env`
 4. `python run_desktop.py`
 5. The desktop app window will open automatically with Dashboard, Ledger, Budgets, Habits, Debts, Portfolio, and Settings
+   - Shortcuts: `Ctrl+N` (new transaction), `Ctrl+Shift+H` (new habit), `Ctrl+1..7` to jump between Dashboard → Settings. Quick actions and demo seed are available in the top app bar.
 
 ## Packaging
 

@@ -174,8 +174,8 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     # Build main layout
-    app_bar = build_app_bar(ctx, "Habits")
-    main_layout = build_main_layout(page, "/habits", content)
+    app_bar = build_app_bar(ctx, "Habits", page)
+    main_layout = build_main_layout(ctx, page, "/habits", content)
 
     return ft.View(
         route="/habits",

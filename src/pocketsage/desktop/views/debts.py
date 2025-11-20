@@ -208,8 +208,8 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     # Build main layout
-    app_bar = build_app_bar(ctx, "Debts")
-    main_layout = build_main_layout(page, "/debts", content)
+    app_bar = build_app_bar(ctx, "Debts", page)
+    main_layout = build_main_layout(ctx, page, "/debts", content)
 
     return ft.View(
         route="/debts",

@@ -176,8 +176,8 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     # Build main layout
-    app_bar = build_app_bar(ctx, "Settings")
-    main_layout = build_main_layout(page, "/settings", content)
+    app_bar = build_app_bar(ctx, "Settings", page)
+    main_layout = build_main_layout(ctx, page, "/settings", content)
 
     return ft.View(
         route="/settings",

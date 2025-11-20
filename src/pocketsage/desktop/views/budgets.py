@@ -195,8 +195,8 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     # Build main layout
-    app_bar = build_app_bar(ctx, "Budgets")
-    main_layout = build_main_layout(page, "/budgets", content)
+    app_bar = build_app_bar(ctx, "Budgets", page)
+    main_layout = build_main_layout(ctx, page, "/budgets", content)
 
     return ft.View(
         route="/budgets",

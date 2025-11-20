@@ -298,8 +298,8 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     # Build main layout
-    app_bar = build_app_bar(ctx, "Ledger")
-    main_layout = build_main_layout(page, "/ledger", content)
+    app_bar = build_app_bar(ctx, "Ledger", page)
+    main_layout = build_main_layout(ctx, page, "/ledger", content)
 
     return ft.View(
         route="/ledger",

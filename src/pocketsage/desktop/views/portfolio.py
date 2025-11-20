@@ -180,8 +180,8 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     # Build main layout
-    app_bar = build_app_bar(ctx, "Portfolio")
-    main_layout = build_main_layout(page, "/portfolio", content)
+    app_bar = build_app_bar(ctx, "Portfolio", page)
+    main_layout = build_main_layout(ctx, page, "/portfolio", content)
 
     return ft.View(
         route="/portfolio",
