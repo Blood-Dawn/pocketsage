@@ -29,7 +29,7 @@ def init_db(app: Flask) -> None:
         """Attach a scoped SQLModel session to the request context."""
 
         if "sqlmodel_session" not in g:
-            g.sqlmodel_session = Session(engine)
+            g.sqlmodel_session = Session(engine, expire_on_commit=False)
             # TODO(@db-team): bulk seed default data when session boots.
 
     @app.teardown_appcontext
@@ -55,7 +55,7 @@ def get_engine():
 def session_scope() -> Iterator[Session]:
     """Provide a transactional scope around operations."""
 
-    session = Session(get_engine())
+    session = Session(get_engine(), expire_on_commit=False)
     try:
         yield session
         session.commit()

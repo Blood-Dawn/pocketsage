@@ -19,19 +19,29 @@ class SQLModelCategoryRepository:
     def get_by_id(self, category_id: int) -> Optional[Category]:
         """Retrieve a category by ID."""
         with self.session_factory() as session:
-            return session.get(Category, category_id)
+            obj = session.get(Category, category_id)
+            if obj:
+                session.refresh(obj)
+                session.expunge(obj)
+            return obj
 
     def get_by_slug(self, slug: str) -> Optional[Category]:
         """Retrieve a category by slug."""
         with self.session_factory() as session:
             statement = select(Category).where(Category.slug == slug)
-            return session.exec(statement).first()
+            obj = session.exec(statement).first()
+            if obj:
+                session.refresh(obj)
+                session.expunge(obj)
+            return obj
 
     def list_all(self) -> list[Category]:
         """List all categories."""
         with self.session_factory() as session:
             statement = select(Category).order_by(Category.name)  # type: ignore
-            return list(session.exec(statement).all())
+            rows = list(session.exec(statement).all())
+            session.expunge_all()
+            return rows
 
     def list_by_type(self, category_type: str) -> list[Category]:
         """List categories filtered by type (income/expense)."""
@@ -41,7 +51,9 @@ class SQLModelCategoryRepository:
                 .where(Category.category_type == category_type)
                 .order_by(Category.name)  # type: ignore
             )
-            return list(session.exec(statement).all())
+            rows = list(session.exec(statement).all())
+            session.expunge_all()
+            return rows
 
     def create(self, category: Category) -> Category:
         """Create a new category."""
@@ -49,6 +61,7 @@ class SQLModelCategoryRepository:
             session.add(category)
             session.commit()
             session.refresh(category)
+            session.expunge(category)
             return category
 
     def update(self, category: Category) -> Category:
@@ -57,6 +70,7 @@ class SQLModelCategoryRepository:
             session.add(category)
             session.commit()
             session.refresh(category)
+            session.expunge(category)
             return category
 
     def delete(self, category_id: int) -> None:
@@ -83,10 +97,12 @@ class SQLModelCategoryRepository:
                 session.add(existing)
                 session.commit()
                 session.refresh(existing)
+                session.expunge(existing)
                 return existing
             else:
                 # Insert new
                 session.add(category)
                 session.commit()
                 session.refresh(category)
+                session.expunge(category)
                 return category

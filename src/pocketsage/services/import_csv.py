@@ -18,6 +18,7 @@ class ColumnMapping:
     occurred_at: str
     memo: str | None = None
     category: str | None = None
+    category_id: str | None = None
     external_id: str | None = None
     account_id: str | None = None
     account_name: str | None = None
@@ -85,12 +86,14 @@ def upsert_transactions(*, rows: Iterable[Mapping], mapping: ColumnMapping) -> l
             if isinstance(raw_currency, str) and raw_currency.strip():
                 currency = raw_currency.strip().upper()[:3]
 
+        category_field = mapping.category_id or mapping.category
+
         tx = {
             "occurred_at": occurred_at,
             "amount": amount,
             "memo": memo or "",
             "external_id": external,
-            "category_id": row.get(mapping.category) if mapping.category else None,
+            "category_id": row.get(category_field) if category_field else None,
         }
         if account_id is not None:
             tx["account_id"] = account_id

@@ -28,7 +28,7 @@ def init_database(engine) -> None:
 @contextmanager
 def session_scope(engine) -> Iterator[Session]:
     """Provide a transactional scope around operations."""
-    session = Session(engine)
+    session = Session(engine, expire_on_commit=False)
     try:
         yield session
         session.commit()
@@ -45,7 +45,7 @@ def create_session_factory(engine):
     @contextmanager
     def factory() -> Iterator[Session]:
         """Create a new session."""
-        session = Session(engine)
+        session = Session(engine, expire_on_commit=False)
         try:
             yield session
             session.commit()

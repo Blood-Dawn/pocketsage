@@ -1,29 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Ledger · PocketSage{% endblock %}
-
-{% macro pagination_controls(pagination, prev_url, next_url) %}
-  {% if pagination.total > 0 %}
-    <div class="ledger-pagination" aria-label="Pagination controls">
-      <p class="ledger-pagination-count">
-        Showing {{ pagination.first_item }}–{{ pagination.last_item }} of {{ pagination.total }} transactions
-      </p>
-      <div class="ledger-pagination-controls">
-        <a
-          class="ledger-pagination-button{% if not prev_url %} is-disabled{% endif %}"
-          {% if prev_url %}href="{{ prev_url }}" rel="prev"{% else %}aria-disabled="true" tabindex="-1"{% endif %}
-        >
-          Previous
-        </a>
-        <a
-          class="ledger-pagination-button{% if not next_url %} is-disabled{% endif %}"
-          {% if next_url %}href="{{ next_url }}" rel="next"{% else %}aria-disabled="true" tabindex="-1"{% endif %}
-        >
-          Next
-        </a>
-      </div>
-    </div>
-  {% endif %}
-{% endmacro %}
+{% block title %}Ledger - PocketSage{% endblock %}
 
 {% block content %}
   <section class="ledger-dashboard">
@@ -32,36 +8,58 @@
       <p class="ledger-subtitle">Monitor cash flow and stay ahead of upcoming spending.</p>
     </header>
 
-    <section class="ledger-rollups" aria-label="Cash flow summary{% if current_period_label %} for {{ current_period_label }}{% endif %}">
-      {% for metric in rollups %}
-        <article class="card-surface ledger-rollup-card" role="group" aria-labelledby="rollup-{{ metric.key }}">
-          <header class="ledger-rollup-header">
-            <p class="ledger-rollup-label" id="rollup-{{ metric.key }}">{{ metric.label }}</p>
-            {% if current_period_label %}
-              <p class="ledger-rollup-period">Current period: {{ current_period_label }}</p>
-            {% endif %}
-          </header>
-          <p class="ledger-rollup-amount">{{ metric.formatted_amount }}</p>
-          <p class="ledger-rollup-trend" data-direction="{{ metric.direction }}">
-            <span class="ledger-rollup-trend-icon" aria-hidden="true">
-              {% if metric.direction == 'up' %}
-                ▲
-              {% elif metric.direction == 'down' %}
-                ▼
-              {% else %}
-                ◆
-              {% endif %}
-            </span>
-            <span class="ledger-rollup-trend-value">{{ metric.trend_value }}</span>
-            {% if metric.trend_caption %}
-              <span class="ledger-rollup-trend-caption" aria-hidden="true">{{ metric.trend_caption }}</span>
-            {% endif %}
-            <span class="sr-only">{{ metric.trend_sr_text }}</span>
-          </p>
-        </article>
-      {% endfor %}
-    </section>
+    <form class="ledger-filters" method="get" action="{{ url_for('ledger.list_transactions') }}">
+      <label>
+        Start date
+        <input type="date" name="start_date" value="{{ filter_state.start_date }}" />
+      </label>
+      <label>
+        End date
+        <input type="date" name="end_date" value="{{ filter_state.end_date }}" />
+      </label>
+      <label>
+        Category
+        <select name="category">
+          <option value="" {% if filter_state.category == '' %}selected{% endif %}>All</option>
+          {% for category in categories %}
+            <option value="{{ category.id }}" {% if filter_state.category == category.id|string %}selected{% endif %}>
+              {{ category.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Search
+        <input type="text" name="search" value="{{ filter_state.search }}" />
+      </label>
+      <button type="submit">Apply</button>
+    </form>
 
-    <p class="todo">Transaction table coming soon.</p>
+    <section aria-label="Transactions">
+      {% if transactions %}
+        <table class="ledger-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Category</th>
+              <th>Description</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for tx in transactions %}
+              <tr>
+                <td>{{ tx.occurred_at.strftime("%Y-%m-%d") if tx.occurred_at else "" }}</td>
+                <td>{{ tx.category.name if tx.category else "" }}</td>
+                <td>{{ tx.memo }}</td>
+                <td>{{ "%.2f"|format(tx.amount) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p>No transactions found for the selected filters.</p>
+      {% endif %}
+    </section>
   </section>
 {% endblock %}

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar, Optional
 
 from sqlalchemy.orm import relationship
 from sqlmodel import Field, Relationship, SQLModel
@@ -13,6 +13,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 class Category(SQLModel, table=True):
     """Transaction category used for budgeting and reporting."""
+
+    __tablename__: ClassVar[str] = "category"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True, nullable=False, max_length=64)

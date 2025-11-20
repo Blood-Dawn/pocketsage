@@ -20,7 +20,10 @@ class SQLModelTransactionRepository:
     def get_by_id(self, transaction_id: int) -> Optional[Transaction]:
         """Retrieve a transaction by ID."""
         with self.session_factory() as session:
-            return session.get(Transaction, transaction_id)
+            obj = session.get(Transaction, transaction_id)
+            if obj:
+                session.expunge(obj)
+            return obj
 
     def list_all(self, limit: int = 100, offset: int = 0) -> list[Transaction]:
         """List all transactions with pagination."""
@@ -31,7 +34,9 @@ class SQLModelTransactionRepository:
                 .offset(offset)
                 .limit(limit)
             )
-            return list(session.exec(statement).all())
+            rows = list(session.exec(statement).all())
+            session.expunge_all()
+            return rows
 
     def filter_by_date_range(self, start_date: datetime, end_date: datetime) -> list[Transaction]:
         """Get transactions within a date range."""
@@ -42,7 +47,9 @@ class SQLModelTransactionRepository:
                 .where(Transaction.occurred_at <= end_date)
                 .order_by(Transaction.occurred_at.desc())  # type: ignore
             )
-            return list(session.exec(statement).all())
+            rows = list(session.exec(statement).all())
+            session.expunge_all()
+            return rows
 
     def filter_by_account(self, account_id: int) -> list[Transaction]:
         """Get all transactions for a specific account."""
@@ -52,7 +59,9 @@ class SQLModelTransactionRepository:
                 .where(Transaction.account_id == account_id)
                 .order_by(Transaction.occurred_at.desc())  # type: ignore
             )
-            return list(session.exec(statement).all())
+            rows = list(session.exec(statement).all())
+            session.expunge_all()
+            return rows
 
     def filter_by_category(self, category_id: int) -> list[Transaction]:
         """Get all transactions for a specific category."""
@@ -62,7 +71,9 @@ class SQLModelTransactionRepository:
                 .where(Transaction.category_id == category_id)
                 .order_by(Transaction.occurred_at.desc())  # type: ignore
             )
-            return list(session.exec(statement).all())
+            rows = list(session.exec(statement).all())
+            session.expunge_all()
+            return rows
 
     def search(
         self,
@@ -89,7 +100,9 @@ class SQLModelTransactionRepository:
                 statement = statement.where(Transaction.memo.contains(text))  # type: ignore
 
             statement = statement.order_by(Transaction.occurred_at.desc())  # type: ignore
-            return list(session.exec(statement).all())
+            rows = list(session.exec(statement).all())
+            session.expunge_all()
+            return rows
 
     def create(self, transaction: Transaction) -> Transaction:
         """Create a new transaction."""
@@ -97,6 +110,7 @@ class SQLModelTransactionRepository:
             session.add(transaction)
             session.commit()
             session.refresh(transaction)
+            session.expunge(transaction)
             return transaction
 
     def update(self, transaction: Transaction) -> Transaction:
@@ -105,6 +119,7 @@ class SQLModelTransactionRepository:
             session.add(transaction)
             session.commit()
             session.refresh(transaction)
+            session.expunge(transaction)
             return transaction
 
     def delete(self, transaction_id: int) -> None:

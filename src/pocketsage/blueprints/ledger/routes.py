@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, time, timedelta
 from typing import Any, Iterable, Mapping
 
 from flask import current_app, flash, redirect, render_template, request, url_for
@@ -12,8 +12,11 @@ from werkzeug.exceptions import NotFound
 
 from ...extensions import session_scope
 from ...models.transaction import Transaction
+from ...models.category import Category
 from . import bp
 from .forms import LedgerEntryForm
+from sqlmodel import select
+from sqlalchemy.orm import selectinload
 
 
 @dataclass(frozen=True)
@@ -196,16 +199,73 @@ def _summarize_transactions(
 def list_transactions():
     """Display ledger transactions with filters, pagination, and rollups."""
 
-    rollups, current_period_label, previous_period_label = _summarize_transactions(
-        _DEMO_TRANSACTIONS
-    )
+    raw_filters = request.args.to_dict(flat=True)
+    filter_state = {
+        "start_date": (raw_filters.get("start_date") or "").strip(),
+        "end_date": (raw_filters.get("end_date") or "").strip(),
+        "category": (raw_filters.get("category") or "").strip(),
+        "search": (raw_filters.get("search") or "").strip(),
+    }
+    filters: dict[str, object] = {}
+
+    categories: list[Category] = []
+
+    try:
+        stmt = select(Transaction).options(selectinload(Transaction.category))
+
+        def _parse_date(value: str, *, is_end: bool) -> datetime | None:
+            if not value:
+                return None
+            try:
+                parsed = datetime.fromisoformat(value)
+            except ValueError:
+                return None
+            if parsed.time() == time.min and len(value.strip()) == 10:
+                if is_end:
+                    return datetime.combine(parsed.date() + timedelta(days=1), time.min)
+                return datetime.combine(parsed.date(), time.min)
+            return parsed
+
+        if filter_state["start_date"]:
+            start_dt = _parse_date(filter_state["start_date"], is_end=False)
+            if start_dt is None:
+                raise ValueError
+            stmt = stmt.where(Transaction.occurred_at >= start_dt)
+            filters["start_date"] = filter_state["start_date"]
+        if filter_state["end_date"]:
+            end_dt = _parse_date(filter_state["end_date"], is_end=True)
+            if end_dt is None:
+                raise ValueError
+            stmt = stmt.where(Transaction.occurred_at < end_dt)
+            filters["end_date"] = filter_state["end_date"]
+        if filter_state["category"]:
+            filters["category"] = filter_state["category"]
+            stmt = stmt.where(Transaction.category_id == int(filter_state["category"]))
+        if filter_state["search"]:
+            filters["search"] = filter_state["search"]
+            stmt = stmt.where(Transaction.memo.ilike(f"%{filter_state['search']}%"))
+
+        stmt = stmt.order_by(Transaction.occurred_at.desc(), Transaction.id.desc())
+
+        with session_scope() as session:
+            transactions = session.exec(stmt).all()
+            categories = session.exec(select(Category).order_by(Category.name)).all()
+    except Exception:
+        # On invalid filters, fall back to unfiltered list.
+        filter_state = {"start_date": "", "end_date": "", "category": "", "search": ""}
+        filters = {}
+        with session_scope() as session:
+            transactions = session.exec(
+                select(Transaction).options(selectinload(Transaction.category))
+            ).all()
+            categories = session.exec(select(Category).order_by(Category.name)).all()
 
     return render_template(
         "ledger/index.html",
-        filters=request.args,
-        rollups=rollups,
-        current_period_label=current_period_label,
-        previous_period_label=previous_period_label,
+        filters=filters,
+        filter_state=filter_state,
+        transactions=transactions,
+        categories=categories,
     )
 
 

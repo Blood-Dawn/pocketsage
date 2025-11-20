@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, time, timezone
+from datetime import datetime, time, timedelta
 from math import ceil
 from typing import Protocol, Sequence
 
@@ -150,6 +150,7 @@ class SQLModelLedgerRepository:
             .limit(sanitized_per_page)
         )
         rows = self.session.exec(data_stmt).all()
+        self.session.expunge_all()
         return rows, int(total or 0)
 
 
@@ -166,14 +167,14 @@ def _coerce_date(value: str | None, *, is_start: bool) -> datetime | None:
         except ValueError:
             return None
         if is_start:
-            return datetime.combine(base.date(), time.min, tzinfo=timezone.utc)
-        return datetime.combine(base.date(), time.max, tzinfo=timezone.utc)
+            return datetime.combine(base.date(), time.min)
+        return datetime.combine(base.date(), time.max)
+    if parsed.time() == time.min and len((value or "").strip()) == 10:
+        if is_start:
+            return datetime.combine(parsed.date(), time.min, tzinfo=parsed.tzinfo)
+        return datetime.combine(parsed.date() + timedelta(days=1), time.min, tzinfo=parsed.tzinfo)
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    if is_start and parsed.time() == time.min:
-        return datetime.combine(parsed.date(), time.min, tzinfo=parsed.tzinfo)
-    if not is_start and parsed.time() == time.min:
-        return datetime.combine(parsed.date(), time.max, tzinfo=parsed.tzinfo)
+        parsed = parsed.replace(tzinfo=None)
     return parsed
 
 

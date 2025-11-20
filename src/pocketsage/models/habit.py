@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Optional
+from typing import ClassVar, Optional
 
 from sqlalchemy.orm import relationship
 from sqlmodel import Field, Relationship, SQLModel
@@ -11,6 +11,8 @@ from sqlmodel import Field, Relationship, SQLModel
 
 class Habit(SQLModel, table=True):
     """A user-defined habit the app tracks daily."""
+
+    __tablename__: ClassVar[str] = "habit"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(nullable=False, max_length=80, index=True)
@@ -29,10 +31,15 @@ class Habit(SQLModel, table=True):
 class HabitEntry(SQLModel, table=True):
     """Individual completion record for a habit on a calendar day."""
 
+    __tablename__: ClassVar[str] = "habit_entry"
+
     habit_id: int = Field(foreign_key="habit.id", primary_key=True)
     occurred_on: date = Field(primary_key=True, index=True)
     value: int = Field(default=1, nullable=False)
 
-    habit: "Habit" = Relationship(back_populates="entries")
+    habit: "Habit" = Relationship(
+        back_populates="entries",
+        sa_relationship=relationship("Habit", back_populates="entries"),
+    )
 
     # TODO(@analytics): enforce timezone-aware capture for cross-region tracking.

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar, Optional
 
 from sqlalchemy.orm import relationship
 from sqlmodel import Field, Relationship, SQLModel
@@ -13,6 +13,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class Account(SQLModel, table=True):
+    __tablename__: ClassVar[str] = "account"
+
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(nullable=False, max_length=128)
     currency: str = Field(default="USD", max_length=3)

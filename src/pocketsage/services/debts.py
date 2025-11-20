@@ -32,54 +32,68 @@ class AmortizationWriter(Protocol):
 def _calculate_schedule(*, debts: Iterable[DebtAccount], surplus: float) -> list[dict]:
     """Helper function to perform the amortization math."""
     debts = [asdict(d) for d in debts]  # Convert to mutable dicts
-    payoff_schedule = []
+    payoff_schedule: list[dict] = []
     current_date = date.today().replace(day=1)
+    rolled_minimums = 0.0  # freed minimum payments from debts already cleared
+
+    def _next_month(value: date) -> date:
+        month = value.month + 1
+        year = value.year + (month - 1) // 12
+        month = ((month - 1) % 12) + 1
+        return value.replace(year=year, month=month, day=1)
+
+    # safety guard to avoid runaway loops when payments cannot cover interest
+    max_iterations = 600
+    iterations = 0
 
     while any(d["balance"] > 0 for d in debts):
-        extra_payment_pool = surplus
+        iterations += 1
+        if iterations > max_iterations:
+            break
 
-        # Add freed-up minimum payments from paid-off debts to the extra payment pool
-        if payoff_schedule:
-            last_row = payoff_schedule[-1]
-            extra_payment_pool += sum(
-                last_row.get(f'min_payment_{d["id"]}', 0) for d in debts if d["balance"] == 0
-            )
-
-        # Create a new row for the current month
+        extra_pool = surplus + rolled_minimums
         row = {"date": current_date.isoformat(), "payments": {}}
 
-        # Apply payments to each debt
-        for i, debt in enumerate(debts):
-            if debt["balance"] > 0:
-                monthly_interest = Decimal(debt["balance"]) * Decimal(debt["apr"]) / Decimal(1200)
-                monthly_interest_float = float(
-                    monthly_interest.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-                )
+        for debt in debts:
+            if debt["balance"] <= 0:
+                continue
 
-                # Payment logic (target is the first debt in the sorted list)
-                if i == 0:
-                    payment = debt["minimum_payment"] + extra_payment_pool
-                else:
-                    payment = debt["minimum_payment"]
+            monthly_interest = Decimal(debt["balance"]) * Decimal(debt["apr"]) / Decimal(1200)
+            monthly_interest_float = float(
+                monthly_interest.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            )
 
-                # Apply payment, ensuring the balance does not go below zero
-                new_balance = debt["balance"] + monthly_interest_float - payment
+            # Apply surplus to the first active debt each period
+            payment = debt["minimum_payment"]
+            if extra_pool > 0:
+                payment += extra_pool
+                extra_pool = 0.0
 
-                if new_balance <= 0:
-                    payment_to_apply = debt["balance"] + monthly_interest_float
-                    debt["balance"] = 0
-                    extra_payment_pool = payment - payment_to_apply  # Carry over extra payment
-                else:
-                    debt["balance"] = new_balance
+            # Ensure payment always reduces principal
+            minimum_progress = monthly_interest_float + 1.0
+            if payment < minimum_progress:
+                payment = minimum_progress
 
-                row["payments"][f'debt_{debt["id"]}'] = {
-                    "payment_amount": payment,
-                    "interest_paid": monthly_interest_float,
-                    "remaining_balance": debt["balance"],
-                }
+            new_balance = debt["balance"] + monthly_interest_float - payment
+
+            if new_balance <= 0:
+                payment_to_apply = debt["balance"] + monthly_interest_float
+                leftover = payment - payment_to_apply
+                debt["balance"] = 0.0
+                extra_pool += max(leftover, 0.0)
+                rolled_minimums += debt["minimum_payment"]
+            else:
+                debt["balance"] = new_balance
+
+            row["payments"][f"debt_{debt['id']}"] = {
+                "payment_amount": payment,
+                "interest_paid": monthly_interest_float,
+                "remaining_balance": debt["balance"],
+            }
 
         payoff_schedule.append(row)
-        current_date += timedelta(days=30)  # Approximate month duration
+        current_date = _next_month(current_date)
+
     return payoff_schedule
 
 

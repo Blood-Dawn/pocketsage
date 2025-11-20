@@ -7,6 +7,7 @@ from datetime import date
 from typing import Callable, Optional
 
 from sqlmodel import Session, select
+from sqlalchemy.orm import selectinload
 
 from ...models.budget import Budget, BudgetLine
 
@@ -21,7 +22,8 @@ class SQLModelBudgetRepository:
     def get_by_id(self, budget_id: int) -> Optional[Budget]:
         """Retrieve a budget by ID."""
         with self.session_factory() as session:
-            return session.get(Budget, budget_id)
+            statement = select(Budget).options(selectinload(Budget.lines)).where(Budget.id == budget_id)
+            return session.exec(statement).first()
 
     def get_by_period(self, start_date: date, end_date: date) -> Optional[Budget]:
         """Get budget for a specific period."""
@@ -30,6 +32,7 @@ class SQLModelBudgetRepository:
                 select(Budget)
                 .where(Budget.period_start == start_date)
                 .where(Budget.period_end == end_date)
+                .options(selectinload(Budget.lines))
             )
             return session.exec(statement).first()
 
@@ -49,13 +52,18 @@ class SQLModelBudgetRepository:
                 select(Budget)
                 .where(Budget.period_start == start_date)
                 .where(Budget.period_end == end_date)
+                .options(selectinload(Budget.lines))
             )
             return session.exec(statement).first()
 
     def list_all(self) -> list[Budget]:
         """List all budgets."""
         with self.session_factory() as session:
-            statement = select(Budget).order_by(Budget.period_start.desc())  # type: ignore
+            statement = (
+                select(Budget)
+                .options(selectinload(Budget.lines))
+                .order_by(Budget.period_start.desc())
+            )  # type: ignore
             return list(session.exec(statement).all())
 
     def create(self, budget: Budget) -> Budget:
@@ -64,6 +72,7 @@ class SQLModelBudgetRepository:
             session.add(budget)
             session.commit()
             session.refresh(budget)
+            session.expunge(budget)
             return budget
 
     def update(self, budget: Budget) -> Budget:
@@ -72,6 +81,7 @@ class SQLModelBudgetRepository:
             session.add(budget)
             session.commit()
             session.refresh(budget)
+            session.expunge(budget)
             return budget
 
     def delete(self, budget_id: int) -> None:
@@ -99,6 +109,7 @@ class SQLModelBudgetRepository:
             session.add(line)
             session.commit()
             session.refresh(line)
+            session.expunge(line)
             return line
 
     def update_line(self, line: BudgetLine) -> BudgetLine:
@@ -107,6 +118,7 @@ class SQLModelBudgetRepository:
             session.add(line)
             session.commit()
             session.refresh(line)
+            session.expunge(line)
             return line
 
     def delete_line(self, line_id: int) -> None:

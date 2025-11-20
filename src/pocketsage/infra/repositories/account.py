@@ -20,19 +20,29 @@ class SQLModelAccountRepository:
     def get_by_id(self, account_id: int) -> Optional[Account]:
         """Retrieve an account by ID."""
         with self.session_factory() as session:
-            return session.get(Account, account_id)
+            obj = session.get(Account, account_id)
+            if obj:
+                session.refresh(obj)
+                session.expunge(obj)
+            return obj
 
     def get_by_name(self, name: str) -> Optional[Account]:
         """Retrieve an account by name."""
         with self.session_factory() as session:
             statement = select(Account).where(Account.name == name)
-            return session.exec(statement).first()
+            obj = session.exec(statement).first()
+            if obj:
+                session.refresh(obj)
+                session.expunge(obj)
+            return obj
 
     def list_all(self) -> list[Account]:
         """List all accounts."""
         with self.session_factory() as session:
             statement = select(Account).order_by(Account.name)  # type: ignore
-            return list(session.exec(statement).all())
+            rows = list(session.exec(statement).all())
+            session.expunge_all()
+            return rows
 
     def create(self, account: Account) -> Account:
         """Create a new account."""
@@ -40,6 +50,7 @@ class SQLModelAccountRepository:
             session.add(account)
             session.commit()
             session.refresh(account)
+            session.expunge(account)
             return account
 
     def update(self, account: Account) -> Account:
@@ -48,6 +59,7 @@ class SQLModelAccountRepository:
             session.add(account)
             session.commit()
             session.refresh(account)
+            session.expunge(account)
             return account
 
     def delete(self, account_id: int) -> None:

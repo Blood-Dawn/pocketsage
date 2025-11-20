@@ -14,19 +14,13 @@ def client():
         yield client
 
 
-@pytest.mark.skip(
-    reason="Route templates not yet implemented; see TODO(@qa-team) backlog item to re-enable."
-)
 @pytest.mark.parametrize(
     "path, expected_snippet",
     [
         ("/", None),
         ("/ledger/", None),
         ("/ledger/new", None),
-        (
-            "/habits/",
-            "TODO(@habits-squad): render habits list with streak badges and toggle buttons.",
-        ),
+        ("/habits/", None),
         ("/habits/new", None),
         ("/liabilities/", None),
         ("/liabilities/new", None),

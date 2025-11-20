@@ -20,13 +20,19 @@ class SQLModelHabitRepository:
     def get_by_id(self, habit_id: int) -> Optional[Habit]:
         """Retrieve a habit by ID."""
         with self.session_factory() as session:
-            return session.get(Habit, habit_id)
+            obj = session.get(Habit, habit_id)
+            if obj:
+                session.expunge(obj)
+            return obj
 
     def get_by_name(self, name: str) -> Optional[Habit]:
         """Retrieve a habit by name."""
         with self.session_factory() as session:
             statement = select(Habit).where(Habit.name == name)
-            return session.exec(statement).first()
+            obj = session.exec(statement).first()
+            if obj:
+                session.expunge(obj)
+            return obj
 
     def list_all(self, include_inactive: bool = False) -> list[Habit]:
         """List all habits, optionally including inactive ones."""
@@ -36,7 +42,9 @@ class SQLModelHabitRepository:
             if not include_inactive:
                 statement = statement.where(Habit.is_active == True)  # noqa: E712
 
-            return list(session.exec(statement).all())
+            rows = list(session.exec(statement).all())
+            session.expunge_all()
+            return rows
 
     def list_active(self) -> list[Habit]:
         """List only active habits."""
@@ -48,6 +56,7 @@ class SQLModelHabitRepository:
             session.add(habit)
             session.commit()
             session.refresh(habit)
+            session.expunge(habit)
             return habit
 
     def update(self, habit: Habit) -> Habit:
@@ -56,6 +65,7 @@ class SQLModelHabitRepository:
             session.add(habit)
             session.commit()
             session.refresh(habit)
+            session.expunge(habit)
             return habit
 
     def delete(self, habit_id: int) -> None:
@@ -74,7 +84,10 @@ class SQLModelHabitRepository:
                 .where(HabitEntry.habit_id == habit_id)
                 .where(HabitEntry.occurred_on == occurred_on)
             )
-            return session.exec(statement).first()
+            obj = session.exec(statement).first()
+            if obj:
+                session.expunge(obj)
+            return obj
 
     def get_entries_for_habit(
         self, habit_id: int, start_date: date, end_date: date
@@ -88,7 +101,9 @@ class SQLModelHabitRepository:
                 .where(HabitEntry.occurred_on <= end_date)
                 .order_by(HabitEntry.occurred_on)  # type: ignore
             )
-            return list(session.exec(statement).all())
+            rows = list(session.exec(statement).all())
+            session.expunge_all()
+            return rows
 
     def upsert_entry(self, entry: HabitEntry) -> HabitEntry:
         """Insert or update a habit entry."""
@@ -104,11 +119,13 @@ class SQLModelHabitRepository:
                 session.add(existing)
                 session.commit()
                 session.refresh(existing)
+                session.expunge(existing)
                 return existing
             else:
                 session.add(entry)
                 session.commit()
                 session.refresh(entry)
+                session.expunge(entry)
                 return entry
 
     def delete_entry(self, habit_id: int, occurred_on: date) -> None:

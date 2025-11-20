@@ -4,11 +4,15 @@ from __future__ import annotations
 
 from typing import Optional
 
+from typing import ClassVar
+
 from sqlmodel import Field, SQLModel
 
 
 class AppSetting(SQLModel, table=True):
     """Key-value storage for runtime configurable options."""
+
+    __tablename__: ClassVar[str] = "app_setting"
 
     key: str = Field(primary_key=True, max_length=64)
     value: str = Field(nullable=False, max_length=255)

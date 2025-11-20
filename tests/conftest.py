@@ -70,7 +70,7 @@ def db_session(db_engine):
     Yields:
         Session: SQLModel session for test
     """
-    session = Session(db_engine)
+    session = Session(db_engine, expire_on_commit=False)
     try:
         yield session
         session.commit()
@@ -96,19 +96,10 @@ def session_factory(db_engine):
     """
 
     def factory():
-        """Create a new session context manager."""
+        """Create a new Session with expire_on_commit disabled."""
 
-        @contextmanager
         def session_context():
-            session = Session(db_engine)
-            try:
-                yield session
-                session.commit()
-            except Exception:
-                session.rollback()
-                raise
-            finally:
-                session.close()
+            return Session(db_engine, expire_on_commit=False)
 
         return session_context()
 
