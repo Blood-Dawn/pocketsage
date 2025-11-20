@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import flet as ft
 
 from ..components import build_app_bar, build_main_layout
-
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..context import AppContext
@@ -112,6 +112,55 @@ def build_help_view(ctx: AppContext, page: ft.Page) -> ft.View:
         )
     )
 
+    shortcuts_card = ft.Card(
+        content=ft.Container(
+            padding=16,
+            content=ft.Column(
+                [
+                    ft.Text("Keyboard shortcuts", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Text(
+                        "Keep your hands on the keyboard for the actions below.",
+                        color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                    ft.Row(
+                        [
+                            ft.Text("Ctrl+N", weight=ft.FontWeight.BOLD),
+                            ft.Text(
+                                "New transaction (ledger view)",
+                                color=ft.Colors.ON_SURFACE_VARIANT,
+                            ),
+                        ],
+                        spacing=8,
+                    ),
+                    ft.Row(
+                        [
+                            ft.Text("Ctrl+Shift+H", weight=ft.FontWeight.BOLD),
+                            ft.Text(
+                                "Bring up habit entry flow",
+                                color=ft.Colors.ON_SURFACE_VARIANT,
+                            ),
+                        ],
+                        spacing=8,
+                    ),
+                    ft.Row(
+                        [
+                            ft.Text("Ctrl+1..7", weight=ft.FontWeight.BOLD),
+                            ft.Text(
+                                (
+                                    "Jump between Dashboard, Ledger, Budgets, "
+                                    "Habits, Debts, Portfolio, Settings"
+                                ),
+                                color=ft.Colors.ON_SURFACE_VARIANT,
+                            ),
+                        ],
+                        spacing=8,
+                    ),
+                ],
+                spacing=10,
+            ),
+        )
+    )
+
     content = ft.Column(
         [
             ft.Text("Help & CSV Guide", size=24, weight=ft.FontWeight.BOLD),
@@ -123,6 +172,8 @@ def build_help_view(ctx: AppContext, page: ft.Page) -> ft.View:
             tx_card,
             ft.Container(height=10),
             portfolio_card,
+            ft.Container(height=10),
+            shortcuts_card,
         ],
         expand=True,
         scroll=ft.ScrollMode.AUTO,

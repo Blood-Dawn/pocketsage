@@ -36,16 +36,11 @@ class Router:
 
         if builder:
             try:
-                # Build view
                 view = builder(self.context, self.page)
-
-                # Clear existing views
-                self.page.views.clear()
-
-                # Add new view
-                self.page.views.append(view)
-
-                # Update page
+                if self.page.views:
+                    self.page.views[-1] = view
+                else:
+                    self.page.views.append(view)
                 self.page.update()
             except Exception as ex:
                 # Show error dialog

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import flet as ft
 
-from ...services.admin_tasks import run_demo_seed, run_export
+from .. import controllers
+from ...services.admin_tasks import run_export
 from ..components import build_app_bar, build_main_layout
 
 if TYPE_CHECKING:
@@ -68,8 +69,10 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
             _notify(f"Export failed: {exc}")
 
     def seed_demo(_):
-        run_demo_seed(session_factory=ctx.session_factory)
-        _notify("Demo data seeded")
+        controllers.run_demo_seed(ctx, page)
+
+    def reset_demo(_):
+        controllers.reset_demo_data(ctx, page)
 
     database_section = ft.Card(
         content=ft.Container(
@@ -97,7 +100,16 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 icon=ft.Icons.DOWNLOAD,
                                 on_click=export_data,
                             ),
-                            ft.TextButton("Run Demo Seed", icon=ft.Icons.DATA_THRESHOLDING, on_click=seed_demo),
+                            ft.TextButton(
+                                "Run Demo Seed",
+                                icon=ft.Icons.DATA_THRESHOLDING,
+                                on_click=seed_demo,
+                            ),
+                            ft.TextButton(
+                                "Reset Demo Data",
+                                icon=ft.Icons.RESTORE,
+                                on_click=reset_demo,
+                            ),
                         ],
                         spacing=8,
                     ),
@@ -160,18 +172,18 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             ft.FilledButton(
                                 "Import Transactions",
                                 icon=ft.Icons.UPLOAD_FILE,
-                                on_click=lambda _: (
-                                    _notify("Opening Ledger to run Import CSV...") or page.go("/ledger")
-                                ),
+                                on_click=lambda _: controllers.start_ledger_import(ctx, page),
                             ),
                             ft.FilledButton(
                                 "Import Portfolio",
                                 icon=ft.Icons.UPLOAD,
-                                on_click=lambda _: (
-                                    _notify("Portfolio import coming soon; see CSV help") or page.go("/help")
-                                ),
+                                on_click=lambda _: controllers.start_portfolio_import(ctx, page),
                             ),
-                            ft.TextButton("CSV Help", icon=ft.Icons.HELP_OUTLINE, on_click=lambda _: page.go("/help")),
+                            ft.TextButton(
+                                "CSV Help",
+                                icon=ft.Icons.HELP_OUTLINE,
+                                on_click=lambda _: controllers.go_to_help(page),
+                            ),
                         ],
                         spacing=8,
                     ),

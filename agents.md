@@ -82,6 +82,12 @@ Desktop-only guide for PocketSage. Use this as the working source for architectu
 ## Data Seeding, Admin Tasks, and Retention
 - Demo seed and export wired through `services/admin_tasks.py`; exports bundle CSV + PNG artifacts, retained to five latest archives. Ensure target directories writable and secured; adjust retention constant if policy changes.
 
+## Nov 2025 Desktop UX Updates
+- Removed persistent footer/status bar from layout to keep views clean.
+- Navigation now uses centralized controllers with transitions disabled for instant route changes and working Help tab.
+- Shared FilePicker overlays power ledger and portfolio CSV imports; Settings buttons trigger import, demo seed, and reset flows with snack feedback.
+- Settings includes explicit “Reset Demo Data” alongside “Run Demo Seed”; Help/CSV help buttons route to `/help`.
+
 ## Documentation Pointers (source coverage)
 - README: stack snapshot, quickstart (desktop), packaging commands, make targets, desktop shortcuts/features/architecture/benefits, configuration flags, privacy, folder map, next steps, demo seeding.
 - CONTRIBUTING: ground rules, workflow, lint/test commands, commit style, testing requirements/coverage expectations, security/privacy reminders.

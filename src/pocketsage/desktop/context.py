@@ -48,6 +48,8 @@ class AppContext:
 
     # Page reference (set after initialization)
     page: Optional[ft.Page] = None
+    file_picker: Optional[ft.FilePicker] = None
+    file_picker_mode: Optional[str] = None
 
 
 def create_app_context(config: Optional[BaseConfig] = None) -> AppContext:

@@ -88,7 +88,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                     [
                                         ft.Text(habit.name, size=16, weight=ft.FontWeight.BOLD),
                                         ft.Text(habit.description or "No description", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
-                                        ft.Text(f"Current: {current_streak} • Longest: {longest_streak}", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+                                        ft.Text(f"Current: {current_streak} / Longest: {longest_streak}", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
                                     ],
                                     expand=True,
                                 ),

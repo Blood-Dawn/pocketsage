@@ -8,8 +8,13 @@ import pytest
 from pocketsage.config import BaseConfig
 from pocketsage.infra.database import create_db_engine, init_database, session_scope
 from pocketsage.models import Transaction
-from pocketsage.services.admin_tasks import EXPORT_RETENTION, run_demo_seed, run_export
-from sqlmodel import select
+from pocketsage.services.admin_tasks import (
+    EXPORT_RETENTION,
+    reset_demo_database,
+    run_demo_seed,
+    run_export,
+)
+from sqlmodel import delete, select
 
 
 @pytest.fixture()
@@ -29,7 +34,7 @@ def session_factory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 def test_run_demo_seed_populates_sample_data(session_factory):
     factory, engine = session_factory
 
-    run_demo_seed(session_factory=factory)
+    summary = run_demo_seed(session_factory=factory)
 
     with session_scope(engine) as session:
         memos = [tx.memo for tx in session.exec(select(Transaction)).all()]
@@ -38,12 +43,16 @@ def test_run_demo_seed_populates_sample_data(session_factory):
     assert {"Grocery Run", "Dinner with friends", "Electric bill", "Monthly salary"}.issubset(
         set(memos)
     )
+    assert summary.transactions == len(memos)
+    assert summary.categories >= 6
+    assert summary.accounts >= 2
 
     # Idempotent: rerun should not duplicate
-    run_demo_seed(session_factory=factory)
+    rerun = run_demo_seed(session_factory=factory)
     with session_scope(engine) as session:
         count_after = len(session.exec(select(Transaction)).all())
     assert count_after == len(memos)
+    assert rerun.transactions == summary.transactions
 
 
 def test_run_export_creates_zip_and_prunes_old(session_factory, tmp_path: Path):
@@ -66,3 +75,40 @@ def test_run_export_creates_zip_and_prunes_old(session_factory, tmp_path: Path):
     archives = sorted(exports_dir.glob("pocketsage_export_*.zip"))
     assert len(archives) == EXPORT_RETENTION
     assert created in archives
+
+
+def test_reset_demo_database_restores_seed(session_factory):
+    factory, engine = session_factory
+
+    run_demo_seed(session_factory=factory)
+    with session_scope(engine) as session:
+        session.exec(delete(Transaction))
+
+    reset_demo_database(session_factory=factory)
+
+    with session_scope(engine) as session:
+        count = len(session.exec(select(Transaction)).all())
+
+    assert count >= 6
+
+
+def test_reset_demo_database_drops_custom_rows(session_factory):
+    factory, engine = session_factory
+
+    run_demo_seed(session_factory=factory)
+    with session_scope(engine) as session:
+        session.add(
+            Transaction(
+                memo="Custom Row",
+                amount=-12.34,
+                occurred_at=datetime.now(timezone.utc),
+            )
+        )
+
+    summary = reset_demo_database(session_factory=factory)
+
+    with session_scope(engine) as session:
+        memos = {tx.memo for tx in session.exec(select(Transaction)).all()}
+
+    assert "Custom Row" not in memos
+    assert summary.transactions == len(memos)

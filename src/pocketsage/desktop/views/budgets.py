@@ -140,6 +140,11 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     else:
         # No budget for this month
+        def show_budget_placeholder(_):
+            page.snack_bar = ft.SnackBar(content=ft.Text("Budget creation coming soon"))
+            page.snack_bar.open = True
+            page.update()
+
         budget_content = ft.Container(
             content=ft.Column(
                 [
@@ -164,7 +169,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.FilledButton(
                         "Create Budget",
                         icon=ft.Icons.ADD,
-                        on_click=lambda _: None,  # TODO: Implement budget creation
+                        on_click=show_budget_placeholder,
                     ),
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,

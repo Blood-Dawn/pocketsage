@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from datetime import date
 from typing import TYPE_CHECKING, List
 
@@ -9,6 +10,9 @@ import flet as ft
 
 if TYPE_CHECKING:
     from ..context import AppContext
+
+from .. import controllers
+from ..navigation_helpers import NAVIGATION_DESTINATIONS, index_for_route
 
 
 def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
@@ -23,10 +27,8 @@ def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
         options.append(ft.dropdown.Option(key=f"{year}-{month:02d}", text=label))
 
     def set_month(e: ft.ControlEvent):
-        try:
+        with suppress(Exception):
             ctx.current_month = date.fromisoformat(f"{e.control.value}-01")
-        except Exception:
-            pass
         page.snack_bar = ft.SnackBar(content=ft.Text(f"Switched to {e.control.value}"))
         page.snack_bar.open = True
         page.update()
@@ -40,7 +42,7 @@ def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
     )
 
     def _go(path: str):
-        page.go(path)
+        controllers.navigate(page, path)
 
     quick_actions: List[ft.Control] = [
         month_selector,
@@ -57,7 +59,7 @@ def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
         ft.IconButton(
             icon=ft.Icons.DOWNLOAD,
             tooltip="Run demo seed",
-            on_click=lambda _: _run_seed(ctx, page),
+            on_click=lambda _: controllers.run_demo_seed(ctx, page),
         ),
     ]
 
@@ -70,44 +72,14 @@ def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
     )
 
 
-def _run_seed(ctx: AppContext, page: ft.Page) -> None:
-    """Trigger demo seed and notify user."""
-    try:
-        from pocketsage.services.admin_tasks import run_demo_seed
-
-        run_demo_seed(session_factory=ctx.session_factory)
-        page.snack_bar = ft.SnackBar(content=ft.Text("Demo data seeded"))
-    except Exception as exc:  # pragma: no cover - surface friendly error
-        page.snack_bar = ft.SnackBar(content=ft.Text(f"Seed failed: {exc}"))
-    page.snack_bar.open = True
-    page.update()
-
-
 def build_navigation_rail(page: ft.Page, current_route: str) -> ft.NavigationRail:
     """Build the navigation rail with route selection."""
 
-    routes = [
-        "/dashboard",
-        "/ledger",
-        "/budgets",
-        "/habits",
-        "/debts",
-        "/portfolio",
-        "/reports",
-        "/help",
-        "/settings",
-    ]
-
     def route_changed(e):
-        """Handle navigation selection."""
-        selected_idx = e.control.selected_index
-        if 0 <= selected_idx < len(routes):
-            page.go(routes[selected_idx])
+        """Keep navigation logic isolated in helpers."""
+        controllers.handle_nav_selection(page, e.control.selected_index)
 
-    try:
-        selected_index = routes.index(current_route)
-    except ValueError:
-        selected_index = 0
+    selected_index = index_for_route(current_route)
 
     return ft.NavigationRail(
         selected_index=selected_index,
@@ -117,50 +89,11 @@ def build_navigation_rail(page: ft.Page, current_route: str) -> ft.NavigationRai
         group_alignment=-0.9,
         destinations=[
             ft.NavigationRailDestination(
-                icon=ft.Icons.DASHBOARD_OUTLINED,
-                selected_icon=ft.Icons.DASHBOARD,
-                label="Dashboard",
-            ),
-            ft.NavigationRailDestination(
-                icon=ft.Icons.RECEIPT_LONG_OUTLINED,
-                selected_icon=ft.Icons.RECEIPT_LONG,
-                label="Ledger",
-            ),
-            ft.NavigationRailDestination(
-                icon=ft.Icons.ACCOUNT_BALANCE_OUTLINED,
-                selected_icon=ft.Icons.ACCOUNT_BALANCE,
-                label="Budgets",
-            ),
-            ft.NavigationRailDestination(
-                icon=ft.Icons.CHECK_CIRCLE_OUTLINE,
-                selected_icon=ft.Icons.CHECK_CIRCLE,
-                label="Habits",
-            ),
-            ft.NavigationRailDestination(
-                icon=ft.Icons.CREDIT_CARD_OUTLINED,
-                selected_icon=ft.Icons.CREDIT_CARD,
-                label="Debts",
-            ),
-            ft.NavigationRailDestination(
-                icon=ft.Icons.TRENDING_UP_OUTLINED,
-                selected_icon=ft.Icons.TRENDING_UP,
-                label="Portfolio",
-            ),
-            ft.NavigationRailDestination(
-                icon=ft.Icons.ASSESSMENT_OUTLINED,
-                selected_icon=ft.Icons.ASSESSMENT,
-                label="Reports",
-            ),
-            ft.NavigationRailDestination(
-                icon=ft.Icons.HELP_OUTLINE,
-                selected_icon=ft.Icons.HELP,
-                label="Help",
-            ),
-            ft.NavigationRailDestination(
-                icon=ft.Icons.SETTINGS_OUTLINED,
-                selected_icon=ft.Icons.SETTINGS,
-                label="Settings",
-            ),
+                icon=dest.icon,
+                selected_icon=dest.selected_icon,
+                label=dest.label,
+            )
+            for dest in NAVIGATION_DESTINATIONS
         ],
         on_change=route_changed,
     )

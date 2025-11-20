@@ -42,6 +42,7 @@ class DummyPage:
         self.views: list[ft.View] = []
         self.route: str = ""
         self.snack_bar = None
+        self.overlay: list[ft.Control] = []
 
     def go(self, route: str):
         self.route = route

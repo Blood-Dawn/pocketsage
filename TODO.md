@@ -70,6 +70,29 @@
 - [ ] Budgets progress (month selector, CRUD, alerts).
 - [ ] Portfolio allocations chart and CSV wiring polish.
 - [ ] Settings/Admin wiring for backup/import placeholders.
+
+## Desktop UX Sprint (Session Tasks)
+- [x] # TODO(@desktop) Remove persistent footer/status text from layout (`src/pocketsage/desktop/components/layout.py`).
+- [x] # TODO(@desktop) Smooth/disable view transitions and centralize navigation handlers (`src/pocketsage/desktop/app.py`, `src/pocketsage/desktop/controllers.py`, `src/pocketsage/desktop/navigation_helpers.py`).
+- [x] # TODO(@desktop) Wire buttons and help navigation across dashboard/ledger/settings/help (`src/pocketsage/desktop/views/*.py`).
+- [x] # TODO(@desktop) Add shared FilePicker and hook ledger/portfolio imports (`src/pocketsage/desktop/app.py`, `src/pocketsage/desktop/views/ledger.py`, `src/pocketsage/desktop/views/settings.py`, `src/pocketsage/services/importers.py`).
+- [x] # TODO(@desktop) Clarify demo seed vs. reset flows and hook Settings actions (`src/pocketsage/services/admin_tasks.py`, `src/pocketsage/desktop/views/settings.py`).
+- [x] # TODO(@qa-team) Add navigation/controller and help/habits route tests (`tests/test_desktop_navigation.py`, `tests/test_desktop_actions.py`).
+- [x] # TODO(@qa-team) Add import handler/service tests for ledger/portfolio (`tests/test_import_services.py`, `tests/test_desktop_actions.py`).
+- [x] # TODO(@qa-team) Extend demo seed/reset coverage for predictable demo mode (`tests/test_admin_tasks.py`).
+
+## Desktop UX Sprint (Nov 2025)
+- [ ] # TODO(@desktop) Align demo seed/reset flows and Settings notifications (`src/pocketsage/services/admin_tasks.py`, `src/pocketsage/desktop/views/settings.py`, `tests/test_admin_tasks.py`).
+- [ ] # TODO(@desktop) Introduce controller layer for nav/buttons plus consistent handlers (`src/pocketsage/desktop/controllers.py`, `src/pocketsage/desktop/app.py`, `src/pocketsage/desktop/views/*`).
+- [ ] # TODO(@desktop) Ensure `/habits` route is reachable via nav + shortcuts with regression tests (`src/pocketsage/desktop/navigation_helpers.py`, `tests/test_desktop_navigation.py`).
+- [ ] # TODO(@desktop) Implement CSV import persistence for ledger/portfolio with tests (`src/pocketsage/services/importers.py`, `tests/test_import_services.py`).
+- [ ] # TODO(@desktop) Add shared FilePicker and wire ledger/portfolio import buttons (`src/pocketsage/desktop/app.py`, `src/pocketsage/desktop/views/ledger.py`, `src/pocketsage/desktop/views/settings.py`).
+
+### Desktop UX Hardening (Nov 2025)
+- [ ] # TODO(@desktop) Finalize demo seed/reset flows and notifications (`services/admin_tasks.py`, `desktop/views/settings.py`, `tests/test_admin_tasks.py`).
+- [ ] # TODO(@desktop) Introduce controller helpers so nav/app bar/dashboard buttons share logic (`desktop/controllers.py`, `desktop/components/layout.py`, `desktop/views/dashboard.py`).
+- [ ] # TODO(@desktop) Guarantee Habits route + shortcuts render via router with regression tests (`desktop/views/habits.py`, `tests/test_desktop_navigation.py`).
+- [ ] # TODO(@desktop) Wire ledger and portfolio CSV imports through shared file picker + services (`desktop/app.py`, `desktop/views/ledger.py`, `desktop/views/settings.py`, `src/pocketsage/services/importers.py`, `tests/test_import_services.py`).
 ## Testing & QA(KD)
 - [x] # TODO(@qa-team) Replace skipped tests with golden datasets for budgeting/debts services.
 - [x] # TODO(@qa-team) Add route smoke tests verifying template context variables.

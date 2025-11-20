@@ -5,14 +5,17 @@ from __future__ import annotations
 import os
 from calendar import monthrange
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Callable, Iterator, Optional
 from zipfile import ZipFile
 
+from sqlalchemy import func
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import OperationalError
-from sqlmodel import Session, select
+from sqlmodel import Session, SQLModel, select
 
 from ..config import BaseConfig
 from ..infra.database import create_db_engine, init_database
@@ -33,6 +36,18 @@ from .reports import export_spending_png
 SessionFactory = Callable[[], Iterator[Session]]
 
 _ENGINE = None
+
+
+@dataclass(frozen=True)
+class SeedSummary:
+    """Aggregate counts returned after demo seeding."""
+
+    transactions: int
+    categories: int
+    accounts: int
+    habits: int
+    liabilities: int
+    budgets: int
 
 
 def _get_engine():
@@ -60,23 +75,82 @@ def _get_session(session_factory: Optional[SessionFactory] = None) -> Iterator[S
         yield session
 
 
+def _resolve_engine(session_factory: Optional[SessionFactory]) -> Engine:
+    """Resolve the engine used by the provided session factory if possible."""
+
+    if session_factory is None:
+        return _get_engine()
+
+    with session_factory() as session:
+        bind = session.get_bind()
+        if bind is None:  # pragma: no cover - defensive guard
+            raise RuntimeError("Session is not bound to an engine")
+        engine = getattr(bind, "engine", bind)
+        return engine
+
+
 def _seed_categories(session: Session) -> dict[str, Category]:
     categories_seed = [
-        {"name": "Groceries", "slug": "groceries", "category_type": "expense", "color": "#4CAF50"},
-        {"name": "Dining Out", "slug": "dining-out", "category_type": "expense", "color": "#FF7043"},
-        {"name": "Utilities", "slug": "utilities", "category_type": "expense", "color": "#29B6F6"},
+        {
+            "name": "Groceries",
+            "slug": "groceries",
+            "category_type": "expense",
+            "color": "#4CAF50",
+        },
+        {
+            "name": "Dining Out",
+            "slug": "dining-out",
+            "category_type": "expense",
+            "color": "#FF7043",
+        },
+        {
+            "name": "Utilities",
+            "slug": "utilities",
+            "category_type": "expense",
+            "color": "#29B6F6",
+        },
         {
             "name": "Transportation",
             "slug": "transportation",
             "category_type": "expense",
             "color": "#AB47BC",
         },
-        {"name": "Wellness", "slug": "wellness", "category_type": "expense", "color": "#8D6E63"},
-        {"name": "Coffee", "slug": "coffee", "category_type": "expense", "color": "#795548"},
-        {"name": "Salary", "slug": "salary", "category_type": "income", "color": "#4CAF50"},
-        {"name": "Paycheck", "slug": "paycheck", "category_type": "income", "color": "#2E7D32"},
-        {"name": "Interest Income", "slug": "interest-income", "category_type": "income", "color": "#1B5E20"},
-        {"name": "Transfer In", "slug": "transfer-in", "category_type": "income", "color": "#00796B"},
+        {
+            "name": "Wellness",
+            "slug": "wellness",
+            "category_type": "expense",
+            "color": "#8D6E63",
+        },
+        {
+            "name": "Coffee",
+            "slug": "coffee",
+            "category_type": "expense",
+            "color": "#795548",
+        },
+        {
+            "name": "Salary",
+            "slug": "salary",
+            "category_type": "income",
+            "color": "#4CAF50",
+        },
+        {
+            "name": "Paycheck",
+            "slug": "paycheck",
+            "category_type": "income",
+            "color": "#2E7D32",
+        },
+        {
+            "name": "Interest Income",
+            "slug": "interest-income",
+            "category_type": "income",
+            "color": "#1B5E20",
+        },
+        {
+            "name": "Transfer In",
+            "slug": "transfer-in",
+            "category_type": "income",
+            "color": "#00796B",
+        },
     ]
     categories: dict[str, Category] = {}
     for payload in categories_seed:
@@ -111,7 +185,11 @@ def _seed_accounts(session: Session) -> dict[str, Account]:
     return accounts
 
 
-def _seed_transactions(session: Session, categories: dict[str, Category], accounts: dict[str, Account]) -> None:
+def _seed_transactions(
+    session: Session,
+    categories: dict[str, Category],
+    accounts: dict[str, Account],
+) -> None:
     now = datetime.now(timezone.utc)
     transaction_specs = [
         {
@@ -216,7 +294,9 @@ def _seed_habits(session: Session) -> None:
 
         entries = {
             entry.occurred_on: entry
-            for entry in session.exec(select(HabitEntry).where(HabitEntry.habit_id == existing.id)).all()
+            for entry in session.exec(
+                select(HabitEntry).where(HabitEntry.habit_id == existing.id)
+            ).all()
         }
         for occurred_on, value in spec["entries"]:
             entry = entries.get(occurred_on)
@@ -251,7 +331,9 @@ def _seed_liabilities(session: Session) -> None:
     ]
 
     for spec in liability_specs:
-        existing = session.exec(select(Liability).where(Liability.name == spec["name"])).one_or_none()
+        existing = session.exec(
+            select(Liability).where(Liability.name == spec["name"])
+        ).one_or_none()
         if existing is None:
             session.add(Liability(**spec))
         else:
@@ -297,14 +379,28 @@ def _seed_budget(session: Session, categories: dict[str, Category]) -> None:
             )
 
 
-def run_demo_seed(session_factory: Optional[SessionFactory] = None) -> None:
-    """Seed demo data idempotently for desktop workflows."""
+def reset_demo_database(session_factory: Optional[SessionFactory] = None) -> SeedSummary:
+    """Drop the schema and reseed demo data for desktop demos."""
+
+    engine = _resolve_engine(session_factory)
+    SQLModel.metadata.drop_all(engine)
+    init_database(engine)
+    return run_demo_seed(session_factory=session_factory, force=True)
+
+
+def run_demo_seed(
+    session_factory: Optional[SessionFactory] = None,
+    *,
+    force: bool = False,
+) -> SeedSummary:
+    """Seed demo data idempotently for desktop workflows and return counts."""
 
     with _get_session(session_factory) as session:
-        # Skip if data already present.
-        existing_tx = session.exec(select(Transaction.id)).first()
-        if existing_tx is not None:
-            return
+        if not force:
+            # Skip heavy re-seeding when data already present.
+            existing_tx = session.exec(select(Transaction.id)).first()
+            if existing_tx is not None:
+                return _build_seed_summary(session)
 
         categories = _seed_categories(session)
         accounts = _seed_accounts(session)
@@ -312,6 +408,27 @@ def run_demo_seed(session_factory: Optional[SessionFactory] = None) -> None:
         _seed_habits(session)
         _seed_liabilities(session)
         _seed_budget(session, categories)
+        session.flush()
+        return _build_seed_summary(session)
+
+
+def _build_seed_summary(session: Session) -> SeedSummary:
+    """Compile counts for tables populated by the demo seed."""
+
+    tx_count = session.exec(select(func.count(Transaction.id))).one()
+    category_count = session.exec(select(func.count(Category.id))).one()
+    account_count = session.exec(select(func.count(Account.id))).one()
+    habit_count = session.exec(select(func.count(Habit.id))).one()
+    liability_count = session.exec(select(func.count(Liability.id))).one()
+    budget_count = session.exec(select(func.count(Budget.id))).one()
+    return SeedSummary(
+        transactions=tx_count,
+        categories=category_count,
+        accounts=account_count,
+        habits=habit_count,
+        liabilities=liability_count,
+        budgets=budget_count,
+    )
 
 
 EXPORT_RETENTION = 5
@@ -391,4 +508,9 @@ def run_export(
         return zip_path
 
 
-__all__ = ["run_demo_seed", "run_export", "EXPORT_RETENTION"]
+__all__ = [
+    "reset_demo_database",
+    "run_demo_seed",
+    "run_export",
+    "EXPORT_RETENTION",
+]
