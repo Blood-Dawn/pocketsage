@@ -22,6 +22,25 @@ PocketSage is now a **desktop-only** personal finance and habit tracker. It uses
 - Platform scripts: `bash scripts/build_desktop.sh` (Linux/macOS) or `scripts\build_desktop.bat` (Windows).
 - Output paths: Windows `dist\PocketSage\PocketSage.exe`, macOS `dist/PocketSage.app`, Linux `dist/PocketSage/PocketSage`.
 
+### Clean Rebuild (Windows PowerShell)
+Use these commands when you need to purge everything and regenerate the desktop binary:
+
+```powershell
+# Stop lingering python.exe processes if files are locked
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force"
+
+# Remove virtualenv and build artifacts
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-Location 'C:\Users\kheiven\Documents\GitHub\pocketsage'; if (Test-Path .venv) { Remove-Item -Recurse -Force .venv }; if (Test-Path dist) { Remove-Item -Recurse -Force dist }; if (Test-Path build) { Remove-Item -Recurse -Force build }"
+
+# Recreate environment and install deps + PyInstaller
+python -m venv .venv
+.\.venv\Scripts\python -m pip install --upgrade pip
+.\.venv\Scripts\python -m pip install -e ".[dev]" pyinstaller
+
+# Build the packaged desktop app
+.\.venv\Scripts\flet pack run_desktop.py
+```
+
 ## Make Targets
 - `make setup` – install deps + register pre-commit
 - `make dev` – run the desktop app
