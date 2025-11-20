@@ -56,12 +56,21 @@ def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
             tooltip="Add habit (Ctrl+Shift+H)",
             on_click=lambda _: _go("/habits"),
         ),
-        ft.IconButton(
-            icon=ft.Icons.DOWNLOAD,
-            tooltip="Run demo seed",
-            on_click=lambda _: controllers.run_demo_seed(ctx, page),
-        ),
     ]
+    if ctx.current_user:
+        quick_actions.append(
+            ft.Chip(
+                label=ft.Text(ctx.current_user.username),
+                leading=ft.Icon(ft.Icons.PERSON),
+            )
+        )
+        quick_actions.append(
+            ft.IconButton(
+                icon=ft.Icons.LOGOUT,
+                tooltip="Log out",
+                on_click=lambda _: controllers.logout(ctx, page),
+            )
+        )
 
     return ft.AppBar(
         leading=ft.Icon(ft.Icons.ACCOUNT_BALANCE_WALLET),
@@ -72,14 +81,16 @@ def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
     )
 
 
-def build_navigation_rail(page: ft.Page, current_route: str) -> ft.NavigationRail:
+def build_navigation_rail(ctx: AppContext, page: ft.Page, current_route: str) -> ft.NavigationRail:
     """Build the navigation rail with route selection."""
 
     def route_changed(e):
         """Keep navigation logic isolated in helpers."""
-        controllers.handle_nav_selection(page, e.control.selected_index)
+        controllers.handle_nav_selection(ctx, page, e.control.selected_index)
 
-    selected_index = index_for_route(current_route)
+    is_admin = ctx.current_user is not None and ctx.current_user.role == "admin"
+    selected_index = index_for_route(current_route, is_admin=is_admin)
+    destinations = [dest for dest in NAVIGATION_DESTINATIONS if is_admin or dest.route != "/admin"]
 
     return ft.NavigationRail(
         selected_index=selected_index,
@@ -93,7 +104,7 @@ def build_navigation_rail(page: ft.Page, current_route: str) -> ft.NavigationRai
                 selected_icon=dest.selected_icon,
                 label=dest.label,
             )
-            for dest in NAVIGATION_DESTINATIONS
+            for dest in destinations
         ],
         on_change=route_changed,
     )
@@ -107,7 +118,7 @@ def build_main_layout(
 ) -> List[ft.Control]:
     """Build the main layout with navigation rail and content."""
 
-    nav_rail = build_navigation_rail(page, current_route)
+    nav_rail = build_navigation_rail(ctx, page, current_route)
 
     content_column = ft.Column(
         [

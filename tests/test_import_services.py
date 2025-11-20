@@ -4,12 +4,11 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from sqlmodel import select
-
 from pocketsage.config import BaseConfig
 from pocketsage.infra.database import create_db_engine, init_database, session_scope
-from pocketsage.models import Holding, Transaction, Account
-from pocketsage.services import importers
+from pocketsage.models import Account, Holding, Transaction
+from pocketsage.services import auth, importers
+from sqlmodel import select
 
 
 @pytest.fixture()
@@ -20,14 +19,24 @@ def session_factory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     engine = create_db_engine(config)
     init_database(engine)
 
+    def base_factory():
+        return session_scope(engine)
+
+    user = auth.create_user(
+        username="importer",
+        password="password",
+        role="admin",
+        session_factory=base_factory,
+    )
+
     def factory():
         return session_scope(engine)
 
-    return factory, engine
+    return factory, engine, user
 
 
 def test_import_ledger_transactions_idempotent(session_factory, tmp_path: Path):
-    factory, engine = session_factory
+    factory, engine, user = session_factory
 
     csv_path = tmp_path / "ledger.csv"
     csv_path.write_text(
@@ -39,8 +48,12 @@ def test_import_ledger_transactions_idempotent(session_factory, tmp_path: Path):
         )
     )
 
-    created_first = importers.import_ledger_transactions(csv_path=csv_path, session_factory=factory)
-    created_second = importers.import_ledger_transactions(csv_path=csv_path, session_factory=factory)
+    created_first = importers.import_ledger_transactions(
+        csv_path=csv_path, session_factory=factory, user_id=user.id
+    )
+    created_second = importers.import_ledger_transactions(
+        csv_path=csv_path, session_factory=factory, user_id=user.id
+    )
 
     with session_scope(engine) as session:
         txns = session.exec(select(Transaction)).all()
@@ -52,24 +65,34 @@ def test_import_ledger_transactions_idempotent(session_factory, tmp_path: Path):
 
 
 def test_import_portfolio_updates_existing(session_factory, tmp_path: Path):
-    factory, engine = session_factory
+    factory, engine, user = session_factory
 
     csv_path = tmp_path / "portfolio.csv"
     frame = pd.DataFrame(
         [
-            {"account": "Brokerage", "symbol": "AAPL", "shares": 10, "price": 150, "as_of": "2024-01-15"},
+            {
+                "account": "Brokerage",
+                "symbol": "AAPL",
+                "shares": 10,
+                "price": 150,
+                "as_of": "2024-01-15",
+            },
         ]
     )
     frame.to_csv(csv_path, index=False)
 
-    first = importers.import_portfolio_holdings(csv_path=csv_path, session_factory=factory)
+    first = importers.import_portfolio_holdings(
+        csv_path=csv_path, session_factory=factory, user_id=user.id
+    )
 
     # Update same holding with new values
     frame.loc[0, "shares"] = 12
     frame.loc[0, "price"] = 155
     frame.to_csv(csv_path, index=False)
 
-    second = importers.import_portfolio_holdings(csv_path=csv_path, session_factory=factory)
+    second = importers.import_portfolio_holdings(
+        csv_path=csv_path, session_factory=factory, user_id=user.id
+    )
 
     with session_scope(engine) as session:
         holdings = session.exec(select(Holding)).all()

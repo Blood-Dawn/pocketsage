@@ -12,6 +12,7 @@ if TYPE_CHECKING:  # pragma: no cover - import guard for circular dependency
     from .account import Account
     from .category import Category
     from .liability import Liability
+    from .user import User
 
 
 class Transaction(SQLModel, table=True):
@@ -20,6 +21,7 @@ class Transaction(SQLModel, table=True):
     __tablename__: ClassVar[str] = "transaction"
 
     id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", nullable=False, index=True)
     occurred_at: datetime = Field(nullable=False, index=True)
     amount: float = Field(nullable=False, description="Positive for inflow, negative for outflow")
     memo: str = Field(default="", max_length=255)
@@ -45,6 +47,7 @@ class Transaction(SQLModel, table=True):
         back_populates="transactions",
         sa_relationship=relationship("Liability", back_populates="transactions"),
     )
+    user: "User" = Relationship(sa_relationship=relationship("User", back_populates="transactions"))
 
     # TODO(@data-team): enforce account linkage + currency once multi-account support lands.
 

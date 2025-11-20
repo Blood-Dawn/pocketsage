@@ -65,7 +65,6 @@ def rolling_cash_flow(*, transactions: Iterable[Transaction], window_days: int) 
     if not sorted_txns:
         return []
 
-
     # Build daily balances
     daily_balances: dict[str, float] = {}
     for txn in sorted_txns:

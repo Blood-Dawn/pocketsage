@@ -17,19 +17,24 @@ class SQLModelTransactionRepository:
         """Initialize with a session factory."""
         self.session_factory = session_factory
 
-    def get_by_id(self, transaction_id: int) -> Optional[Transaction]:
+    def get_by_id(self, transaction_id: int, *, user_id: int) -> Optional[Transaction]:
         """Retrieve a transaction by ID."""
         with self.session_factory() as session:
-            obj = session.get(Transaction, transaction_id)
+            obj = session.exec(
+                select(Transaction)
+                .where(Transaction.id == transaction_id)
+                .where(Transaction.user_id == user_id)
+            ).first()
             if obj:
                 session.expunge(obj)
             return obj
 
-    def list_all(self, limit: int = 100, offset: int = 0) -> list[Transaction]:
+    def list_all(self, *, user_id: int, limit: int = 100, offset: int = 0) -> list[Transaction]:
         """List all transactions with pagination."""
         with self.session_factory() as session:
             statement = (
                 select(Transaction)
+                .where(Transaction.user_id == user_id)
                 .order_by(Transaction.occurred_at.desc())  # type: ignore
                 .offset(offset)
                 .limit(limit)
@@ -38,11 +43,14 @@ class SQLModelTransactionRepository:
             session.expunge_all()
             return rows
 
-    def filter_by_date_range(self, start_date: datetime, end_date: datetime) -> list[Transaction]:
+    def filter_by_date_range(
+        self, start_date: datetime, end_date: datetime, *, user_id: int
+    ) -> list[Transaction]:
         """Get transactions within a date range."""
         with self.session_factory() as session:
             statement = (
                 select(Transaction)
+                .where(Transaction.user_id == user_id)
                 .where(Transaction.occurred_at >= start_date)
                 .where(Transaction.occurred_at <= end_date)
                 .order_by(Transaction.occurred_at.desc())  # type: ignore
@@ -51,11 +59,12 @@ class SQLModelTransactionRepository:
             session.expunge_all()
             return rows
 
-    def filter_by_account(self, account_id: int) -> list[Transaction]:
+    def filter_by_account(self, account_id: int, *, user_id: int) -> list[Transaction]:
         """Get all transactions for a specific account."""
         with self.session_factory() as session:
             statement = (
                 select(Transaction)
+                .where(Transaction.user_id == user_id)
                 .where(Transaction.account_id == account_id)
                 .order_by(Transaction.occurred_at.desc())  # type: ignore
             )
@@ -63,11 +72,12 @@ class SQLModelTransactionRepository:
             session.expunge_all()
             return rows
 
-    def filter_by_category(self, category_id: int) -> list[Transaction]:
+    def filter_by_category(self, category_id: int, *, user_id: int) -> list[Transaction]:
         """Get all transactions for a specific category."""
         with self.session_factory() as session:
             statement = (
                 select(Transaction)
+                .where(Transaction.user_id == user_id)
                 .where(Transaction.category_id == category_id)
                 .order_by(Transaction.occurred_at.desc())  # type: ignore
             )
@@ -83,10 +93,12 @@ class SQLModelTransactionRepository:
         account_id: Optional[int] = None,
         category_id: Optional[int] = None,
         text: Optional[str] = None,
+        user_id: int,
     ) -> list[Transaction]:
         """Advanced search with multiple filters."""
         with self.session_factory() as session:
             statement = select(Transaction)
+            statement = statement.where(Transaction.user_id == user_id)
 
             if start_date:
                 statement = statement.where(Transaction.occurred_at >= start_date)
@@ -104,32 +116,39 @@ class SQLModelTransactionRepository:
             session.expunge_all()
             return rows
 
-    def create(self, transaction: Transaction) -> Transaction:
+    def create(self, transaction: Transaction, *, user_id: int) -> Transaction:
         """Create a new transaction."""
         with self.session_factory() as session:
+            transaction.user_id = user_id
             session.add(transaction)
             session.commit()
             session.refresh(transaction)
             session.expunge(transaction)
             return transaction
 
-    def update(self, transaction: Transaction) -> Transaction:
+    def update(self, transaction: Transaction, *, user_id: int) -> Transaction:
         """Update an existing transaction."""
         with self.session_factory() as session:
+            transaction.user_id = user_id
             session.add(transaction)
             session.commit()
             session.refresh(transaction)
             session.expunge(transaction)
             return transaction
 
-    def delete(self, transaction_id: int) -> None:
+    def delete(self, transaction_id: int, *, user_id: int) -> None:
         """Delete a transaction by ID."""
         with self.session_factory() as session:
-            if transaction := session.get(Transaction, transaction_id):
+            transaction = session.exec(
+                select(Transaction)
+                .where(Transaction.id == transaction_id)
+                .where(Transaction.user_id == user_id)
+            ).first()
+            if transaction:
                 session.delete(transaction)
                 session.commit()
 
-    def get_monthly_summary(self, year: int, month: int) -> dict[str, float]:
+    def get_monthly_summary(self, year: int, month: int, *, user_id: int) -> dict[str, float]:
         """Get income/expense summary for a month.
 
         Note: Uses naive datetimes matching the Transaction model's occurred_at field.
@@ -147,6 +166,7 @@ class SQLModelTransactionRepository:
 
             statement = (
                 select(Transaction)
+                .where(Transaction.user_id == user_id)
                 .where(Transaction.occurred_at >= start_date)
                 .where(Transaction.occurred_at < end_date)  # Exclusive end boundary
             )

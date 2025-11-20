@@ -26,7 +26,7 @@ def test_compute_variances_merges_planned_and_actual():
     """Test that budget variance calculation merges planned and actual amounts correctly."""
     mock_repo = MockBudgetRepository(
         planned_data=[(1, 500.0), (2, 200.0)],  # category 1: $500, category 2: $200
-        actual_data=[(1, 450.0), (3, 100.0)]    # category 1: $450, category 3: $100
+        actual_data=[(1, 450.0), (3, 100.0)],  # category 1: $450, category 3: $100
     )
 
     variances = budgeting.compute_variances(repository=mock_repo, period="2025-10")
@@ -57,9 +57,30 @@ def test_rolling_cash_flow_window_balances():
     """Test rolling cash flow calculation with a 7-day window."""
     # Create sample transactions
     transactions = [
-        Transaction(id=1, occurred_at=datetime(2025, 1, 1, 12, 0), amount=100.0, description="Day 1", category_id=1),
-        Transaction(id=2, occurred_at=datetime(2025, 1, 2, 12, 0), amount=50.0, description="Day 2", category_id=1),
-        Transaction(id=3, occurred_at=datetime(2025, 1, 3, 12, 0), amount=-30.0, description="Day 3", category_id=1),
+        Transaction(
+            id=1,
+            occurred_at=datetime(2025, 1, 1, 12, 0),
+            amount=100.0,
+            memo="Day 1",
+            category_id=1,
+            user_id=1,
+        ),
+        Transaction(
+            id=2,
+            occurred_at=datetime(2025, 1, 2, 12, 0),
+            amount=50.0,
+            memo="Day 2",
+            category_id=1,
+            user_id=1,
+        ),
+        Transaction(
+            id=3,
+            occurred_at=datetime(2025, 1, 3, 12, 0),
+            amount=-30.0,
+            memo="Day 3",
+            category_id=1,
+            user_id=1,
+        ),
     ]
 
     result = budgeting.rolling_cash_flow(transactions=transactions, window_days=7)
@@ -75,8 +96,9 @@ def test_rolling_cash_flow_window_balances():
 
     # Day 3: sum of days 1-3 = 120
     assert result[2] == 120.0
+
+
 def test_rolling_cash_flow_empty_transactions():
     """Test rolling cash flow with no transactions returns empty list."""
     result = budgeting.rolling_cash_flow(transactions=[], window_days=7)
     assert result == []
-

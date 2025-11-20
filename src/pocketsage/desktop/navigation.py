@@ -22,6 +22,7 @@ class Router:
         self.page = page
         self.context = context
         self.routes: Dict[str, ViewBuilder] = {}
+        self.auth_routes = {"/login"}
 
     def register(self, route: str, builder: ViewBuilder) -> None:
         """Register a route with its view builder."""
@@ -29,25 +30,32 @@ class Router:
 
     def route_change(self, e: ft.RouteChangeEvent) -> None:
         """Handle route change events."""
-        route = e.route
+        route = e.route or "/"
 
-        # Find matching route
-        builder = self.routes.get(route)
+        if route not in self.routes:
+            route = "/dashboard"
 
-        if builder:
-            try:
-                view = builder(self.context, self.page)
-                if self.page.views:
-                    self.page.views[-1] = view
-                else:
-                    self.page.views.append(view)
-                self.page.update()
-            except Exception as ex:
-                # Show error dialog
-                self.show_error(f"Error loading view: {ex}")
-        else:
-            # Unknown route, redirect to dashboard
+        if self.context.current_user is None and route not in self.auth_routes:
+            self.page.go("/login")
+            return
+        if self.context.current_user is not None and route in self.auth_routes:
             self.page.go("/dashboard")
+            return
+
+        builder = self.routes.get(route)
+        if not builder:
+            self.page.go("/dashboard")
+            return
+
+        try:
+            view = builder(self.context, self.page)
+            if self.page.views:
+                self.page.views[-1] = view
+            else:
+                self.page.views.append(view)
+            self.page.update()
+        except Exception as ex:
+            self.show_error(f"Error loading view: {ex}")
 
     def view_pop(self, e: ft.ViewPopEvent) -> None:
         """Handle back button navigation."""

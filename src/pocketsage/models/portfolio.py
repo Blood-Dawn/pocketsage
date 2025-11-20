@@ -10,6 +10,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:  # pragma: no cover
     from .account import Account
+    from .user import User
 
 
 class Holding(SQLModel, table=True):
@@ -18,6 +19,7 @@ class Holding(SQLModel, table=True):
     __tablename__: ClassVar[str] = "holding"
 
     id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", nullable=False, index=True)
     symbol: str = Field(index=True, nullable=False, max_length=32)
     quantity: float = Field(nullable=False, default=0.0)
     avg_price: float = Field(nullable=False, default=0.0)
@@ -29,3 +31,4 @@ class Holding(SQLModel, table=True):
         back_populates="holdings",
         sa_relationship=relationship("Account", back_populates="holdings"),
     )
+    user: "User" = Relationship(sa_relationship=relationship("User", back_populates="holdings"))

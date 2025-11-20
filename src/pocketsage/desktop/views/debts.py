@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 
 import flet as ft
-
-from typing import TYPE_CHECKING
 
 from ...services.debts import DebtAccount, avalanche_schedule, snowball_schedule
 from ..components import build_app_bar, build_main_layout
@@ -17,12 +16,13 @@ if TYPE_CHECKING:
 def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Build the debts/liabilities view."""
 
+    uid = ctx.require_user_id()
     # Get all liabilities
-    liabilities = ctx.liability_repo.list_all()
+    liabilities = ctx.liability_repo.list_all(user_id=uid)
 
     # Calculate totals
-    total_debt = ctx.liability_repo.get_total_debt()
-    weighted_apr = ctx.liability_repo.get_weighted_apr()
+    total_debt = ctx.liability_repo.get_total_debt(user_id=uid)
+    weighted_apr = ctx.liability_repo.get_weighted_apr(user_id=uid)
     total_min_payment = sum(liability.minimum_payment for liability in liabilities)
 
     # Summary cards
@@ -175,7 +175,10 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ),
             ft.Card(content=ft.Container(content=table, padding=12), expand=True),
             ft.Text(
-                "Strategy toggle uses the debt payoff service (snowball/avalanche) to project payoff.",
+                (
+                    "Strategy toggle uses the debt payoff service "
+                    "(snowball/avalanche) to project payoff."
+                ),
                 color=ft.Colors.ON_SURFACE_VARIANT,
                 size=12,
             ),

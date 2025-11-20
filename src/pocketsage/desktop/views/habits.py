@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Build the habits view."""
 
+    uid = ctx.require_user_id()
     habit_list_ref = ft.Ref[ft.Column]()
     heatmap_ref = ft.Ref[ft.GridView]()
     selected_ref = ft.Ref[ft.Text]()
@@ -27,7 +28,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
     def render_heatmap(habit_id: int):
         today = date.today()
         start = today - timedelta(days=27)
-        entries = ctx.habit_repo.get_entries_for_habit(habit_id, start, today)
+        entries = ctx.habit_repo.get_entries_for_habit(habit_id, start, today, user_id=uid)
         completed = {e.occurred_on for e in entries if e.value > 0}
         cells: list[ft.Control] = []
         day = start
@@ -51,28 +52,36 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         nonlocal selected_habit
         selected_habit = hid
         selected_ref.current.value = name
-        streak_ref.current.value = f"Current streak: {ctx.habit_repo.get_current_streak(hid)}"
-        longest_ref.current.value = f"Longest streak: {ctx.habit_repo.get_longest_streak(hid)}"
+        streak_ref.current.value = (
+            f"Current streak: {ctx.habit_repo.get_current_streak(hid, user_id=uid)}"
+        )
+        longest_ref.current.value = (
+            f"Longest streak: {ctx.habit_repo.get_longest_streak(hid, user_id=uid)}"
+        )
         render_heatmap(hid)
         page.update()
 
     def refresh_habit_list():
-        habits = ctx.habit_repo.list_active()
+        habits = ctx.habit_repo.list_active(user_id=uid)
         rows: list[ft.Control] = []
         today = date.today()
 
         for habit in habits:
-            current_streak = ctx.habit_repo.get_current_streak(habit.id)
-            longest_streak = ctx.habit_repo.get_longest_streak(habit.id)
-            today_entry = ctx.habit_repo.get_entry(habit.id, today)
+            current_streak = ctx.habit_repo.get_current_streak(habit.id, user_id=uid)
+            longest_streak = ctx.habit_repo.get_longest_streak(habit.id, user_id=uid)
+            today_entry = ctx.habit_repo.get_entry(habit.id, today, user_id=uid)
             is_completed = today_entry is not None and today_entry.value > 0
+            streak_label = f"Current: {current_streak} / Longest: {longest_streak}"
 
             def toggle_habit(_e, habit_id=habit.id):
-                entry = ctx.habit_repo.get_entry(habit_id, today)
+                entry = ctx.habit_repo.get_entry(habit_id, today, user_id=uid)
                 if entry:
-                    ctx.habit_repo.delete_entry(habit_id, today)
+                    ctx.habit_repo.delete_entry(habit_id, today, user_id=uid)
                 else:
-                    ctx.habit_repo.upsert_entry(HabitEntry(habit_id=habit_id, occurred_on=today, value=1))
+                    ctx.habit_repo.upsert_entry(
+                        HabitEntry(habit_id=habit_id, occurred_on=today, value=1, user_id=uid),
+                        user_id=uid,
+                    )
                 refresh_habit_list()
                 page.snack_bar = ft.SnackBar(content=ft.Text("Habit updated"))
                 page.snack_bar.open = True
@@ -87,8 +96,16 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 ft.Column(
                                     [
                                         ft.Text(habit.name, size=16, weight=ft.FontWeight.BOLD),
-                                        ft.Text(habit.description or "No description", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
-                                        ft.Text(f"Current: {current_streak} / Longest: {longest_streak}", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+                                        ft.Text(
+                                            habit.description or "No description",
+                                            size=12,
+                                            color=ft.Colors.ON_SURFACE_VARIANT,
+                                        ),
+                                        ft.Text(
+                                            streak_label,
+                                            size=12,
+                                            color=ft.Colors.ON_SURFACE_VARIANT,
+                                        ),
                                     ],
                                     expand=True,
                                 ),
@@ -106,9 +123,16 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 ft.Container(
                     content=ft.Column(
                         [
-                            ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, size=64, color=ft.Colors.ON_SURFACE_VARIANT),
+                            ft.Icon(
+                                ft.Icons.CHECK_CIRCLE_OUTLINE,
+                                size=64,
+                                color=ft.Colors.ON_SURFACE_VARIANT,
+                            ),
                             ft.Text("No active habits", size=20, weight=ft.FontWeight.BOLD),
-                            ft.Text("Create your first habit to start tracking", color=ft.Colors.ON_SURFACE_VARIANT),
+                            ft.Text(
+                                "Create your first habit to start tracking",
+                                color=ft.Colors.ON_SURFACE_VARIANT,
+                            ),
                         ],
                         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
@@ -146,7 +170,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     refresh_habit_list()
-    active = ctx.habit_repo.list_active()
+    active = ctx.habit_repo.list_active(user_id=uid)
     if active:
         select_habit(active[0].id, active[0].name)
 
@@ -157,7 +181,10 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.Row(
                         [
                             ft.Text("Habits", size=24, weight=ft.FontWeight.BOLD),
-                            ft.Text(date.today().strftime("%A, %B %d, %Y"), color=ft.Colors.ON_SURFACE_VARIANT),
+                            ft.Text(
+                                date.today().strftime("%A, %B %d, %Y"),
+                                color=ft.Colors.ON_SURFACE_VARIANT,
+                            ),
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     ),

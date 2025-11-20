@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import tempfile
+
 import flet as ft
 
 # Ensure icon namespace exists for view builders in headless mode.
@@ -9,6 +12,7 @@ if not hasattr(ft, "icons"):
 
         ft.icons = flet_icons  # type: ignore[attr-defined]
     except Exception:  # pragma: no cover
+
         class _IconsStub:
             def __getattr__(self, name):
                 return name
@@ -16,6 +20,7 @@ if not hasattr(ft, "icons"):
         ft.icons = _IconsStub()  # type: ignore[attr-defined]
 
 if not hasattr(ft, "colors"):
+
     class _ColorsStub:
         def __getattr__(self, name):
             return name
@@ -33,6 +38,7 @@ from pocketsage.desktop.views import (
     reports,
     settings,
 )
+from pocketsage.services import auth
 
 
 class DummyPage:
@@ -59,8 +65,25 @@ class DummyPage:
     theme_mode = ft.ThemeMode.DARK
 
 
+def _ensure_user(ctx):
+    if not auth.any_users_exist(ctx.session_factory):
+        user = auth.create_user(
+            username="smoke-admin",
+            password="password",
+            role="admin",
+            session_factory=ctx.session_factory,
+        )
+    else:
+        user = auth.list_users(ctx.session_factory)[0]
+    ctx.current_user = user
+    return user
+
+
 def _build_views():
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
+    os.environ["POCKETSAGE_DATABASE_URL"] = f"sqlite:///{tmp.name}"
     ctx = create_app_context()
+    _ensure_user(ctx)
     page = DummyPage()
     builders = [
         dashboard.build_dashboard_view,
@@ -85,7 +108,10 @@ def test_view_builders_render():
 
 
 def test_router_register_and_route_change():
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
+    os.environ["POCKETSAGE_DATABASE_URL"] = f"sqlite:///{tmp.name}"
     ctx = create_app_context()
+    _ensure_user(ctx)
     page = DummyPage()
     router = Router(page, ctx)
 

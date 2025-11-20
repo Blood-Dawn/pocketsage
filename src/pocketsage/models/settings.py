@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
-from typing import ClassVar
+from typing import ClassVar, Optional
 
 from sqlmodel import Field, SQLModel
 

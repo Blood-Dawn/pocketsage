@@ -10,12 +10,14 @@ from sqlmodel import Field, Relationship, SQLModel
 if TYPE_CHECKING:  # pragma: no cover
     from .portfolio import Holding
     from .transaction import Transaction
+    from .user import User
 
 
 class Account(SQLModel, table=True):
     __tablename__: ClassVar[str] = "account"
 
     id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", nullable=False, index=True)
     name: str = Field(nullable=False, max_length=128)
     currency: str = Field(default="USD", max_length=3)
 
@@ -27,3 +29,5 @@ class Account(SQLModel, table=True):
         back_populates="account",
         sa_relationship=relationship("Holding", back_populates="account"),
     )
+    # Owner relationship populated from User for convenience
+    user: "User" = Relationship(sa_relationship=relationship("User", back_populates="accounts"))

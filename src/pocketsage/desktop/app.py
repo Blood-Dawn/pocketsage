@@ -7,6 +7,8 @@ import flet as ft
 from . import controllers
 from .context import create_app_context
 from .navigation import Router
+from .views.admin import build_admin_view
+from .views.auth import build_auth_view
 from .views.budgets import build_budgets_view
 from .views.dashboard import build_dashboard_view
 from .views.debts import build_debts_view
@@ -50,6 +52,7 @@ def main(page: ft.Page) -> None:
 
     # Register routes and aliases
     route_builders = {
+        "/login": build_auth_view,
         "/dashboard": build_dashboard_view,
         "/": build_dashboard_view,
         "/ledger": build_ledger_view,
@@ -60,6 +63,7 @@ def main(page: ft.Page) -> None:
         "/reports": build_reports_view,
         "/help": build_help_view,
         "/settings": build_settings_view,
+        "/admin": build_admin_view,
     }
     for route, builder in route_builders.items():
         router.register(route, builder)
@@ -75,7 +79,7 @@ def main(page: ft.Page) -> None:
     page.on_keyboard_event = handle_shortcuts
 
     # Navigate to default route
-    page.go("/dashboard")
+    page.go("/login")
 
 
 if __name__ == "__main__":

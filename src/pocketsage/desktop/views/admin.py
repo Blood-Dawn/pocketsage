@@ -1,0 +1,241 @@
+"""Admin view for user management, metrics, and seeding."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import flet as ft
+from sqlalchemy import func, select
+
+from ...models import Account, Habit, Transaction, User
+from ...services import auth
+from ...services.admin_tasks import reset_demo_database, run_demo_seed
+from ..components import build_app_bar, build_main_layout
+
+if TYPE_CHECKING:  # pragma: no cover
+    from ..context import AppContext
+
+
+def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
+    """Render admin dashboard with user controls."""
+
+    if ctx.current_user is None or ctx.current_user.role != "admin":
+        page.snack_bar = ft.SnackBar(content=ft.Text("Admin access required"))
+        page.snack_bar.open = True
+        page.go("/dashboard")
+        return ft.View(route="/admin", controls=[], padding=0)
+
+    status_ref = ft.Ref[ft.Text]()
+    users = auth.list_users(ctx.session_factory)
+    selected_user_id = ft.Ref[ft.Dropdown]()
+
+    def _selected_id() -> int | None:
+        raw = selected_user_id.current.value if selected_user_id.current else None
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return None
+
+    def refresh_users():
+        nonlocal users
+        users = auth.list_users(ctx.session_factory)
+        if selected_user_id.current:
+            selected_user_id.current.options = [
+                ft.dropdown.Option(str(u.id), text=f"{u.username} ({u.role})") for u in users
+            ]
+            if ctx.current_user and ctx.current_user.id:
+                selected_user_id.current.value = str(ctx.current_user.id)
+        if status_ref.current:
+            status_ref.current.value = ""
+        page.update()
+
+    def _show_message(message: str):
+        page.snack_bar = ft.SnackBar(content=ft.Text(message))
+        page.snack_bar.open = True
+        if status_ref.current:
+            status_ref.current.value = message
+            status_ref.current.update()
+        page.update()
+
+    def create_user_action(_):
+        username = create_username.value.strip()
+        if not username or not create_password.value:
+            _show_message("Username and password required")
+            return
+        if create_password.value != create_confirm.value:
+            _show_message("Passwords do not match")
+            return
+        try:
+            user = auth.create_user(
+                username=username,
+                password=create_password.value,
+                role=create_role.value,
+                session_factory=ctx.session_factory,
+            )
+        except Exception as exc:  # pragma: no cover
+            _show_message(str(exc))
+            return
+        refresh_users()
+        _show_message(f"User {user.username} created")
+
+    def set_role_action(role: str):
+        user_id = _selected_id()
+        if user_id is None:
+            _show_message("Select a user first")
+            return
+        auth.set_role(user_id=user_id, role=role, session_factory=ctx.session_factory)
+        refresh_users()
+        _show_message(f"Role updated to {role}")
+
+    def seed_action(_):
+        user_id = _selected_id()
+        if user_id is None:
+            _show_message("Select a user to seed")
+            return
+        summary = run_demo_seed(session_factory=ctx.session_factory, user_id=user_id, force=True)
+        _show_message(f"Seeded demo data ({summary.transactions} transactions)")
+
+    def reset_action(_):
+        user_id = _selected_id()
+        if user_id is None:
+            _show_message("Select a user to reset")
+            return
+        summary = reset_demo_database(user_id=user_id, session_factory=ctx.session_factory)
+        _show_message(f"Reset demo data ({summary.transactions} transactions)")
+
+    def _metrics():
+        with ctx.session_factory() as session:
+            total_users = session.exec(select(func.count(User.id))).one()
+            total_accounts = session.exec(select(func.count(Account.id))).one()
+            total_transactions = session.exec(select(func.count(Transaction.id))).one()
+            total_habits = session.exec(select(func.count(Habit.id))).one()
+        return total_users, total_accounts, total_transactions, total_habits
+
+    total_users, total_accounts, total_transactions, total_habits = _metrics()
+
+    metrics_row = ft.Row(
+        [
+            _metric_card("Users", total_users, ft.Icons.GROUP),
+            _metric_card("Accounts", total_accounts, ft.Icons.ACCOUNT_BALANCE),
+            _metric_card("Transactions", total_transactions, ft.Icons.RECEIPT_LONG),
+            _metric_card("Habits", total_habits, ft.Icons.CHECK_CIRCLE),
+        ],
+        spacing=12,
+    )
+
+    selected_user_id.current = ft.Dropdown(
+        label="Select user",
+        options=[ft.dropdown.Option(str(u.id), text=f"{u.username} ({u.role})") for u in users],
+        value=str(ctx.current_user.id) if ctx.current_user and ctx.current_user.id else None,
+        width=320,
+    )
+
+    create_username = ft.TextField(label="Username", width=240)
+    create_password = ft.TextField(
+        label="Password", width=240, password=True, can_reveal_password=True
+    )
+    create_confirm = ft.TextField(
+        label="Confirm password", width=240, password=True, can_reveal_password=True
+    )
+    create_role = ft.Dropdown(
+        label="Role",
+        options=[ft.dropdown.Option("user", "User"), ft.dropdown.Option("admin", "Admin")],
+        value="user",
+        width=160,
+    )
+
+    actions = ft.Column(
+        [
+            ft.Text("User management", size=16, weight=ft.FontWeight.BOLD),
+            ft.Row([selected_user_id.current], spacing=8),
+            ft.Row(
+                [
+                    ft.FilledTonalButton(
+                        "Promote to admin", on_click=lambda _: set_role_action("admin")
+                    ),
+                    ft.FilledTonalButton("Set as user", on_click=lambda _: set_role_action("user")),
+                ],
+                spacing=8,
+            ),
+            ft.Row(
+                [
+                    ft.FilledButton("Seed demo data", icon=ft.Icons.DOWNLOAD, on_click=seed_action),
+                    ft.TextButton("Reset demo data", icon=ft.Icons.RESTORE, on_click=reset_action),
+                ],
+                spacing=8,
+            ),
+            ft.Divider(),
+            ft.Text("Create user", size=16, weight=ft.FontWeight.BOLD),
+            ft.Row([create_username, create_role], spacing=8),
+            ft.Row([create_password, create_confirm], spacing=8),
+            ft.FilledButton("Create", icon=ft.Icons.ADD, on_click=create_user_action),
+        ],
+        spacing=10,
+    )
+
+    users_table_rows = [
+        ft.DataRow(
+            cells=[
+                ft.DataCell(ft.Text(user.username)),
+                ft.DataCell(ft.Text(user.role)),
+                ft.DataCell(ft.Text(str(user.created_at.date()) if user.created_at else "-")),
+            ]
+        )
+        for user in users
+    ]
+    users_table = ft.DataTable(
+        columns=[
+            ft.DataColumn(ft.Text("Username")),
+            ft.DataColumn(ft.Text("Role")),
+            ft.DataColumn(ft.Text("Created")),
+        ],
+        rows=users_table_rows
+        or [ft.DataRow(cells=[ft.DataCell(ft.Text("No users found")) for _ in range(3)])],
+        expand=True,
+    )
+
+    content = ft.Column(
+        [
+            metrics_row,
+            ft.Container(height=16),
+            ft.Row(
+                [
+                    ft.Card(content=ft.Container(padding=16, content=actions), expand=True),
+                    ft.Card(content=ft.Container(padding=16, content=users_table), expand=True),
+                ],
+                spacing=12,
+            ),
+            ft.Text("", ref=status_ref, color=ft.Colors.ON_SURFACE_VARIANT),
+        ],
+        spacing=12,
+        scroll=ft.ScrollMode.AUTO,
+        expand=True,
+    )
+
+    refresh_users()
+
+    app_bar = build_app_bar(ctx, "Admin", page)
+    layout = build_main_layout(ctx, page, "/admin", content)
+
+    return ft.View(route="/admin", appbar=app_bar, controls=layout, padding=0)
+
+
+def _metric_card(label: str, value: int, icon: str) -> ft.Control:
+    return ft.Card(
+        content=ft.Container(
+            padding=12,
+            content=ft.Row(
+                [
+                    ft.Icon(icon, color=ft.Colors.PRIMARY),
+                    ft.Column(
+                        [
+                            ft.Text(label, color=ft.Colors.ON_SURFACE_VARIANT),
+                            ft.Text(str(value), size=22, weight=ft.FontWeight.BOLD),
+                        ],
+                        spacing=2,
+                    ),
+                ]
+            ),
+        ),
+        elevation=1,
+    )

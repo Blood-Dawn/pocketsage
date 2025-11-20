@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 
 import flet as ft
 
-from .. import controllers
 from ...services.admin_tasks import run_export
+from .. import controllers
 from ..components import build_app_bar, build_main_layout
 
 if TYPE_CHECKING:
@@ -63,16 +63,14 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
     def export_data(_):
         try:
             exports_dir = ctx.config.DATA_DIR
-            path = run_export(Path(exports_dir), session_factory=ctx.session_factory)
+            path = run_export(
+                Path(exports_dir),
+                session_factory=ctx.session_factory,
+                user_id=ctx.require_user_id(),
+            )
             _notify(f"Export ready: {path}")
         except Exception as exc:
             _notify(f"Export failed: {exc}")
-
-    def seed_demo(_):
-        controllers.run_demo_seed(ctx, page)
-
-    def reset_demo(_):
-        controllers.reset_demo_data(ctx, page)
 
     database_section = ft.Card(
         content=ft.Container(
@@ -99,16 +97,6 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 "Export Data",
                                 icon=ft.Icons.DOWNLOAD,
                                 on_click=export_data,
-                            ),
-                            ft.TextButton(
-                                "Run Demo Seed",
-                                icon=ft.Icons.DATA_THRESHOLDING,
-                                on_click=seed_demo,
-                            ),
-                            ft.TextButton(
-                                "Reset Demo Data",
-                                icon=ft.Icons.RESTORE,
-                                on_click=reset_demo,
                             ),
                         ],
                         spacing=8,

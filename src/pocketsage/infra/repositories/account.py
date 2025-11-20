@@ -17,61 +17,74 @@ class SQLModelAccountRepository:
         """Initialize with a session factory."""
         self.session_factory = session_factory
 
-    def get_by_id(self, account_id: int) -> Optional[Account]:
+    def get_by_id(self, account_id: int, *, user_id: int) -> Optional[Account]:
         """Retrieve an account by ID."""
         with self.session_factory() as session:
-            obj = session.get(Account, account_id)
+            obj = session.exec(
+                select(Account).where(Account.id == account_id, Account.user_id == user_id)
+            ).first()
             if obj:
                 session.refresh(obj)
                 session.expunge(obj)
             return obj
 
-    def get_by_name(self, name: str) -> Optional[Account]:
+    def get_by_name(self, name: str, *, user_id: int) -> Optional[Account]:
         """Retrieve an account by name."""
         with self.session_factory() as session:
-            statement = select(Account).where(Account.name == name)
+            statement = select(Account).where(Account.name == name, Account.user_id == user_id)
             obj = session.exec(statement).first()
             if obj:
                 session.refresh(obj)
                 session.expunge(obj)
             return obj
 
-    def list_all(self) -> list[Account]:
+    def list_all(self, *, user_id: int) -> list[Account]:
         """List all accounts."""
         with self.session_factory() as session:
-            statement = select(Account).order_by(Account.name)  # type: ignore
+            statement = (
+                select(Account)
+                .where(Account.user_id == user_id)
+                .order_by(Account.name)  # type: ignore
+            )
             rows = list(session.exec(statement).all())
             session.expunge_all()
             return rows
 
-    def create(self, account: Account) -> Account:
+    def create(self, account: Account, *, user_id: int) -> Account:
         """Create a new account."""
         with self.session_factory() as session:
+            account.user_id = user_id
             session.add(account)
             session.commit()
             session.refresh(account)
             session.expunge(account)
             return account
 
-    def update(self, account: Account) -> Account:
+    def update(self, account: Account, *, user_id: int) -> Account:
         """Update an existing account."""
         with self.session_factory() as session:
+            account.user_id = user_id
             session.add(account)
             session.commit()
             session.refresh(account)
             session.expunge(account)
             return account
 
-    def delete(self, account_id: int) -> None:
+    def delete(self, account_id: int, *, user_id: int) -> None:
         """Delete an account by ID."""
         with self.session_factory() as session:
-            if account := session.get(Account, account_id):
+            account = session.exec(
+                select(Account).where(Account.id == account_id, Account.user_id == user_id)
+            ).first()
+            if account:
                 session.delete(account)
                 session.commit()
 
-    def get_balance(self, account_id: int) -> float:
+    def get_balance(self, account_id: int, *, user_id: int) -> float:
         """Calculate current balance for an account."""
         with self.session_factory() as session:
-            statement = select(Transaction).where(Transaction.account_id == account_id)
+            statement = select(Transaction).where(
+                Transaction.account_id == account_id, Transaction.user_id == user_id
+            )
             transactions = session.exec(statement).all()
             return sum(t.amount for t in transactions)

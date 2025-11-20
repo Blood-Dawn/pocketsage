@@ -15,7 +15,7 @@ from zipfile import ZipFile
 from sqlalchemy import func
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import OperationalError
-from sqlmodel import Session, SQLModel, select
+from sqlmodel import Session, select
 
 from ..config import BaseConfig
 from ..infra.database import create_db_engine, init_database
@@ -27,6 +27,7 @@ from ..models import (
     Category,
     Habit,
     HabitEntry,
+    Holding,
     Liability,
     Transaction,
 )
@@ -89,7 +90,7 @@ def _resolve_engine(session_factory: Optional[SessionFactory]) -> Engine:
         return engine
 
 
-def _seed_categories(session: Session) -> dict[str, Category]:
+def _seed_categories(session: Session, user_id: int) -> dict[str, Category]:
     categories_seed = [
         {
             "name": "Groceries",
@@ -154,11 +155,13 @@ def _seed_categories(session: Session) -> dict[str, Category]:
     ]
     categories: dict[str, Category] = {}
     for payload in categories_seed:
-        existing = session.exec(select(Category).where(Category.slug == payload["slug"])).first()
+        existing = session.exec(
+            select(Category).where(Category.slug == payload["slug"], Category.user_id == user_id)
+        ).first()
         if existing:
             categories[payload["slug"]] = existing
             continue
-        category = Category(**payload)
+        category = Category(user_id=user_id, **payload)
         session.add(category)
         session.flush()
         categories[payload["slug"]] = category
@@ -166,18 +169,20 @@ def _seed_categories(session: Session) -> dict[str, Category]:
     return categories
 
 
-def _seed_accounts(session: Session) -> dict[str, Account]:
+def _seed_accounts(session: Session, user_id: int) -> dict[str, Account]:
     accounts_seed = [
         {"name": "Everyday Checking", "currency": "USD"},
         {"name": "Rainy Day Savings", "currency": "USD"},
     ]
     accounts: dict[str, Account] = {}
     for payload in accounts_seed:
-        existing = session.exec(select(Account).where(Account.name == payload["name"])).first()
+        existing = session.exec(
+            select(Account).where(Account.name == payload["name"], Account.user_id == user_id)
+        ).first()
         if existing:
             accounts[payload["name"]] = existing
             continue
-        account = Account(**payload)
+        account = Account(user_id=user_id, **payload)
         session.add(account)
         session.flush()
         accounts[payload["name"]] = account
@@ -189,6 +194,7 @@ def _seed_transactions(
     session: Session,
     categories: dict[str, Category],
     accounts: dict[str, Account],
+    user_id: int,
 ) -> None:
     now = datetime.now(timezone.utc)
     transaction_specs = [
@@ -240,10 +246,12 @@ def _seed_transactions(
 
     for spec in transaction_specs:
         existing = session.exec(
-            select(Transaction).where(Transaction.external_id == spec["external_id"])
+            select(Transaction).where(
+                Transaction.external_id == spec["external_id"], Transaction.user_id == user_id
+            )
         ).one_or_none()
         if existing is None:
-            existing = Transaction(external_id=spec["external_id"])
+            existing = Transaction(external_id=spec["external_id"], user_id=user_id)
             session.add(existing)
         existing.occurred_at = spec["occurred_at"]
         existing.amount = spec["amount"]
@@ -251,9 +259,10 @@ def _seed_transactions(
         existing.category_id = categories[spec["category_slug"]].id
         existing.account_id = account.id
         existing.currency = account.currency
+        existing.user_id = user_id
 
 
-def _seed_habits(session: Session) -> None:
+def _seed_habits(session: Session, user_id: int) -> None:
     habit_specs = [
         {
             "name": "Morning Run",
@@ -277,9 +286,12 @@ def _seed_habits(session: Session) -> None:
     ]
 
     for spec in habit_specs:
-        existing = session.exec(select(Habit).where(Habit.name == spec["name"])).one_or_none()
+        existing = session.exec(
+            select(Habit).where(Habit.name == spec["name"], Habit.user_id == user_id)
+        ).one_or_none()
         if existing is None:
             existing = Habit(
+                user_id=user_id,
                 name=spec["name"],
                 description=spec["description"],
                 cadence=spec["cadence"],
@@ -295,7 +307,9 @@ def _seed_habits(session: Session) -> None:
         entries = {
             entry.occurred_on: entry
             for entry in session.exec(
-                select(HabitEntry).where(HabitEntry.habit_id == existing.id)
+                select(HabitEntry).where(
+                    HabitEntry.habit_id == existing.id, HabitEntry.user_id == user_id
+                )
             ).all()
         }
         for occurred_on, value in spec["entries"]:
@@ -303,6 +317,7 @@ def _seed_habits(session: Session) -> None:
             if entry is None:
                 session.add(
                     HabitEntry(
+                        user_id=user_id,
                         habit_id=existing.id,
                         occurred_on=occurred_on,
                         value=value,
@@ -312,7 +327,7 @@ def _seed_habits(session: Session) -> None:
                 entry.value = value
 
 
-def _seed_liabilities(session: Session) -> None:
+def _seed_liabilities(session: Session, user_id: int) -> None:
     liability_specs = [
         {
             "name": "Student Loan",
@@ -332,10 +347,10 @@ def _seed_liabilities(session: Session) -> None:
 
     for spec in liability_specs:
         existing = session.exec(
-            select(Liability).where(Liability.name == spec["name"])
+            select(Liability).where(Liability.name == spec["name"], Liability.user_id == user_id)
         ).one_or_none()
         if existing is None:
-            session.add(Liability(**spec))
+            session.add(Liability(user_id=user_id, **spec))
         else:
             existing.balance = spec["balance"]
             existing.apr = spec["apr"]
@@ -343,15 +358,20 @@ def _seed_liabilities(session: Session) -> None:
             existing.due_day = spec["due_day"]
 
 
-def _seed_budget(session: Session, categories: dict[str, Category]) -> None:
+def _seed_budget(session: Session, categories: dict[str, Category], user_id: int) -> None:
     now = datetime.now(timezone.utc)
     period_start = date(now.year, now.month, 1)
     period_end = date(now.year, now.month, monthrange(now.year, now.month)[1])
     existing_budget = session.exec(
-        select(Budget).where(Budget.period_start == period_start, Budget.period_end == period_end)
+        select(Budget).where(
+            Budget.period_start == period_start,
+            Budget.period_end == period_end,
+            Budget.user_id == user_id,
+        )
     ).one_or_none()
     if existing_budget is None:
         budget = Budget(
+            user_id=user_id,
             period_start=period_start,
             period_end=period_end,
             label=f"{now.strftime('%B %Y')} Demo Budget",
@@ -366,11 +386,13 @@ def _seed_budget(session: Session, categories: dict[str, Category]) -> None:
             select(BudgetLine).where(
                 BudgetLine.budget_id == existing_budget.id,
                 BudgetLine.category_id == coffee_category.id,
+                BudgetLine.user_id == user_id,
             )
         ).one_or_none()
         if existing_line is None:
             session.add(
                 BudgetLine(
+                    user_id=user_id,
                     budget_id=existing_budget.id,
                     category_id=coffee_category.id,
                     planned_amount=50.0,
@@ -379,48 +401,77 @@ def _seed_budget(session: Session, categories: dict[str, Category]) -> None:
             )
 
 
-def reset_demo_database(session_factory: Optional[SessionFactory] = None) -> SeedSummary:
-    """Drop the schema and reseed demo data for desktop demos."""
+def reset_demo_database(
+    user_id: int, session_factory: Optional[SessionFactory] = None
+) -> SeedSummary:
+    """Reset demo data for a specific user."""
 
-    engine = _resolve_engine(session_factory)
-    SQLModel.metadata.drop_all(engine)
-    init_database(engine)
-    return run_demo_seed(session_factory=session_factory, force=True)
+    with _get_session(session_factory) as session:
+        models = (
+            Transaction,
+            BudgetLine,
+            Budget,
+            HabitEntry,
+            Habit,
+            Liability,
+            Holding,
+            Account,
+            Category,
+        )
+        for model in models:
+            rows = session.exec(select(model).where(getattr(model, "user_id") == user_id)).all()  # type: ignore[attr-defined]
+            for row in rows:
+                session.delete(row)
+        session.commit()
+    return run_demo_seed(session_factory=session_factory, user_id=user_id, force=True)
 
 
 def run_demo_seed(
     session_factory: Optional[SessionFactory] = None,
     *,
+    user_id: int,
     force: bool = False,
 ) -> SeedSummary:
     """Seed demo data idempotently for desktop workflows and return counts."""
 
     with _get_session(session_factory) as session:
         if not force:
-            # Skip heavy re-seeding when data already present.
-            existing_tx = session.exec(select(Transaction.id)).first()
+            # Skip heavy re-seeding when data already present for this user.
+            existing_tx = session.exec(
+                select(Transaction.id).where(Transaction.user_id == user_id)
+            ).first()
             if existing_tx is not None:
-                return _build_seed_summary(session)
+                return _build_seed_summary(session, user_id=user_id)
 
-        categories = _seed_categories(session)
-        accounts = _seed_accounts(session)
-        _seed_transactions(session, categories, accounts)
-        _seed_habits(session)
-        _seed_liabilities(session)
-        _seed_budget(session, categories)
+        categories = _seed_categories(session, user_id=user_id)
+        accounts = _seed_accounts(session, user_id=user_id)
+        _seed_transactions(session, categories, accounts, user_id=user_id)
+        _seed_habits(session, user_id=user_id)
+        _seed_liabilities(session, user_id=user_id)
+        _seed_budget(session, categories, user_id=user_id)
         session.flush()
-        return _build_seed_summary(session)
+        return _build_seed_summary(session, user_id=user_id)
 
 
-def _build_seed_summary(session: Session) -> SeedSummary:
+def _build_seed_summary(session: Session, *, user_id: int) -> SeedSummary:
     """Compile counts for tables populated by the demo seed."""
 
-    tx_count = session.exec(select(func.count(Transaction.id))).one()
-    category_count = session.exec(select(func.count(Category.id))).one()
-    account_count = session.exec(select(func.count(Account.id))).one()
-    habit_count = session.exec(select(func.count(Habit.id))).one()
-    liability_count = session.exec(select(func.count(Liability.id))).one()
-    budget_count = session.exec(select(func.count(Budget.id))).one()
+    tx_count = session.exec(
+        select(func.count(Transaction.id)).where(Transaction.user_id == user_id)
+    ).one()
+    category_count = session.exec(
+        select(func.count(Category.id)).where(Category.user_id == user_id)
+    ).one()
+    account_count = session.exec(
+        select(func.count(Account.id)).where(Account.user_id == user_id)
+    ).one()
+    habit_count = session.exec(select(func.count(Habit.id)).where(Habit.user_id == user_id)).one()
+    liability_count = session.exec(
+        select(func.count(Liability.id)).where(Liability.user_id == user_id)
+    ).one()
+    budget_count = session.exec(
+        select(func.count(Budget.id)).where(Budget.user_id == user_id)
+    ).one()
     return SeedSummary(
         transactions=tx_count,
         categories=category_count,
@@ -462,6 +513,7 @@ def _prune_old_exports(directory: Path, keep: int = EXPORT_RETENTION) -> None:
 def run_export(
     output_dir: Path | None = None,
     session_factory: Optional[SessionFactory] = None,
+    user_id: Optional[int] = None,
 ) -> Path:
     """Generate export bundle for download and return path to zip file."""
 
@@ -479,7 +531,10 @@ def run_export(
 
         with _get_session(session_factory) as session:
             try:
-                txs = session.exec(select(Transaction)).all()
+                stmt = select(Transaction)
+                if user_id is not None:
+                    stmt = stmt.where(Transaction.user_id == user_id)
+                txs = session.exec(stmt).all()
             except OperationalError:
                 txs = []
 

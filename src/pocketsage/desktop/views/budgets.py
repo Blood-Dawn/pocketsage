@@ -15,13 +15,14 @@ if TYPE_CHECKING:
 def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Build the budgets view."""
 
+    uid = ctx.require_user_id()
     # Get current month's budget
     today = ctx.current_month
-    budget = ctx.budget_repo.get_for_month(today.year, today.month)
+    budget = ctx.budget_repo.get_for_month(today.year, today.month, user_id=uid)
 
     if budget:
         # Get budget lines
-        lines = ctx.budget_repo.get_lines_for_budget(budget.id)
+        lines = ctx.budget_repo.get_lines_for_budget(budget.id, user_id=uid)
 
         # Build budget progress bars
         budget_rows = []
@@ -29,7 +30,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
         total_spent = 0
 
         for line in lines:
-            category = ctx.category_repo.get_by_id(line.category_id)
+            category = ctx.category_repo.get_by_id(line.category_id, user_id=uid)
             if not category:
                 continue
 
@@ -38,6 +39,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 start_date=budget.period_start,
                 end_date=budget.period_end,
                 category_id=line.category_id,
+                user_id=uid,
             )
 
             actual = sum(abs(t.amount) for t in transactions if t.amount < 0)

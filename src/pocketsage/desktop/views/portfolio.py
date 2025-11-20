@@ -16,11 +16,12 @@ if TYPE_CHECKING:
 def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Build the portfolio holdings view."""
 
+    uid = ctx.require_user_id()
     # Get all holdings
-    holdings = ctx.holding_repo.list_all()
+    holdings = ctx.holding_repo.list_all(user_id=uid)
 
     # Calculate totals
-    total_cost_basis = ctx.holding_repo.get_total_cost_basis()
+    total_cost_basis = ctx.holding_repo.get_total_cost_basis(user_id=uid)
 
     # Holdings table
     holding_rows = []
@@ -32,7 +33,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         account_name = "N/A"
         if holding.account_id:
-            account = ctx.account_repo.get_by_id(holding.account_id)
+            account = ctx.account_repo.get_by_id(holding.account_id, user_id=uid)
             if account:
                 account_name = account.name
 

@@ -20,6 +20,7 @@ from ..infra.repositories import (
     SQLModelLiabilityRepository,
     SQLModelTransactionRepository,
 )
+from ..models.user import User
 
 
 @dataclass
@@ -50,6 +51,15 @@ class AppContext:
     page: Optional[ft.Page] = None
     file_picker: Optional[ft.FilePicker] = None
     file_picker_mode: Optional[str] = None
+
+    current_user: Optional[User] = None
+
+    def require_user_id(self) -> int:
+        """Return the current user id or raise if not set."""
+
+        if self.current_user is None or self.current_user.id is None:
+            raise RuntimeError("User is not authenticated")
+        return self.current_user.id
 
 
 def create_app_context(config: Optional[BaseConfig] = None) -> AppContext:

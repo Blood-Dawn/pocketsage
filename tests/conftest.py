@@ -7,7 +7,6 @@ for testing domain logic, repositories, and services without touching the real a
 from __future__ import annotations
 
 import tempfile
-from contextlib import contextmanager
 from datetime import date, datetime
 from pathlib import Path
 
@@ -22,9 +21,10 @@ from pocketsage.models import (
     Habit,
     Liability,
     Transaction,
+    User,
 )
 from pocketsage.models.portfolio import Holding
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine, select
 
 # =============================================================================
 # Database Fixtures
@@ -103,6 +103,17 @@ def session_factory(db_engine):
 
         return session_context()
 
+    # Bootstrap a default user for tests
+    with factory() as session:
+        existing = session.exec(select(User).limit(1)).first()
+        if existing is None:
+            user_row = User(username="tester", password_hash="dummy-hash", role="admin")
+            session.add(user_row)
+            session.commit()
+            session.refresh(user_row)
+            existing = user_row
+        factory.user = existing  # type: ignore[attr-defined]
+
     return factory
 
 
@@ -112,7 +123,21 @@ def session_factory(db_engine):
 
 
 @pytest.fixture
-def category_factory(db_session):
+def user(db_session) -> User:
+    """Create a default user for scoping data."""
+
+    existing = db_session.exec(select(User).where(User.username == "tester")).first()
+    if existing:
+        return existing
+    u = User(username="tester", password_hash="dummy-hash", role="admin")
+    db_session.add(u)
+    db_session.commit()
+    db_session.refresh(u)
+    return u
+
+
+@pytest.fixture
+def category_factory(db_session, user):
     """Factory for creating test categories.
 
     Returns:
@@ -124,6 +149,7 @@ def category_factory(db_session):
         slug: str | None = None,
         category_type: str = "expense",
         color: str = "#FF5733",
+        owner: User | None = None,
     ) -> Category:
         """Create a test category with sensible defaults.
 
@@ -139,7 +165,9 @@ def category_factory(db_session):
         if slug is None:
             slug = name.lower().replace(" ", "-")
 
+        owner = owner or user
         category = Category(
+            user_id=owner.id,
             name=name,
             slug=slug,
             category_type=category_type,
@@ -154,7 +182,7 @@ def category_factory(db_session):
 
 
 @pytest.fixture
-def account_factory(db_session):
+def account_factory(db_session, user):
     """Factory for creating test accounts.
 
     Returns:
@@ -164,6 +192,7 @@ def account_factory(db_session):
     def _create_account(
         name: str = "Test Account",
         currency: str = "USD",
+        owner: User | None = None,
     ) -> Account:
         """Create a test account with sensible defaults.
 
@@ -174,7 +203,8 @@ def account_factory(db_session):
         Returns:
             Account: Persisted account instance
         """
-        account = Account(name=name, currency=currency)
+        owner = owner or user
+        account = Account(name=name, currency=currency, user_id=owner.id)
         db_session.add(account)
         db_session.commit()
         db_session.refresh(account)
@@ -184,7 +214,7 @@ def account_factory(db_session):
 
 
 @pytest.fixture
-def transaction_factory(db_session):
+def transaction_factory(db_session, user):
     """Factory for creating test transactions.
 
     Returns:
@@ -199,6 +229,7 @@ def transaction_factory(db_session):
         account_id: int | None = None,
         external_id: str | None = None,
         currency: str = "USD",
+        owner: User | None = None,
     ) -> Transaction:
         """Create a test transaction with sensible defaults.
 
@@ -217,7 +248,9 @@ def transaction_factory(db_session):
         if occurred_at is None:
             occurred_at = datetime.now()
 
+        owner = owner or user
         transaction = Transaction(
+            user_id=owner.id,
             amount=amount,
             memo=memo,
             occurred_at=occurred_at,
@@ -235,7 +268,7 @@ def transaction_factory(db_session):
 
 
 @pytest.fixture
-def liability_factory(db_session):
+def liability_factory(db_session, user):
     """Factory for creating test liabilities (debts).
 
     Returns:
@@ -249,6 +282,7 @@ def liability_factory(db_session):
         minimum_payment: float = 25.00,
         due_day: int = 15,
         payoff_strategy: str = "snowball",
+        owner: User | None = None,
     ) -> Liability:
         """Create a test liability with sensible defaults.
 
@@ -263,7 +297,9 @@ def liability_factory(db_session):
         Returns:
             Liability: Persisted liability instance
         """
+        owner = owner or user
         liability = Liability(
+            user_id=owner.id,
             name=name,
             balance=balance,
             apr=apr,
@@ -280,7 +316,7 @@ def liability_factory(db_session):
 
 
 @pytest.fixture
-def habit_factory(db_session):
+def habit_factory(db_session, user):
     """Factory for creating test habits.
 
     Returns:
@@ -292,6 +328,7 @@ def habit_factory(db_session):
         description: str = "Test habit description",
         cadence: str = "daily",
         is_active: bool = True,
+        owner: User | None = None,
     ) -> Habit:
         """Create a test habit with sensible defaults.
 
@@ -304,7 +341,9 @@ def habit_factory(db_session):
         Returns:
             Habit: Persisted habit instance
         """
+        owner = owner or user
         habit = Habit(
+            user_id=owner.id,
             name=name,
             description=description,
             cadence=cadence,
@@ -319,7 +358,7 @@ def habit_factory(db_session):
 
 
 @pytest.fixture
-def budget_factory(db_session):
+def budget_factory(db_session, user):
     """Factory for creating test budgets with budget lines.
 
     Returns:
@@ -331,6 +370,7 @@ def budget_factory(db_session):
         period_end: date | None = None,
         label: str = "Test Budget",
         lines: list[dict] | None = None,
+        owner: User | None = None,
     ) -> Budget:
         """Create a test budget with optional budget lines.
 
@@ -355,7 +395,9 @@ def budget_factory(db_session):
             last_day = monthrange(today.year, today.month)[1]
             period_end = date(today.year, today.month, last_day)
 
+        owner = owner or user
         budget = Budget(
+            user_id=owner.id,
             period_start=period_start,
             period_end=period_end,
             label=label,
@@ -368,6 +410,7 @@ def budget_factory(db_session):
         if lines:
             for line_data in lines:
                 line = BudgetLine(
+                    user_id=owner.id,
                     budget_id=budget.id,
                     category_id=line_data["category_id"],
                     planned_amount=line_data.get("planned_amount", 0.0),
@@ -384,7 +427,7 @@ def budget_factory(db_session):
 
 
 @pytest.fixture
-def holding_factory(db_session):
+def holding_factory(db_session, user):
     """Factory for creating test portfolio holdings.
 
     Returns:
@@ -397,6 +440,7 @@ def holding_factory(db_session):
         avg_price: float = 100.00,
         account_id: int | None = None,
         currency: str = "USD",
+        owner: User | None = None,
     ) -> Holding:
         """Create a test portfolio holding with sensible defaults.
 
@@ -410,7 +454,9 @@ def holding_factory(db_session):
         Returns:
             Holding: Persisted holding instance
         """
+        owner = owner or user
         holding = Holding(
+            user_id=owner.id,
             symbol=symbol,
             quantity=quantity,
             avg_price=avg_price,

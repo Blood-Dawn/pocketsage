@@ -7,9 +7,8 @@ from typing import TYPE_CHECKING, Optional
 
 import flet as ft
 
+from ..services import admin_tasks, importers
 from .navigation_helpers import handle_navigation_selection, resolve_shortcut_route
-from ..services import admin_tasks
-from ..services import importers
 
 if TYPE_CHECKING:
     from .context import AppContext
@@ -31,10 +30,11 @@ def navigate(page: ft.Page, route: str) -> None:
     page.update()
 
 
-def handle_nav_selection(page: ft.Page, selected_index: int) -> None:
+def handle_nav_selection(ctx: AppContext, page: ft.Page, selected_index: int) -> None:
     """Delegate navigation rail selection to the helpers and update."""
 
-    handle_navigation_selection(page, selected_index)
+    is_admin = ctx.current_user is not None and ctx.current_user.role == "admin"
+    handle_navigation_selection(page, selected_index, is_admin=is_admin)
     page.update()
 
 
@@ -51,14 +51,18 @@ def handle_shortcut(page: ft.Page, key: str, ctrl: bool, shift: bool) -> bool:
 def run_demo_seed(ctx: AppContext, page: ft.Page) -> None:
     """Seed demo data and surface a friendly summary."""
 
-    summary = admin_tasks.run_demo_seed(session_factory=ctx.session_factory)
+    summary = admin_tasks.run_demo_seed(
+        session_factory=ctx.session_factory, user_id=ctx.require_user_id()
+    )
     _show_snack(page, f"Demo data ready ({summary.transactions} transactions)")
 
 
 def reset_demo_data(ctx: AppContext, page: ft.Page) -> None:
     """Reset demo data to a known state (drop + reseed)."""
 
-    summary = admin_tasks.reset_demo_database(session_factory=ctx.session_factory)
+    summary = admin_tasks.reset_demo_database(
+        user_id=ctx.require_user_id(), session_factory=ctx.session_factory
+    )
     _show_snack(page, f"Demo data reset ({summary.transactions} transactions)")
 
 
@@ -78,6 +82,7 @@ def attach_file_picker(ctx: AppContext, page: ft.Page) -> ft.FilePicker:
                 created = importers.import_ledger_transactions(
                     csv_path=csv_path,
                     session_factory=ctx.session_factory,
+                    user_id=ctx.require_user_id(),
                 )
                 _show_snack(page, f"Imported {created} transactions")
                 navigate(page, "/ledger")
@@ -85,6 +90,7 @@ def attach_file_picker(ctx: AppContext, page: ft.Page) -> ft.FilePicker:
                 created = importers.import_portfolio_holdings(
                     csv_path=csv_path,
                     session_factory=ctx.session_factory,
+                    user_id=ctx.require_user_id(),
                 )
                 _show_snack(page, f"Imported {created} holdings")
                 navigate(page, "/portfolio")
@@ -143,6 +149,13 @@ def go_to_help(page: ft.Page) -> None:
     navigate(page, "/help")
 
 
+def logout(ctx: AppContext, page: ft.Page) -> None:
+    """Clear session and return to login."""
+
+    ctx.current_user = None
+    navigate(page, "/login")
+
+
 __all__ = [
     "attach_file_picker",
     "go_to_help",
@@ -151,6 +164,7 @@ __all__ = [
     "navigate",
     "reset_demo_data",
     "run_demo_seed",
+    "logout",
     "start_ledger_import",
     "start_portfolio_import",
 ]

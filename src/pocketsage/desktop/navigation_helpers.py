@@ -11,8 +11,7 @@ import flet as ft
 class PageLike(Protocol):
     """Minimal subset of `ft.Page` needed for navigation helpers."""
 
-    def go(self, route: str) -> None:
-        ...
+    def go(self, route: str) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -80,6 +79,12 @@ NAVIGATION_DESTINATIONS: List[NavigationDestination] = [
         ft.Icons.SETTINGS_OUTLINED,
         ft.Icons.SETTINGS,
     ),
+    NavigationDestination(
+        "/admin",
+        "Admin",
+        ft.Icons.ADMIN_PANEL_SETTINGS_OUTLINED,
+        ft.Icons.ADMIN_PANEL_SETTINGS,
+    ),
 ]
 
 
@@ -99,29 +104,39 @@ _SHORTCUT_KEYS_WITH_CTRL = {
 }
 
 
-def nav_routes() -> list[str]:
+def _filter_destinations(is_admin: bool) -> list[NavigationDestination]:
+    """Filter navigation destinations based on role."""
+    if is_admin:
+        return NAVIGATION_DESTINATIONS
+    return [dest for dest in NAVIGATION_DESTINATIONS if dest.route != "/admin"]
+
+
+def nav_routes(is_admin: bool = False) -> list[str]:
     """List of routes represented in the navigation rail."""
-    return [dest.route for dest in NAVIGATION_DESTINATIONS]
+    return [dest.route for dest in _filter_destinations(is_admin)]
 
 
-def route_for_index(selected_index: int) -> Optional[str]:
+def route_for_index(selected_index: int, *, is_admin: bool = False) -> Optional[str]:
     """Return the route that corresponds to the selected navigation index."""
-    if 0 <= selected_index < len(NAVIGATION_DESTINATIONS):
-        return NAVIGATION_DESTINATIONS[selected_index].route
+    destinations = _filter_destinations(is_admin)
+    if 0 <= selected_index < len(destinations):
+        return destinations[selected_index].route
     return None
 
 
-def index_for_route(route: str) -> int:
+def index_for_route(route: str, *, is_admin: bool = False) -> int:
     """Return the index of the destination matching the requested route."""
     try:
-        return nav_routes().index(route)
+        return nav_routes(is_admin).index(route)
     except ValueError:
         return 0
 
 
-def handle_navigation_selection(page: PageLike, selected_index: int) -> None:
+def handle_navigation_selection(
+    page: PageLike, selected_index: int, *, is_admin: bool = False
+) -> None:
     """Go to the route that was selected in the navigation rail."""
-    if route := route_for_index(selected_index):
+    if route := route_for_index(selected_index, is_admin=is_admin):
         page.go(route)
 
 

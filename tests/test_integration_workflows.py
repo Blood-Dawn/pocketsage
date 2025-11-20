@@ -45,16 +45,24 @@ class TestMonthlyBudgetTracking:
         period_end = date(today.year, today.month, last_day)
 
         budget_repo = SQLModelBudgetRepository(session_factory)
+        uid = session_factory.user.id
 
-        budget = Budget(period_start=period_start, period_end=period_end, label="Monthly Budget")
+        budget = Budget(
+            user_id=uid,
+            period_start=period_start,
+            period_end=period_end,
+            label="Monthly Budget",
+        )
 
         # Add budget lines
         budget.lines = [
-            BudgetLine(category_id=groceries.id, planned_amount=500.00, budget_id=None),
-            BudgetLine(category_id=dining.id, planned_amount=200.00, budget_id=None),
+            BudgetLine(
+                user_id=uid, category_id=groceries.id, planned_amount=500.00, budget_id=None
+            ),
+            BudgetLine(user_id=uid, category_id=dining.id, planned_amount=200.00, budget_id=None),
         ]
 
-        budget_repo.create(budget)
+        budget_repo.create(budget, user_id=uid)
 
         # Add some actual transactions
         txn_repo = SQLModelTransactionRepository(session_factory)
@@ -62,50 +70,58 @@ class TestMonthlyBudgetTracking:
         # Groceries: $450 (under budget)
         txn_repo.create(
             Transaction(
+                user_id=uid,
                 amount=-150.00,
                 memo="Whole Foods",
                 occurred_at=datetime(today.year, today.month, 5),
                 category_id=groceries.id,
-            )
+            ),
+            user_id=uid,
         )
         txn_repo.create(
             Transaction(
+                user_id=uid,
                 amount=-300.00,
                 memo="Costco",
                 occurred_at=datetime(today.year, today.month, 15),
                 category_id=groceries.id,
-            )
+            ),
+            user_id=uid,
         )
 
         # Dining: $250 (over budget by $50)
         txn_repo.create(
             Transaction(
+                user_id=uid,
                 amount=-100.00,
                 memo="Restaurant",
                 occurred_at=datetime(today.year, today.month, 10),
                 category_id=dining.id,
-            )
+            ),
+            user_id=uid,
         )
         txn_repo.create(
             Transaction(
+                user_id=uid,
                 amount=-150.00,
                 memo="Date night",
                 occurred_at=datetime(today.year, today.month, 20),
                 category_id=dining.id,
-            )
+            ),
+            user_id=uid,
         )
 
         # Verify budget was created with lines
-        fetched_budget = budget_repo.get_for_month(today.year, today.month)
+        fetched_budget = budget_repo.get_for_month(today.year, today.month, user_id=uid)
         assert fetched_budget is not None
         assert len(fetched_budget.lines) == 2
 
         # Verify transactions were created
-        all_txns = txn_repo.list_all(limit=100)
+        all_txns = txn_repo.list_all(limit=100, user_id=uid)
         assert len(all_txns) == 4
 
         # Calculate actual spending by category
-        summary = txn_repo.get_monthly_summary(today.year, today.month)
+        summary = txn_repo.get_monthly_summary(today.year, today.month, user_id=uid)
 
         # All transactions are expenses (negative)
         total_expenses = summary["expenses"]
@@ -148,15 +164,16 @@ class TestDebtPayoffProjection:
 
         # Verify liabilities were created
         liability_repo = SQLModelLiabilityRepository(session_factory)
-        all_liabilities = liability_repo.list_all()
+        uid = session_factory.user.id
+        all_liabilities = liability_repo.list_all(user_id=uid)
         assert len(all_liabilities) == 3
 
         # Calculate total debt
-        total_debt = liability_repo.get_total_debt()
+        total_debt = liability_repo.get_total_debt(user_id=uid)
         assert_float_equal(total_debt, 25500.00)
 
         # Calculate weighted average APR
-        weighted_apr = liability_repo.get_weighted_apr()
+        weighted_apr = liability_repo.get_weighted_apr(user_id=uid)
         expected_weighted_apr = (2500 * 22.0 + 8000 * 6.0 + 15000 * 4.5) / 25500
         assert_float_equal(weighted_apr, expected_weighted_apr)
 
@@ -201,6 +218,7 @@ class TestHabitTrackingWorkflow:
         )
 
         habit_repo = SQLModelHabitRepository(session_factory)
+        uid = session_factory.user.id
 
         # Track habit over 14 days with some gaps
         start_date = date.today() - timedelta(days=13)
@@ -208,24 +226,31 @@ class TestHabitTrackingWorkflow:
         # Week 1: Perfect streak (7 days)
         for i in range(7):
             day = start_date + timedelta(days=i)
-            entry = HabitEntry(habit_id=exercise.id, occurred_on=day, value=1)
-            habit_repo.upsert_entry(entry)
+            entry = HabitEntry(
+                habit_id=exercise.id, occurred_on=day, value=1, user_id=exercise.user_id
+            )
+            habit_repo.upsert_entry(entry, user_id=uid)
 
         # Day 8: Skipped (gap)
 
         # Days 9-13: Another streak (5 days)
         for i in range(8, 13):
             day = start_date + timedelta(days=i)
-            entry = HabitEntry(habit_id=exercise.id, occurred_on=day, value=1)
-            habit_repo.upsert_entry(entry)
+            entry = HabitEntry(
+                habit_id=exercise.id, occurred_on=day, value=1, user_id=exercise.user_id
+            )
+            habit_repo.upsert_entry(entry, user_id=uid)
 
         # Today: Completed
         today = date.today()
-        habit_repo.upsert_entry(HabitEntry(habit_id=exercise.id, occurred_on=today, value=1))
+        habit_repo.upsert_entry(
+            HabitEntry(habit_id=exercise.id, occurred_on=today, value=1, user_id=exercise.user_id),
+            user_id=uid,
+        )
 
         # Calculate streaks
-        current_streak = habit_repo.get_current_streak(exercise.id)
-        longest_streak = habit_repo.get_longest_streak(exercise.id)
+        current_streak = habit_repo.get_current_streak(exercise.id, user_id=uid)
+        longest_streak = habit_repo.get_longest_streak(exercise.id, user_id=uid)
 
         # Current streak should be 6 (days 9-13 + today)
         assert current_streak == 6
@@ -238,6 +263,7 @@ class TestHabitTrackingWorkflow:
             exercise.id,
             start_date,
             today,
+            user_id=uid,
         )
 
         # Should have 13 entries (7 + skip + 5 + 1)
@@ -252,6 +278,7 @@ class TestCSVImportToDatabase:
         self, session_factory, category_factory, account_factory
     ):
         """Test importing CSV file and creating transactions in database."""
+        uid = session_factory.user.id
         # Setup: Create categories and accounts
         groceries = category_factory(name="Groceries", slug="groceries")
         salary = category_factory(name="Salary", slug="salary", category_type="income")
@@ -293,6 +320,7 @@ class TestCSVImportToDatabase:
             for txn_dict in parsed_txns:
                 # Convert dict to Transaction model
                 txn = Transaction(
+                    user_id=uid,
                     amount=txn_dict["amount"],
                     memo=txn_dict["memo"],
                     occurred_at=datetime.fromisoformat(txn_dict["occurred_at"]),
@@ -300,10 +328,10 @@ class TestCSVImportToDatabase:
                     category_id=txn_dict.get("category_id"),
                     account_id=txn_dict.get("account_id"),
                 )
-                txn_repo.create(txn)
+                txn_repo.create(txn, user_id=uid)
 
             # Verify transactions were created
-            all_txns = txn_repo.list_all(limit=100)
+            all_txns = txn_repo.list_all(limit=100, user_id=uid)
             assert len(all_txns) == 3
 
             # Verify external IDs were preserved (for idempotent re-import)
@@ -313,7 +341,7 @@ class TestCSVImportToDatabase:
             assert "TXN-003" in external_ids
 
             # Verify monthly summary
-            summary = txn_repo.get_monthly_summary(2024, 1)
+            summary = txn_repo.get_monthly_summary(2024, 1, user_id=uid)
             assert_float_equal(summary["income"], 2000.00)
             assert_float_equal(summary["expenses"], 225.75)
             assert_float_equal(summary["net"], 1774.25)
@@ -330,6 +358,7 @@ class TestMultiAccountTracking:
         self, session_factory, account_factory, transaction_factory, category_factory
     ):
         """Test creating transactions in different accounts and querying by account."""
+        uid = session_factory.user.id
         # Create multiple accounts
         checking = account_factory(name="Checking Account", currency="USD")
         savings = account_factory(name="Savings Account", currency="USD")
@@ -345,45 +374,51 @@ class TestMultiAccountTracking:
         # Checking: Some expenses
         txn_repo.create(
             Transaction(
+                user_id=uid,
                 amount=-100.00,
                 memo="Groceries",
                 occurred_at=datetime.now(),
                 account_id=checking.id,
                 category_id=groceries.id,
-            )
+            ),
+            user_id=uid,
         )
 
         # Savings: Transfer in
         txn_repo.create(
             Transaction(
+                user_id=uid,
                 amount=500.00,
                 memo="Transfer from checking",
                 occurred_at=datetime.now(),
                 account_id=savings.id,
                 category_id=transfer.id,
-            )
+            ),
+            user_id=uid,
         )
 
         # Credit card: More expenses
         txn_repo.create(
             Transaction(
+                user_id=uid,
                 amount=-50.00,
                 memo="Groceries",
                 occurred_at=datetime.now(),
                 account_id=credit_card.id,
                 category_id=groceries.id,
-            )
+            ),
+            user_id=uid,
         )
 
         # Query transactions by account
-        checking_txns = txn_repo.filter_by_account(checking.id)
+        checking_txns = txn_repo.filter_by_account(checking.id, user_id=uid)
         assert len(checking_txns) == 1
         assert checking_txns[0].amount == -100.00
 
-        savings_txns = txn_repo.filter_by_account(savings.id)
+        savings_txns = txn_repo.filter_by_account(savings.id, user_id=uid)
         assert len(savings_txns) == 1
         assert savings_txns[0].amount == 500.00
 
         # Verify all transactions
-        all_txns = txn_repo.list_all(limit=100)
+        all_txns = txn_repo.list_all(limit=100, user_id=uid)
         assert len(all_txns) == 3

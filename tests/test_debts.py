@@ -27,7 +27,8 @@ def test_snowball_schedule_orders_by_balance():
     assert debt2_payment > 50.0  # More than the $50 minimum
 
     # The total extra payment should include the surplus
-    # Debt #2 should get minimum + surplus = 50 + 200 = 250 (approximately, accounting for interest)
+    # Debt #2 should get minimum + surplus = 50 + 200 = 250
+    # (approximately, accounting for interest)
     assert debt2_payment >= 200.0
 
 
@@ -53,7 +54,8 @@ def test_avalanche_schedule_orders_by_apr():
     assert debt1_payment > 100.0  # More than the $100 minimum
 
     # The total extra payment should include the surplus
-    # Debt #1 should get minimum + surplus = 100 + 200 = 300 (approximately, accounting for interest)
+    # Debt #1 should get minimum + surplus = 100 + 200 = 300
+    # (approximately, accounting for interest)
     assert debt1_payment >= 250.0
 
 
@@ -81,4 +83,3 @@ def test_snowball_vs_avalanche_ordering():
 
     # In this case, both methods target the same debt (smallest balance AND highest APR)
     # but if we had different data, they would differ
-

@@ -17,27 +17,31 @@ class SQLModelHabitRepository:
         """Initialize with a session factory."""
         self.session_factory = session_factory
 
-    def get_by_id(self, habit_id: int) -> Optional[Habit]:
+    def get_by_id(self, habit_id: int, *, user_id: int) -> Optional[Habit]:
         """Retrieve a habit by ID."""
         with self.session_factory() as session:
-            obj = session.get(Habit, habit_id)
+            obj = session.exec(
+                select(Habit).where(Habit.id == habit_id, Habit.user_id == user_id)
+            ).first()
             if obj:
                 session.expunge(obj)
             return obj
 
-    def get_by_name(self, name: str) -> Optional[Habit]:
+    def get_by_name(self, name: str, *, user_id: int) -> Optional[Habit]:
         """Retrieve a habit by name."""
         with self.session_factory() as session:
-            statement = select(Habit).where(Habit.name == name)
+            statement = select(Habit).where(Habit.name == name, Habit.user_id == user_id)
             obj = session.exec(statement).first()
             if obj:
                 session.expunge(obj)
             return obj
 
-    def list_all(self, include_inactive: bool = False) -> list[Habit]:
+    def list_all(self, *, user_id: int, include_inactive: bool = False) -> list[Habit]:
         """List all habits, optionally including inactive ones."""
         with self.session_factory() as session:
-            statement = select(Habit).order_by(Habit.name)  # type: ignore
+            statement = (
+                select(Habit).where(Habit.user_id == user_id).order_by(Habit.name)  # type: ignore
+            )
 
             if not include_inactive:
                 statement = statement.where(Habit.is_active == True)  # noqa: E712
@@ -46,37 +50,42 @@ class SQLModelHabitRepository:
             session.expunge_all()
             return rows
 
-    def list_active(self) -> list[Habit]:
+    def list_active(self, *, user_id: int) -> list[Habit]:
         """List only active habits."""
-        return self.list_all(include_inactive=False)
+        return self.list_all(user_id=user_id, include_inactive=False)
 
-    def create(self, habit: Habit) -> Habit:
+    def create(self, habit: Habit, *, user_id: int) -> Habit:
         """Create a new habit."""
         with self.session_factory() as session:
+            habit.user_id = user_id
             session.add(habit)
             session.commit()
             session.refresh(habit)
             session.expunge(habit)
             return habit
 
-    def update(self, habit: Habit) -> Habit:
+    def update(self, habit: Habit, *, user_id: int) -> Habit:
         """Update an existing habit."""
         with self.session_factory() as session:
+            habit.user_id = user_id
             session.add(habit)
             session.commit()
             session.refresh(habit)
             session.expunge(habit)
             return habit
 
-    def delete(self, habit_id: int) -> None:
+    def delete(self, habit_id: int, *, user_id: int) -> None:
         """Delete a habit by ID."""
         with self.session_factory() as session:
-            if habit := session.get(Habit, habit_id):
+            habit = session.exec(
+                select(Habit).where(Habit.id == habit_id, Habit.user_id == user_id)
+            ).first()
+            if habit:
                 session.delete(habit)
                 session.commit()
 
     # Habit entry operations
-    def get_entry(self, habit_id: int, occurred_on: date) -> Optional[HabitEntry]:
+    def get_entry(self, habit_id: int, occurred_on: date, *, user_id: int) -> Optional[HabitEntry]:
         """Get a specific habit entry."""
         with self.session_factory() as session:
             statement = (
@@ -90,7 +99,7 @@ class SQLModelHabitRepository:
             return obj
 
     def get_entries_for_habit(
-        self, habit_id: int, start_date: date, end_date: date
+        self, habit_id: int, start_date: date, end_date: date, *, user_id: int
     ) -> list[HabitEntry]:
         """Get entries for a habit within a date range."""
         with self.session_factory() as session:
@@ -105,9 +114,10 @@ class SQLModelHabitRepository:
             session.expunge_all()
             return rows
 
-    def upsert_entry(self, entry: HabitEntry) -> HabitEntry:
+    def upsert_entry(self, entry: HabitEntry, *, user_id: int) -> HabitEntry:
         """Insert or update a habit entry."""
         with self.session_factory() as session:
+            entry.user_id = user_id
             existing = session.exec(
                 select(HabitEntry)
                 .where(HabitEntry.habit_id == entry.habit_id)
@@ -128,7 +138,7 @@ class SQLModelHabitRepository:
                 session.expunge(entry)
                 return entry
 
-    def delete_entry(self, habit_id: int, occurred_on: date) -> None:
+    def delete_entry(self, habit_id: int, occurred_on: date, *, user_id: int) -> None:
         """Delete a habit entry."""
         with self.session_factory() as session:
             entry = session.exec(
@@ -141,7 +151,7 @@ class SQLModelHabitRepository:
                 session.delete(entry)
                 session.commit()
 
-    def get_current_streak(self, habit_id: int) -> int:
+    def get_current_streak(self, habit_id: int, *, user_id: int) -> int:
         """Calculate current streak for a habit."""
         with self.session_factory() as session:
             today = date.today()
@@ -165,7 +175,7 @@ class SQLModelHabitRepository:
 
             return streak
 
-    def get_longest_streak(self, habit_id: int) -> int:
+    def get_longest_streak(self, habit_id: int, *, user_id: int) -> int:
         """Calculate longest streak for a habit."""
         with self.session_factory() as session:
             statement = (

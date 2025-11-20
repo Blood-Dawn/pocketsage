@@ -22,12 +22,13 @@ if TYPE_CHECKING:
 def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Build the ledger view with filters, pagination, and quick add."""
 
+    uid = ctx.require_user_id()
     per_page = 25
     current_page = 1
     total_pages = 1
     filtered: list[Transaction] = []
 
-    categories = ctx.category_repo.list_all()
+    categories = ctx.category_repo.list_all(user_id=uid)
 
     start_field = ft.TextField(label="Start date", hint_text="YYYY-MM-DD", width=140)
     end_field = ft.TextField(label="End date", hint_text="YYYY-MM-DD", width=140)
@@ -43,7 +44,8 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
     category_field = ft.Dropdown(
         label="Category",
-        options=[ft.dropdown.Option("", "All")] + [ft.dropdown.Option(str(c.id), c.name) for c in categories],
+        options=[ft.dropdown.Option("", "All")]
+        + [ft.dropdown.Option(str(c.id), c.name) for c in categories],
         value="",
         width=200,
     )
@@ -73,6 +75,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             end_date=end_dt,
             category_id=category_id,
             text=(search_field.value or "").strip() or None,
+            user_id=uid,
         )
         # type filter
         t_filter = type_field.value
@@ -95,7 +98,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         for tx in subset:
             cat_name = ""
             if tx.category_id:
-                cat = ctx.category_repo.get_by_id(tx.category_id)
+                cat = ctx.category_repo.get_by_id(tx.category_id, user_id=uid)
                 cat_name = cat.name if cat else ""
             rows.append(
                 ft.DataRow(
@@ -132,7 +135,9 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 table.rows = rows
             else:
                 table.rows = [
-                    ft.DataRow(cells=[ft.DataCell(ft.Text("No transactions found")) for _ in range(7)])
+                    ft.DataRow(
+                        cells=[ft.DataCell(ft.Text("No transactions found")) for _ in range(7)]
+                    )
                 ]
         # summary
         income = sum(t.amount for t in filtered if t.amount >= 0)
@@ -158,11 +163,13 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         apply_filters(target)
 
     def add_transaction_dialog(_):
-        categories = ctx.category_repo.list_all()
-        accounts = ctx.account_repo.list_all()
+        categories = ctx.category_repo.list_all(user_id=uid)
+        accounts = ctx.account_repo.list_all(user_id=uid)
         amount = ft.TextField(label="Amount", width=200)
         memo = ft.TextField(label="Memo", expand=True)
-        date_field = ft.TextField(label="Date", value=datetime.now().strftime("%Y-%m-%d"), width=200)
+        date_field = ft.TextField(
+            label="Date", value=datetime.now().strftime("%Y-%m-%d"), width=200
+        )
         category_dd = ft.Dropdown(
             label="Category",
             options=[ft.dropdown.Option(str(c.id), c.name) for c in categories],
@@ -185,7 +192,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     account_id=int(account_dd.value) if account_dd.value else None,
                     currency="USD",
                 )
-                ctx.transaction_repo.create(txn)
+                ctx.transaction_repo.create(txn, user_id=uid)
                 dlg.open = False
                 apply_filters(current_page)
                 page.snack_bar = ft.SnackBar(content=ft.Text("Transaction saved"))
@@ -196,7 +203,9 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         dlg = ft.AlertDialog(
             title=ft.Text("Add transaction"),
-            content=ft.Column([amount, memo, date_field, category_dd, account_dd], tight=True, spacing=8),
+            content=ft.Column(
+                [amount, memo, date_field, category_dd, account_dd], tight=True, spacing=8
+            ),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: setattr(dlg, "open", False)),
                 ft.FilledButton("Save", on_click=save_txn),
@@ -212,7 +221,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         def confirm():
             try:
-                ctx.transaction_repo.delete(txn_id)
+                ctx.transaction_repo.delete(txn_id, user_id=uid)
                 apply_filters(current_page)
             except Exception as exc:
                 show_error_dialog(page, "Delete failed", str(exc))
@@ -248,9 +257,42 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     summary_cards = ft.Row(
         [
-            ft.Card(content=ft.Container(ft.Column([ft.Text("Income"), ft.Text("", ref=income_text, size=20, weight=ft.FontWeight.BOLD)]), padding=12), expand=True),
-            ft.Card(content=ft.Container(ft.Column([ft.Text("Expenses"), ft.Text("", ref=expense_text, size=20, weight=ft.FontWeight.BOLD)]), padding=12), expand=True),
-            ft.Card(content=ft.Container(ft.Column([ft.Text("Net"), ft.Text("", ref=net_text, size=20, weight=ft.FontWeight.BOLD)]), padding=12), expand=True),
+            ft.Card(
+                content=ft.Container(
+                    ft.Column(
+                        [
+                            ft.Text("Income"),
+                            ft.Text("", ref=income_text, size=20, weight=ft.FontWeight.BOLD),
+                        ]
+                    ),
+                    padding=12,
+                ),
+                expand=True,
+            ),
+            ft.Card(
+                content=ft.Container(
+                    ft.Column(
+                        [
+                            ft.Text("Expenses"),
+                            ft.Text("", ref=expense_text, size=20, weight=ft.FontWeight.BOLD),
+                        ]
+                    ),
+                    padding=12,
+                ),
+                expand=True,
+            ),
+            ft.Card(
+                content=ft.Container(
+                    ft.Column(
+                        [
+                            ft.Text("Net"),
+                            ft.Text("", ref=net_text, size=20, weight=ft.FontWeight.BOLD),
+                        ]
+                    ),
+                    padding=12,
+                ),
+                expand=True,
+            ),
         ],
         spacing=12,
     )
@@ -276,7 +318,9 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.Text("", ref=page_label),
             ft.IconButton(icon=ft.Icons.ARROW_FORWARD, on_click=lambda _: paginate(1)),
             ft.FilledButton("Add transaction", icon=ft.Icons.ADD, on_click=add_transaction_dialog),
-            ft.TextButton("Import CSV", on_click=lambda _: controllers.start_ledger_import(ctx, page)),
+            ft.TextButton(
+                "Import CSV", on_click=lambda _: controllers.start_ledger_import(ctx, page)
+            ),
             ft.TextButton("Export CSV", on_click=export_csv),
             ft.TextButton("CSV Help", on_click=lambda _: controllers.go_to_help(page)),
         ],

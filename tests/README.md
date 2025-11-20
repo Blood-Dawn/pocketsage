@@ -15,14 +15,19 @@ This test suite is designed to verify all domain logic **without requiring the U
 
 ## Quick Start
 
+### Activate Virtualenv (Windows)
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
 ### Run All Tests
 
 ```bash
 # From project root
-pytest
+python -m pytest -vv
 
 # With coverage report
-pytest --cov=src/pocketsage --cov-report=term-missing
+python -m pytest --cov=src/pocketsage --cov-report=term-missing
 
 # Parallel execution (faster)
 pytest -n auto

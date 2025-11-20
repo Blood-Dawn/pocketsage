@@ -8,6 +8,7 @@ import pytest
 from pocketsage.config import BaseConfig
 from pocketsage.infra.database import create_db_engine, init_database, session_scope
 from pocketsage.models import Transaction
+from pocketsage.services import auth
 from pocketsage.services.admin_tasks import (
     EXPORT_RETENTION,
     reset_demo_database,
@@ -25,16 +26,26 @@ def session_factory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     engine = create_db_engine(config)
     init_database(engine)
 
+    def base_factory():
+        return session_scope(engine)
+
+    user = auth.create_user(
+        username="admin",
+        password="password",
+        role="admin",
+        session_factory=base_factory,
+    )
+
     def factory():
         return session_scope(engine)
 
-    return factory, engine
+    return factory, engine, user
 
 
 def test_run_demo_seed_populates_sample_data(session_factory):
-    factory, engine = session_factory
+    factory, engine, user = session_factory
 
-    summary = run_demo_seed(session_factory=factory)
+    summary = run_demo_seed(session_factory=factory, user_id=user.id)
 
     with session_scope(engine) as session:
         memos = [tx.memo for tx in session.exec(select(Transaction)).all()]
@@ -48,7 +59,7 @@ def test_run_demo_seed_populates_sample_data(session_factory):
     assert summary.accounts >= 2
 
     # Idempotent: rerun should not duplicate
-    rerun = run_demo_seed(session_factory=factory)
+    rerun = run_demo_seed(session_factory=factory, user_id=user.id)
     with session_scope(engine) as session:
         count_after = len(session.exec(select(Transaction)).all())
     assert count_after == len(memos)
@@ -56,8 +67,8 @@ def test_run_demo_seed_populates_sample_data(session_factory):
 
 
 def test_run_export_creates_zip_and_prunes_old(session_factory, tmp_path: Path):
-    factory, engine = session_factory
-    run_demo_seed(session_factory=factory)
+    factory, engine, user = session_factory
+    run_demo_seed(session_factory=factory, user_id=user.id)
 
     exports_dir = tmp_path / "exports"
     exports_dir.mkdir()
@@ -69,7 +80,7 @@ def test_run_export_creates_zip_and_prunes_old(session_factory, tmp_path: Path):
         old_time = (now - timedelta(days=index + 1)).timestamp()
         os.utime(archive, (old_time, old_time))
 
-    created = run_export(exports_dir, session_factory=factory)
+    created = run_export(exports_dir, session_factory=factory, user_id=user.id)
     assert created.exists()
 
     archives = sorted(exports_dir.glob("pocketsage_export_*.zip"))
@@ -78,13 +89,13 @@ def test_run_export_creates_zip_and_prunes_old(session_factory, tmp_path: Path):
 
 
 def test_reset_demo_database_restores_seed(session_factory):
-    factory, engine = session_factory
+    factory, engine, user = session_factory
 
-    run_demo_seed(session_factory=factory)
+    run_demo_seed(session_factory=factory, user_id=user.id)
     with session_scope(engine) as session:
         session.exec(delete(Transaction))
 
-    reset_demo_database(session_factory=factory)
+    reset_demo_database(session_factory=factory, user_id=user.id)
 
     with session_scope(engine) as session:
         count = len(session.exec(select(Transaction)).all())
@@ -93,19 +104,20 @@ def test_reset_demo_database_restores_seed(session_factory):
 
 
 def test_reset_demo_database_drops_custom_rows(session_factory):
-    factory, engine = session_factory
+    factory, engine, user = session_factory
 
-    run_demo_seed(session_factory=factory)
+    run_demo_seed(session_factory=factory, user_id=user.id)
     with session_scope(engine) as session:
         session.add(
             Transaction(
                 memo="Custom Row",
                 amount=-12.34,
                 occurred_at=datetime.now(timezone.utc),
+                user_id=user.id,
             )
         )
 
-    summary = reset_demo_database(session_factory=factory)
+    summary = reset_demo_database(session_factory=factory, user_id=user.id)
 
     with session_scope(engine) as session:
         memos = {tx.memo for tx in session.exec(select(Transaction)).all()}

@@ -8,6 +8,7 @@ from .liability import Liability
 from .portfolio import Holding
 from .settings import AppSetting
 from .transaction import Transaction, TransactionTagLink
+from .user import User
 
 __all__ = [
     "Budget",
@@ -21,4 +22,5 @@ __all__ = [
     "TransactionTagLink",
     "Holding",
     "Account",
+    "User",
 ]

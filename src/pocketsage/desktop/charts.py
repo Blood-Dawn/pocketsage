@@ -12,8 +12,8 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from pocketsage.models.portfolio import Holding
 
+from pocketsage.models.portfolio import Holding
 from pocketsage.models.transaction import Transaction
 from pocketsage.services.reports import build_spending_chart
 
@@ -79,7 +79,9 @@ def allocation_chart_png(holdings: Iterable[Holding]) -> Path:
     """Render allocation donut chart for holdings."""
     totals = defaultdict(float)
     for h in holdings:
-        value = float(getattr(h, "quantity", 0.0) or 0.0) * float(getattr(h, "avg_price", 0.0) or 0.0)
+        value = float(getattr(h, "quantity", 0.0) or 0.0) * float(
+            getattr(h, "avg_price", 0.0) or 0.0
+        )
         if value <= 0:
             continue
         key = getattr(h, "symbol", "Unknown")

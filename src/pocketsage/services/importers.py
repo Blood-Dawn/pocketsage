@@ -33,6 +33,7 @@ def import_ledger_transactions(
     csv_path: Path,
     session_factory: SessionFactory,
     mapping: ColumnMapping | None = None,
+    user_id: int,
 ) -> int:
     """Parse a CSV and persist transactions, creating categories/accounts on demand."""
 
@@ -50,7 +51,7 @@ def import_ledger_transactions(
                 continue
 
             external_id = row.get("external_id")
-            if external_id and _transaction_exists(session, str(external_id)):
+            if external_id and _transaction_exists(session, str(external_id), user_id=user_id):
                 continue
 
             category_id = _resolve_category_id(
@@ -58,16 +59,19 @@ def import_ledger_transactions(
                 row.get("category_id"),
                 row.get("category"),
                 amount,
+                user_id,
             )
             account_id = _resolve_account_id(
                 session,
                 row.get("account_id"),
                 row.get("account_name"),
+                user_id,
             )
             currency = _sanitize_currency(row.get("currency"))
             memo = str(row.get("memo") or "").strip()
 
             txn = Transaction(
+                user_id=user_id,
                 occurred_at=occurred_at,
                 amount=float(amount),
                 memo=memo,
@@ -84,7 +88,9 @@ def import_ledger_transactions(
     return created
 
 
-def import_portfolio_holdings(*, csv_path: Path, session_factory: SessionFactory) -> int:
+def import_portfolio_holdings(
+    *, csv_path: Path, session_factory: SessionFactory, user_id: int
+) -> int:
     """Parse a holdings CSV and upsert rows by symbol/account."""
 
     frame = normalize_frame(file_path=csv_path)
@@ -107,14 +113,14 @@ def import_portfolio_holdings(*, csv_path: Path, session_factory: SessionFactory
 
             account_name = str(row.get("account") or "").strip()
             account_id = (
-                _resolve_account_id(session, row.get("account_id"), account_name)
+                _resolve_account_id(session, row.get("account_id"), account_name, user_id)
                 if account_name
                 else None
             )
             currency = _sanitize_currency(row.get("currency")) or "USD"
             acquired_at = _parse_datetime(row.get("as_of"))
 
-            existing = _lookup_holding(session, symbol, account_id)
+            existing = _lookup_holding(session, symbol, account_id, user_id)
             if existing:
                 existing.quantity = quantity
                 existing.avg_price = avg_price
@@ -122,6 +128,7 @@ def import_portfolio_holdings(*, csv_path: Path, session_factory: SessionFactory
                 existing.currency = currency
             else:
                 holding = Holding(
+                    user_id=user_id,
                     symbol=symbol,
                     quantity=quantity,
                     avg_price=avg_price,
@@ -156,8 +163,10 @@ def _sanitize_currency(value: object) -> Optional[str]:
     return text[:3] if text else None
 
 
-def _transaction_exists(session: Session, external_id: str) -> bool:
-    statement = select(Transaction).where(Transaction.external_id == external_id)
+def _transaction_exists(session: Session, external_id: str, *, user_id: int) -> bool:
+    statement = select(Transaction).where(
+        Transaction.external_id == external_id, Transaction.user_id == user_id
+    )
     return session.exec(statement).first() is not None
 
 
@@ -175,11 +184,14 @@ def _resolve_category_id(
     category_id_value: object,
     category_label_value: object,
     amount: float,
+    user_id: int,
 ) -> Optional[int]:
     if category_id_value not in (None, ""):
         try:
             candidate = int(category_id_value)
-            existing = session.get(Category, candidate)
+            existing = session.exec(
+                select(Category).where(Category.id == candidate, Category.user_id == user_id)
+            ).first()
             if existing:
                 return existing.id
         except (TypeError, ValueError):
@@ -190,11 +202,14 @@ def _resolve_category_id(
         return None
 
     slug = _slugify(label)
-    existing = session.exec(select(Category).where(Category.slug == slug)).first()
+    existing = session.exec(
+        select(Category).where(Category.slug == slug, Category.user_id == user_id)
+    ).first()
     if existing:
         return existing.id
 
     category = Category(
+        user_id=user_id,
         name=label,
         slug=slug,
         category_type="income" if amount >= 0 else "expense",
@@ -204,12 +219,16 @@ def _resolve_category_id(
     return category.id
 
 
-def _resolve_account_id(session: Session, account_id_value: object, account_name_value: object) -> Optional[int]:
+def _resolve_account_id(
+    session: Session, account_id_value: object, account_name_value: object, user_id: int
+) -> Optional[int]:
     # Prefer explicit numeric account_id
     if account_id_value not in (None, ""):
         try:
             candidate = int(account_id_value)
-            existing = session.get(Account, candidate)
+            existing = session.exec(
+                select(Account).where(Account.id == candidate, Account.user_id == user_id)
+            ).first()
             if existing:
                 return existing.id
         except (TypeError, ValueError):
@@ -219,18 +238,22 @@ def _resolve_account_id(session: Session, account_id_value: object, account_name
     if not name:
         return None
 
-    existing = session.exec(select(Account).where(Account.name == name)).scalar_one_or_none()
+    existing = session.exec(
+        select(Account).where(Account.name == name, Account.user_id == user_id)
+    ).scalar_one_or_none()
     if existing:
         return existing.id
 
-    account = Account(name=name, currency="USD")
+    account = Account(name=name, currency="USD", user_id=user_id)
     session.add(account)
     session.flush()
     return account.id
 
 
-def _lookup_holding(session: Session, symbol: str, account_id: Optional[int]) -> Optional[Holding]:
-    statement = select(Holding).where(Holding.symbol == symbol)
+def _lookup_holding(
+    session: Session, symbol: str, account_id: Optional[int], user_id: int
+) -> Optional[Holding]:
+    statement = select(Holding).where(Holding.symbol == symbol, Holding.user_id == user_id)
     if account_id is None:
         statement = statement.where(Holding.account_id.is_(None))
     else:

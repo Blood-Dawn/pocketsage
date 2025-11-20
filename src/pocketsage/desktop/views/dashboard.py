@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, date
+from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING
 
 import flet as ft
 
+from ...models.habit import HabitEntry
 from .. import controllers
 from ..charts import cashflow_trend_png, spending_chart_png
 from ..components import build_app_bar, build_main_layout, build_stat_card
-from ...models.habit import HabitEntry
 
 if TYPE_CHECKING:
     from ..context import AppContext
@@ -19,24 +19,25 @@ if TYPE_CHECKING:
 def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Build the dashboard view."""
 
+    uid = ctx.require_user_id()
     # Fetch summary data
     today = datetime.now()
 
     # Get monthly summary
-    monthly_summary = ctx.transaction_repo.get_monthly_summary(today.year, today.month)
+    monthly_summary = ctx.transaction_repo.get_monthly_summary(today.year, today.month, user_id=uid)
     income = monthly_summary.get("income", 0)
     expenses = monthly_summary.get("expenses", 0)
     net = monthly_summary.get("net", 0)
 
     # Get account balances (net worth)
-    accounts = ctx.account_repo.list_all()
-    net_worth = sum(ctx.account_repo.get_balance(acc.id) for acc in accounts if acc.id)
+    accounts = ctx.account_repo.list_all(user_id=uid)
+    net_worth = sum(ctx.account_repo.get_balance(acc.id, user_id=uid) for acc in accounts if acc.id)
 
     # Get total debt
-    total_debt = ctx.liability_repo.get_total_debt()
+    total_debt = ctx.liability_repo.get_total_debt(user_id=uid)
 
     # Get active habits
-    active_habits = ctx.habit_repo.list_active()
+    active_habits = ctx.habit_repo.list_active(user_id=uid)
     habit_count = len(active_habits)
 
     # Build stat cards
@@ -83,6 +84,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     # Second row of stats
+    active_liabilities = len(ctx.liability_repo.list_active(user_id=uid))
     secondary_stats = ft.Row(
         [
             ft.Container(
@@ -91,7 +93,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     f"${total_debt:,.2f}",
                     icon=ft.Icons.CREDIT_CARD,
                     color=ft.Colors.RED if total_debt > 0 else ft.Colors.GREEN,
-                    subtitle=f"{len(ctx.liability_repo.list_active())} active liabilities",
+                    subtitle=f"{active_liabilities} active liabilities",
                 ),
                 expand=True,
             ),
@@ -120,7 +122,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     # Recent transactions section
-    recent_txns = ctx.transaction_repo.list_all(limit=5)
+    recent_txns = ctx.transaction_repo.list_all(limit=5, user_id=uid)
     txn_rows = []
 
     for txn in recent_txns:
@@ -222,7 +224,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
     # Charts
     month_start = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     next_month = (month_start + timedelta(days=32)).replace(day=1)
-    month_txs = ctx.transaction_repo.filter_by_date_range(month_start, next_month)
+    month_txs = ctx.transaction_repo.filter_by_date_range(month_start, next_month, user_id=uid)
     spending_png = None
     try:
         spending_png = spending_chart_png(month_txs)
@@ -230,7 +232,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
         spending_png = None
 
     # Cashflow trend: pull a wider slice
-    all_recent = ctx.transaction_repo.list_all(limit=500)
+    all_recent = ctx.transaction_repo.list_all(limit=500, user_id=uid)
     try:
         cashflow_png = cashflow_trend_png(all_recent, months=6)
     except Exception:
@@ -240,22 +242,30 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
         controls=[
             ft.Container(
                 content=ft.Column(
-                        [
-                            ft.Text("Spending by Category (This Month)", weight=ft.FontWeight.BOLD),
-                            ft.Image(src=str(spending_png), height=260) if spending_png else ft.Text("Chart unavailable"),
-                        ],
-                        spacing=8,
-                    ),
-                    col={"sm": 12, "md": 6},
+                    [
+                        ft.Text("Spending by Category (This Month)", weight=ft.FontWeight.BOLD),
+                        (
+                            ft.Image(src=str(spending_png), height=260)
+                            if spending_png
+                            else ft.Text("Chart unavailable")
+                        ),
+                    ],
+                    spacing=8,
                 ),
-                ft.Container(
-                    content=ft.Column(
-                        [
-                            ft.Text("Cashflow (Last 6 months)", weight=ft.FontWeight.BOLD),
-                            ft.Image(src=str(cashflow_png), height=260) if cashflow_png else ft.Text("Chart unavailable"),
-                        ],
-                        spacing=8,
-                    ),
+                col={"sm": 12, "md": 6},
+            ),
+            ft.Container(
+                content=ft.Column(
+                    [
+                        ft.Text("Cashflow (Last 6 months)", weight=ft.FontWeight.BOLD),
+                        (
+                            ft.Image(src=str(cashflow_png), height=260)
+                            if cashflow_png
+                            else ft.Text("Chart unavailable")
+                        ),
+                    ],
+                    spacing=8,
+                ),
                 col={"sm": 12, "md": 6},
             ),
         ],
@@ -266,7 +276,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
     # Upcoming payments (next 30 days)
     upcoming_rows = []
     horizon = date.today() + timedelta(days=30)
-    for liability in ctx.liability_repo.list_all():
+    for liability in ctx.liability_repo.list_all(user_id=uid):
         due_day = getattr(liability, "due_day", 1) or 1
         next_due = date.today().replace(day=min(due_day, 28))
         if next_due < date.today():
@@ -283,21 +293,26 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 )
             )
     if not upcoming_rows:
-        upcoming_rows.append(ft.Text("No payments due in next 30 days.", color=ft.Colors.ON_SURFACE_VARIANT))
+        upcoming_rows.append(
+            ft.Text("No payments due in next 30 days.", color=ft.Colors.ON_SURFACE_VARIANT)
+        )
 
     # Today's habits quick toggle
     today_habit_rows = []
     today_date = date.today()
     for habit in active_habits:
-        entry = ctx.habit_repo.get_entry(habit.id, today_date)
+        entry = ctx.habit_repo.get_entry(habit.id, today_date, user_id=uid)
         is_done = entry is not None and entry.value > 0
 
         def toggle(_e, hid=habit.id):
-            cur = ctx.habit_repo.get_entry(hid, today_date)
+            cur = ctx.habit_repo.get_entry(hid, today_date, user_id=uid)
             if cur:
-                ctx.habit_repo.delete_entry(hid, today_date)
+                ctx.habit_repo.delete_entry(hid, today_date, user_id=uid)
             else:
-                ctx.habit_repo.upsert_entry(HabitEntry(habit_id=hid, occurred_on=today_date, value=1))
+                ctx.habit_repo.upsert_entry(
+                    HabitEntry(habit_id=hid, occurred_on=today_date, value=1, user_id=uid),
+                    user_id=uid,
+                )
             page.snack_bar = ft.SnackBar(content=ft.Text("Habit updated"))
             page.snack_bar.open = True
             page.update()
@@ -306,12 +321,16 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.ListTile(
                 title=ft.Text(habit.name),
                 trailing=ft.Switch(value=is_done, on_change=toggle),
-                subtitle=ft.Text(f"Current streak: {ctx.habit_repo.get_current_streak(habit.id)}"),
+                subtitle=ft.Text(
+                    f"Current streak: {ctx.habit_repo.get_current_streak(habit.id, user_id=uid)}"
+                ),
                 on_click=lambda _, hid=habit.id: page.go("/habits"),
             )
         )
     if not today_habit_rows:
-        today_habit_rows.append(ft.Text("No active habits yet.", color=ft.Colors.ON_SURFACE_VARIANT))
+        today_habit_rows.append(
+            ft.Text("No active habits yet.", color=ft.Colors.ON_SURFACE_VARIANT)
+        )
 
     secondary_stats = ft.ResponsiveRow(
         controls=[
@@ -342,6 +361,10 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
     content = ft.Column(
         [
             stat_cards,
+            ft.Container(height=16),
+            quick_actions,
+            ft.Container(height=16),
+            recent_txns_card,
             ft.Container(height=16),
             charts_row,
             ft.Container(height=24),
