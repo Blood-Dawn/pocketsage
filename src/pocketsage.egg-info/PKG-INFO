@@ -45,6 +45,15 @@ PocketSage is now a **desktop-only** personal finance and habit tracker. It uses
 4. `python run_desktop.py` to launch the app (shortcuts: `Ctrl+N` new transaction, `Ctrl+Shift+H` new habit, `Ctrl+1..7` navigation)
 5. Optional: `make demo-seed` or `python scripts/seed_demo.py` to preload sample data.
 
+### Reset local database (recreate schema)
+If the schema changes or you get stuck at login, you can delete the local SQLite file and let the app recreate it (all data will be lost):
+1. Close the app.
+2. Backup then remove the DB files: `instance/pocketsage.db` (and any `pocketsage.db-wal` / `pocketsage.db-shm` files).
+   - PowerShell: `Remove-Item -Force -ErrorAction SilentlyContinue instance\pocketsage.db, instance\pocketsage.db-wal, instance\pocketsage.db-shm`
+   - macOS/Linux: `rm -f instance/pocketsage.db instance/pocketsage.db-wal instance/pocketsage.db-shm`
+3. Relaunch: `python run_desktop.py` (or `make dev`). The schema will be recreated automatically.
+4. Optional: re-seed demo data with `make demo-seed` or `python scripts/seed_demo.py`.
+
 ## Packaging
 - `make package` builds a desktop executable with `flet pack run_desktop.py` (outputs to `dist/`).
 - Platform scripts: `bash scripts/build_desktop.sh` (Linux/macOS) or `scripts\build_desktop.bat` (Windows).
@@ -91,13 +100,13 @@ python -m venv .venv
 - `tests/` – pytest suite for repositories, services, and desktop smoke tests.
 
 ## Desktop Features
-- **Dashboard** – placeholder metrics and quick actions
-- **Ledger** – transaction list, add/delete actions, import/export scaffolding
-- **Budgets** – monthly summaries (read-only for now)
-- **Habits** – daily toggle and streak helpers
-- **Debts** – liability list and payoff calculators
-- **Portfolio** – holdings list and allocations scaffolding
-- **Reports/Settings** – data export, demo seed, theme toggle, and data location info
+- **Dashboard** - quick stats, recent transactions, and shortcuts
+- **Ledger** - transaction list with add/delete, filters, CSV import/export
+- **Budgets** - month-aware summaries (creation/editing coming soon)
+- **Habits** - daily toggle and streak helpers
+- **Debts** - liability CRUD, payments, payoff projections (snowball/avalanche), chart + schedule
+- **Portfolio** - holdings CRUD with account selection, CSV import/export, allocation chart
+- **Reports/Settings** - full data export plus monthly spending, YTD, debt payoff reports; demo seed/reset; theme toggle; data location info
 
 ## Demo Data Seeding
 The seeding path is fully desktop-aware and idempotent:

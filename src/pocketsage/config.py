@@ -25,6 +25,7 @@ class BaseConfig:
 
     APP_NAME = "PocketSage"
     DB_FILENAME = "pocketsage.db"
+    EXPORT_RETENTION = 5
     SQLCIPHER_FLAG = "POCKETSAGE_USE_SQLCIPHER"
     SQLCIPHER_KEY_ENV = "POCKETSAGE_SQLCIPHER_KEY"
     SQLITE_PRAGMAS = {"journal_mode": "wal", "foreign_keys": "on"}

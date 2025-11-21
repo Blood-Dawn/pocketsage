@@ -514,6 +514,7 @@ def run_export(
     output_dir: Path | None = None,
     session_factory: Optional[SessionFactory] = None,
     user_id: Optional[int] = None,
+    retention: int = EXPORT_RETENTION,
 ) -> Path:
     """Generate export bundle for download and return path to zip file."""
 
@@ -558,9 +559,50 @@ def run_export(
                 archive.write(png_path, arcname=png_path.name)
 
         if write_to_instance and out_dir is not None:
-            _prune_old_exports(out_dir)
+            _prune_old_exports(out_dir, keep=retention)
 
         return zip_path
+
+
+def backup_database(
+    output_dir: Path | None = None, config: Optional[BaseConfig] = None
+) -> Path:
+    """Copy the current database file (all users) to a backup location."""
+
+    config = config or BaseConfig()
+    db_path = config.DATA_DIR / config.DB_FILENAME
+    if not db_path.exists():
+        raise FileNotFoundError(f"Database not found at {db_path}")
+
+    destination_root = output_dir if output_dir is not None else config.DATA_DIR / "backups"
+    dest_dir = destination_root if isinstance(destination_root, Path) else Path(destination_root)
+    _ensure_secure_directory(dest_dir)
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    backup_path = dest_dir / f"pocketsage_backup_{stamp}.db"
+    with db_path.open("rb") as src, backup_path.open("wb") as dst:
+        dst.write(src.read())
+    return backup_path
+
+
+def restore_database(
+    backup_file: Path, *, config: Optional[BaseConfig] = None, overwrite: bool = True
+) -> Path:
+    """Restore the database from a provided backup file."""
+
+    config = config or BaseConfig()
+    source = backup_file if isinstance(backup_file, Path) else Path(backup_file)
+    if not source.exists():
+        raise FileNotFoundError(f"Backup file not found: {source}")
+    target = config.DATA_DIR / config.DB_FILENAME
+    if not overwrite and target.exists():
+        raise FileExistsError(f"Target database already exists at {target}")
+
+    _ensure_secure_directory(config.DATA_DIR)
+    with source.open("rb") as src, target.open("wb") as dst:
+        dst.write(src.read())
+    # Hint: caller should trigger app restart to reload connections.
+    return target
 
 
 __all__ = [
@@ -568,4 +610,6 @@ __all__ = [
     "run_demo_seed",
     "run_export",
     "EXPORT_RETENTION",
+    "backup_database",
+    "restore_database",
 ]

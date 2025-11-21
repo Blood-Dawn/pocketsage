@@ -76,6 +76,7 @@ tests/test_admin_tasks.py
 tests/test_budgeting.py
 tests/test_csv_import_comprehensive.py
 tests/test_debt_calculations.py
+tests/test_debt_payoff_chart.py
 tests/test_debts.py
 tests/test_desktop_actions.py
 tests/test_desktop_navigation.py

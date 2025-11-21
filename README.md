@@ -30,6 +30,7 @@ If the schema changes or you get stuck at login, you can delete the local SQLite
 - `make package` builds a desktop executable with `flet pack run_desktop.py` (outputs to `dist/`).
 - Platform scripts: `bash scripts/build_desktop.sh` (Linux/macOS) or `scripts\build_desktop.bat` (Windows).
 - Output paths: Windows `dist\PocketSage\PocketSage.exe`, macOS `dist/PocketSage.app`, Linux `dist/PocketSage/PocketSage`.
+- Tip: when prompted during `scripts\build_desktop.bat` about deleting the `build` directory, answer `y` to avoid the CLI waiting for input in non-interactive shells.
 
 ### Clean Rebuild (Windows PowerShell)
 Use these commands when you need to purge everything and regenerate the desktop binary:
@@ -72,13 +73,13 @@ python -m venv .venv
 - `tests/` – pytest suite for repositories, services, and desktop smoke tests.
 
 ## Desktop Features
-- **Dashboard** – placeholder metrics and quick actions
-- **Ledger** – transaction list, add/delete actions, import/export scaffolding
-- **Budgets** – monthly summaries (read-only for now)
-- **Habits** – daily toggle and streak helpers
-- **Debts** – liability list and payoff calculators
-- **Portfolio** – holdings list and allocations scaffolding
-- **Reports/Settings** – data export, demo seed, theme toggle, and data location info
+- **Dashboard** - quick stats, recent transactions, and shortcuts
+- **Ledger** - transaction list with add/delete, filters, CSV import/export
+- **Budgets** - month-aware summaries (creation/editing coming soon)
+- **Habits** - daily toggle and streak helpers
+- **Debts** - liability CRUD, payments, payoff projections (snowball/avalanche), chart + schedule
+- **Portfolio** - holdings CRUD with account selection, CSV import/export, allocation chart
+- **Reports/Settings** - full data export plus monthly spending, YTD, debt payoff reports; demo seed/reset; theme toggle; data location info
 
 ## Demo Data Seeding
 The seeding path is fully desktop-aware and idempotent:

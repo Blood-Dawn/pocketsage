@@ -6,7 +6,9 @@ from typing import TYPE_CHECKING
 
 import flet as ft
 
-from ...services import auth
+from datetime import date
+
+from ...services import admin_tasks, auth
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..context import AppContext
@@ -47,6 +49,17 @@ def build_auth_view(ctx: AppContext, page: ft.Page) -> ft.View:
             status_text.current.value = message
             status_text.current.update()
 
+    def _ensure_seed(user_id: int) -> None:
+        """Seed per-user demo data the first time a user signs in."""
+
+        has_data = bool(ctx.transaction_repo.list_all(user_id=user_id, limit=1))
+        if not has_data:
+            admin_tasks.run_demo_seed(
+                session_factory=ctx.session_factory, user_id=user_id, force=True
+            )
+        ctx.current_month = date.today().replace(day=1)
+        ctx.current_account_id = None
+
     def handle_login(_):
         if not username.value or not password.value:
             _show_message("Enter username and password")
@@ -61,6 +74,7 @@ def build_auth_view(ctx: AppContext, page: ft.Page) -> ft.View:
             return
         ctx.current_user = user
         ctx.guest_mode = False
+        _ensure_seed(user.id)
         _show_message(f"Welcome back, {user.username}")
         page.go("/dashboard")
 
@@ -72,6 +86,7 @@ def build_auth_view(ctx: AppContext, page: ft.Page) -> ft.View:
             return
         ctx.current_user = guest
         ctx.guest_mode = True
+        _ensure_seed(guest.id or 0)
         _show_message("Guest mode enabled. Data clears when you exit.")
         page.go("/dashboard")
 
@@ -95,6 +110,7 @@ def build_auth_view(ctx: AppContext, page: ft.Page) -> ft.View:
             return
         ctx.current_user = user
         ctx.guest_mode = False
+        _ensure_seed(user.id)
         _show_message(f"Account created for {user.username}")
         page.go("/dashboard")
 

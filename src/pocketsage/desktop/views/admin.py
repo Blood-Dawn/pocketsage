@@ -9,7 +9,13 @@ from sqlalchemy import func, select
 
 from ...models import Account, Habit, Transaction, User
 from ...services import auth
-from ...services.admin_tasks import reset_demo_database, run_demo_seed
+from ...services.admin_tasks import (
+    backup_database,
+    reset_demo_database,
+    restore_database,
+    run_demo_seed,
+    run_export,
+)
 from ..components import build_app_bar, build_main_layout
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -87,6 +93,107 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
         refresh_users()
         _show_message(f"Role updated to {role}")
 
+    def delete_user_action(_):
+        user_id = _selected_id()
+        if user_id is None:
+            _show_message("Select a user first")
+            return
+        if ctx.current_user and ctx.current_user.id == user_id:
+            _show_message("Cannot delete the active user")
+            return
+        with ctx.session_factory() as session:
+            target = session.get(User, user_id)
+            if target:
+                # Remove data for the user then delete user row
+                try:
+                    from ...services.admin_tasks import reset_demo_database
+
+                    reset_demo_database(user_id=user_id, session_factory=ctx.session_factory)
+                except Exception:
+                    pass
+                session.delete(target)
+                session.commit()
+        refresh_users()
+        _show_message("User deleted")
+
+    def reset_password_action(_):
+        user_id = _selected_id()
+        if user_id is None:
+            _show_message("Select a user first")
+            return
+        password_field = ft.TextField(
+            label="New password",
+            password=True,
+            can_reveal_password=True,
+            autofocus=True,
+        )
+
+        def _apply(_):
+            try:
+                auth.reset_password(
+                    user_id=user_id, password=password_field.value, session_factory=ctx.session_factory
+                )
+            except Exception as exc:
+                _show_message(str(exc))
+                dialog.open = False
+                return
+            dialog.open = False
+            _show_message("Password reset")
+
+        dialog = ft.AlertDialog(
+            title=ft.Text("Reset password"),
+            content=password_field,
+            actions=[
+                ft.TextButton("Cancel", on_click=lambda _: setattr(dialog, "open", False)),
+                ft.FilledButton("Reset", on_click=_apply),
+            ],
+        )
+        page.dialog = dialog
+        dialog.open = True
+        page.update()
+
+    def export_all_users(_):
+        try:
+            exports_dir = ctx.config.DATA_DIR / "exports"
+            path = run_export(
+                exports_dir,
+                session_factory=ctx.session_factory,
+                user_id=None,
+                retention=ctx.config.EXPORT_RETENTION,
+            )
+            _show_message(f"All-user export ready: {path}")
+        except Exception as exc:  # pragma: no cover - user facing
+            _show_message(f"Export failed: {exc}")
+
+    restore_picker = ft.FilePicker()
+
+    def restore_from_backup(_):
+        restore_picker.pick_files(
+            allow_multiple=False,
+            allowed_extensions=["db"],
+        )
+
+    def _restore_result(e: ft.FilePickerResultEvent):
+        selected = e.files[0] if e.files else None
+        if not selected or not selected.path:
+            return
+        try:
+            restored = restore_database(Path(selected.path), config=ctx.config)
+            _show_message(f"Database restored to {restored} (restart app to reload)")
+        except Exception as exc:  # pragma: no cover - user facing
+            _show_message(f"Restore failed: {exc}")
+
+    restore_picker.on_result = _restore_result
+    page.overlay = (page.overlay or []) + [restore_picker]
+
+    def backup_db(_):
+        try:
+            backups_dir = ctx.config.DATA_DIR / "backups"
+            backup_path = backup_database(backups_dir, config=ctx.config)
+            _show_message(f"Backup saved: {backup_path}")
+        except Exception as exc:  # pragma: no cover - user facing
+            _show_message(f"Backup failed: {exc}")
+
     def seed_action(_):
         user_id = _selected_id()
         if user_id is None:
@@ -154,6 +261,32 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         "Promote to admin", on_click=lambda _: set_role_action("admin")
                     ),
                     ft.FilledTonalButton("Set as user", on_click=lambda _: set_role_action("user")),
+                    ft.IconButton(
+                        icon=ft.Icons.DELETE_OUTLINE,
+                        icon_color=ft.Colors.RED,
+                        tooltip="Delete user",
+                        on_click=delete_user_action,
+                    ),
+                    ft.IconButton(
+                        icon=ft.Icons.KEY,
+                        tooltip="Reset password",
+                        on_click=reset_password_action,
+                    ),
+                    ft.IconButton(
+                        icon=ft.Icons.IOS_SHARE,
+                        tooltip="Export all users",
+                        on_click=export_all_users,
+                    ),
+                    ft.IconButton(
+                        icon=ft.Icons.BACKUP,
+                        tooltip="Backup DB (all users)",
+                        on_click=backup_db,
+                    ),
+                    ft.IconButton(
+                        icon=ft.Icons.RESTORE_PAGE,
+                        tooltip="Restore from backup (.db)",
+                        on_click=restore_from_backup,
+                    ),
                 ],
                 spacing=8,
             ),

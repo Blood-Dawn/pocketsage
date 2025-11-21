@@ -69,7 +69,8 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         nonlocal filtered, current_page, total_pages
         start_dt = parse_date(start_field.value or "")
         end_dt = parse_date(end_field.value or "")
-        category_id = int(category_field.value) if category_field.value else None
+        raw_category = (category_field.value or "").strip()
+        category_id = int(raw_category) if raw_category.isdigit() else None
         txs = ctx.transaction_repo.search(
             start_date=start_dt,
             end_date=end_dt,
@@ -230,13 +231,16 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     def export_csv(_):
         try:
-            from tempfile import NamedTemporaryFile
-
-            with NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
-                export_transactions_csv(transactions=filtered, output_path=Path(tmp.name))
-                page.snack_bar = ft.SnackBar(content=ft.Text(f"Exported to {tmp.name}"))
-                page.snack_bar.open = True
-                page.update()
+            exports_dir = Path(ctx.config.DATA_DIR) / "exports"
+            exports_dir.mkdir(parents=True, exist_ok=True)
+            stamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            output_path = exports_dir / f"ledger_export_{stamp}.csv"
+            export_transactions_csv(transactions=filtered, output_path=output_path)
+            page.snack_bar = ft.SnackBar(
+                content=ft.Text(f"Exported to {output_path}"), show_close_icon=True
+            )
+            page.snack_bar.open = True
+            page.update()
         except Exception as exc:
             show_error_dialog(page, "Export failed", str(exc))
 

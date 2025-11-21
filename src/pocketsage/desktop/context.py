@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 import flet as ft
 from sqlmodel import Session
@@ -54,6 +54,10 @@ class AppContext:
 
     current_user: Optional[User] = None
     guest_mode: bool = False
+
+    # Optional watcher for auto-imports
+    watcher_observer: Optional[Any] = None
+    watched_folder: Optional[str] = None
 
     def require_user_id(self) -> int:
         """Return the current user id or raise if not set."""

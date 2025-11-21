@@ -87,6 +87,16 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 page.snack_bar.open = True
                 page.update()
 
+            def archive_habit(_e, habit_id=habit.id):
+                rec = ctx.habit_repo.get_by_id(habit_id, user_id=uid)
+                if rec:
+                    rec.is_active = False
+                    ctx.habit_repo.update(rec, user_id=uid)
+                refresh_habit_list()
+                page.snack_bar = ft.SnackBar(content=ft.Text("Habit archived"))
+                page.snack_bar.open = True
+                page.update()
+
             rows.append(
                 ft.Card(
                     content=ft.Container(
@@ -108,6 +118,11 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                         ),
                                     ],
                                     expand=True,
+                                ),
+                                ft.IconButton(
+                                    icon=ft.Icons.ARCHIVE_OUTLINED,
+                                    tooltip="Archive habit",
+                                    on_click=archive_habit,
                                 ),
                             ],
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -169,6 +184,52 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         expand=True,
     )
 
+    def open_create_dialog(_):
+        name_field = ft.TextField(label="Name", width=260, autofocus=True)
+        desc_field = ft.TextField(label="Description", width=260)
+        cadence_field = ft.Dropdown(
+            label="Cadence",
+            options=[
+                ft.dropdown.Option("daily", "Daily"),
+                ft.dropdown.Option("weekly", "Weekly"),
+            ],
+            value="daily",
+            width=200,
+        )
+
+        def save_habit(_):
+            try:
+                from ...models.habit import Habit
+
+                habit = Habit(
+                    name=name_field.value or "Habit",
+                    description=desc_field.value or "",
+                    cadence=cadence_field.value or "daily",
+                    user_id=uid,
+                )
+                ctx.habit_repo.create(habit, user_id=uid)
+                dialog.open = False
+                refresh_habit_list()
+                page.snack_bar = ft.SnackBar(content=ft.Text("Habit created"))
+                page.snack_bar.open = True
+                page.update()
+            except Exception as exc:
+                page.snack_bar = ft.SnackBar(content=ft.Text(f"Failed to create: {exc}"))
+                page.snack_bar.open = True
+                page.update()
+
+        dialog = ft.AlertDialog(
+            title=ft.Text("Create habit"),
+            content=ft.Column([name_field, desc_field, cadence_field], tight=True, spacing=8),
+            actions=[
+                ft.TextButton("Cancel", on_click=lambda _: setattr(dialog, "open", False)),
+                ft.FilledButton("Create", on_click=save_habit),
+            ],
+        )
+        page.dialog = dialog
+        dialog.open = True
+        page.update()
+
     refresh_habit_list()
     active = ctx.habit_repo.list_active(user_id=uid)
     if active:
@@ -185,6 +246,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 date.today().strftime("%A, %B %d, %Y"),
                                 color=ft.Colors.ON_SURFACE_VARIANT,
                             ),
+                            ft.FilledButton("Add habit", icon=ft.Icons.ADD, on_click=open_create_dialog),
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     ),

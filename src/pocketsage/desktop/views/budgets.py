@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import flet as ft
 
+from ...models.budget import Budget, BudgetLine
 from ..components import build_app_bar, build_main_layout, build_progress_bar
 
 if TYPE_CHECKING:
@@ -19,6 +20,132 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
     # Get current month's budget
     today = ctx.current_month
     budget = ctx.budget_repo.get_for_month(today.year, today.month, user_id=uid)
+
+    def refresh_view():
+        page.go("/budgets")
+
+    def show_create_budget_dialog():
+        categories = ctx.category_repo.list_all(user_id=uid)
+        label_field = ft.TextField(label="Label", value=f"{today.strftime('%B %Y')} Budget")
+        category_dd = ft.Dropdown(
+            label="Category",
+            options=[ft.dropdown.Option(str(c.id), c.name) for c in categories],
+            width=220,
+        )
+        amount_field = ft.TextField(label="Planned amount", width=180)
+
+        def save_budget(_):
+            from calendar import monthrange
+
+            start = today.replace(day=1)
+            end = today.replace(day=monthrange(today.year, today.month)[1])
+            budget_obj = Budget(
+                period_start=start,
+                period_end=end,
+                label=label_field.value or f"{today.strftime('%B %Y')} Budget",
+                user_id=uid,
+            )
+            created = ctx.budget_repo.create(budget_obj, user_id=uid)
+            if category_dd.value and amount_field.value:
+                try:
+                    line = BudgetLine(
+                        budget_id=created.id,
+                        category_id=int(category_dd.value),
+                        planned_amount=float(amount_field.value),
+                        rollover_enabled=False,
+                        user_id=uid,
+                    )
+                    ctx.budget_repo.create_line(line, user_id=uid)
+                except Exception:
+                    pass
+            dialog.open = False
+            refresh_view()
+
+        dialog = ft.AlertDialog(
+            title=ft.Text("Create budget"),
+            content=ft.Column([label_field, category_dd, amount_field], tight=True, spacing=8),
+            actions=[
+                ft.TextButton("Cancel", on_click=lambda _: setattr(dialog, "open", False)),
+                ft.FilledButton("Create", on_click=save_budget),
+            ],
+        )
+        page.dialog = dialog
+        dialog.open = True
+        page.update()
+
+    def copy_previous_month():
+        from calendar import monthrange
+
+        prev_month = today.month - 1 or 12
+        prev_year = today.year - 1 if today.month == 1 else today.year
+        prev_budget = ctx.budget_repo.get_for_month(prev_year, prev_month, user_id=uid)
+        if not prev_budget:
+            page.snack_bar = ft.SnackBar(content=ft.Text("No previous month budget to copy"))
+            page.snack_bar.open = True
+            page.update()
+            return
+        start = today.replace(day=1)
+        end = today.replace(day=monthrange(today.year, today.month)[1])
+        new_budget = Budget(
+            period_start=start,
+            period_end=end,
+            label=f"{today.strftime('%B %Y')} Budget",
+            user_id=uid,
+        )
+        created = ctx.budget_repo.create(new_budget, user_id=uid)
+        prev_lines = ctx.budget_repo.get_lines_for_budget(prev_budget.id, user_id=uid)
+        for line in prev_lines:
+            clone = BudgetLine(
+                budget_id=created.id,
+                category_id=line.category_id,
+                planned_amount=line.planned_amount,
+                rollover_enabled=line.rollover_enabled,
+                user_id=uid,
+            )
+            ctx.budget_repo.create_line(clone, user_id=uid)
+        page.snack_bar = ft.SnackBar(content=ft.Text("Copied previous month budget"))
+        page.snack_bar.open = True
+        refresh_view()
+
+    def add_budget_line(budget_id: int):
+        categories = ctx.category_repo.list_all(user_id=uid)
+        category_dd = ft.Dropdown(
+            label="Category",
+            options=[ft.dropdown.Option(str(c.id), c.name) for c in categories],
+            width=240,
+        )
+        amount_field = ft.TextField(label="Planned amount", width=180)
+
+        def save_line(_):
+            try:
+                if not category_dd.value:
+                    raise ValueError("Select a category")
+                line = BudgetLine(
+                    budget_id=budget_id,
+                    category_id=int(category_dd.value),
+                    planned_amount=float(amount_field.value or 0),
+                    rollover_enabled=False,
+                    user_id=uid,
+                )
+                ctx.budget_repo.create_line(line, user_id=uid)
+                dlg.open = False
+                refresh_view()
+            except Exception as exc:
+                page.snack_bar = ft.SnackBar(content=ft.Text(f"Failed to add line: {exc}"))
+                page.snack_bar.open = True
+                page.update()
+
+        dlg = ft.AlertDialog(
+            title=ft.Text("Add budget line"),
+            content=ft.Column([category_dd, amount_field], spacing=8, tight=True),
+            actions=[
+                ft.TextButton("Cancel", on_click=lambda _: setattr(dlg, "open", False)),
+                ft.FilledButton("Save", on_click=save_line),
+            ],
+        )
+        page.dialog = dlg
+        dlg.open = True
+        page.update()
 
     if budget:
         # Get budget lines
@@ -53,9 +180,67 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 label=category.name,
             )
 
+            def edit_line(_e, line=line):
+                amount_field = ft.TextField(
+                    label="Planned amount", value=str(line.planned_amount), width=180
+                )
+                rollover_switch = ft.Switch(label="Rollover enabled", value=line.rollover_enabled)
+                categories = ctx.category_repo.list_all(user_id=uid)
+                category_dd = ft.Dropdown(
+                    label="Category",
+                    options=[ft.dropdown.Option(str(c.id), c.name) for c in categories],
+                    value=str(line.category_id),
+                    width=240,
+                )
+
+                def save_edit(_):
+                    try:
+                        line.category_id = int(category_dd.value)
+                        line.planned_amount = float(amount_field.value or 0)
+                        line.rollover_enabled = bool(rollover_switch.value)
+                        ctx.budget_repo.update_line(line, user_id=uid)
+                        dlg.open = False
+                        refresh_view()
+                    except Exception as exc:
+                        page.snack_bar = ft.SnackBar(content=ft.Text(f"Failed to update line: {exc}"))
+                        page.snack_bar.open = True
+                        page.update()
+
+                dlg = ft.AlertDialog(
+                    title=ft.Text("Edit budget line"),
+                    content=ft.Column([category_dd, amount_field, rollover_switch], spacing=8, tight=True),
+                    actions=[
+                        ft.TextButton("Cancel", on_click=lambda _: setattr(dlg, "open", False)),
+                        ft.FilledButton("Save", on_click=save_edit),
+                    ],
+                )
+                page.dialog = dlg
+                dlg.open = True
+                page.update()
+
+            def delete_line(_e, line_id=line.id):
+                try:
+                    ctx.budget_repo.delete_line(line_id, user_id=uid)
+                    refresh_view()
+                except Exception as exc:
+                    page.snack_bar = ft.SnackBar(content=ft.Text(f"Failed to delete: {exc}"))
+                    page.snack_bar.open = True
+                    page.update()
+
             budget_rows.append(
                 ft.Container(
-                    content=progress,
+                    content=ft.Row(
+                        [
+                            ft.Container(content=progress, expand=True),
+                            ft.IconButton(icon=ft.Icons.EDIT, tooltip="Edit", on_click=edit_line),
+                            ft.IconButton(
+                                icon=ft.Icons.DELETE_OUTLINE,
+                                tooltip="Delete",
+                                icon_color=ft.Colors.RED,
+                                on_click=delete_line,
+                            ),
+                        ]
+                    ),
                     padding=16,
                     border=ft.border.only(
                         bottom=ft.border.BorderSide(1, ft.Colors.OUTLINE_VARIANT)
@@ -142,11 +327,6 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     else:
         # No budget for this month
-        def show_budget_placeholder(_):
-            page.snack_bar = ft.SnackBar(content=ft.Text("Budget creation coming soon"))
-            page.snack_bar.open = True
-            page.update()
-
         budget_content = ft.Container(
             content=ft.Column(
                 [
@@ -171,7 +351,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.FilledButton(
                         "Create Budget",
                         icon=ft.Icons.ADD,
-                        on_click=show_budget_placeholder,
+                        on_click=lambda _: show_create_budget_dialog(),
                     ),
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -185,10 +365,18 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.Row(
                 [
                     ft.Text("Budgets", size=24, weight=ft.FontWeight.BOLD),
-                    ft.Text(
-                        f"{today.strftime('%B %Y')}",
-                        size=18,
-                        color=ft.Colors.ON_SURFACE_VARIANT,
+                    ft.Row(
+                        [
+                            ft.Text(
+                                f"{today.strftime('%B %Y')}",
+                                size=18,
+                                color=ft.Colors.ON_SURFACE_VARIANT,
+                            ),
+                            ft.FilledButton("Add line", icon=ft.Icons.ADD, on_click=lambda _: add_budget_line(budget.id) if budget else show_create_budget_dialog()),
+                            ft.TextButton("Create budget", on_click=lambda _: show_create_budget_dialog()),
+                            ft.TextButton("Copy previous month", on_click=lambda _: copy_previous_month()),
+                        ],
+                        spacing=8,
                     ),
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,

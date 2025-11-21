@@ -1,101 +1,34 @@
-# PocketSage TODOs
+# PocketSage TODO (solo owner)
 
-## Configuration & Infrastructure
-- [ ] # TODO(@ops-team) Harden `BaseConfig`: fail application start when `POCKETSAGE_SECRET_KEY` equals default.
-- [ ] # TODO(@ops-team) Implement SQLCipher key handshake (PRAGMA key) using `POCKETSAGE_SQLCIPHER_KEY`.
-- [ ] # TODO(@ops-team) Provide Alembic migration bootstrap and document workflow.
-- [ ] # TODO(@ops-team) Add structured logging config (JSON + rotating file handler).
-- [ ] # TODO(@ops-team) Wire background job scheduler (e.g., APScheduler) for nightly tasks.
+## App polish & UX
+- [x] Budgets: add create flow for budgets and budget lines (current month); respect selected month; copy previous month; line edit/delete.
+- [x] Habits: add create/archive UI.  
+- [ ] Add reminders/notifications; extend heatmap/calendar range.
+- [ ] Debts: persist payment history and reconcile to ledger transaction; consider amortization detail/table export.
+- [ ] Portfolio: add filters (account/asset type) and optional market value inputs; refresh allocation chart accordingly.
+- [ ] Dashboard: add richer KPIs (overspend warnings, last-month vs this-month) and tidy any placeholder text.
+- [ ] Theme toggle: verify dark/light switch works across views and persists preference.
 
-## Ledger - Jennifer Ginther
-- [ ] # TODO(@ledger-squad) Implement SQLModel repository for transactions with filtering + pagination.
-- [ ] # TODO(@ledger-squad) Build LedgerEntryForm validation using WTForms or Pydantic.
-- [ ] # TODO(@ledger-squad) Add category management UI + CRUD endpoints.
-- [ ] # TODO(@ledger-squad) Implement rollup summaries (income vs. expense, net cashflow).
-- [ ] # TODO(@ledger-squad) Hook Matplotlib spending chart into ledger template.
-- [ ] # TODO(@ledger-squad) Ensure optimistic locking on transaction updates.
+## Admin & data safety
+- [x] Admin: add user delete; confirmation guard.
+- [x] Admin: add password reset flow with confirmation.
+- [x] Admin: offer full-database export/restore (all users) and data-directory selector UI.
+- [ ] Demo/reset: ensure post-reset UI refreshes; add guardrails for guest purge and multi-user isolation (integration test).
 
-## Habits - Dossell Sinclair
-- [x] # TODO(@habits-squad) Persist HabitEntry creation via repository with streak recalculation.
-- [ ] # TODO(@habits-squad) Implement HabitForm validation + error messaging.
-- [ ] # TODO(@habits-squad) Add weekly/monthly heatmap visualization for habit completion.
-- [ ] # TODO(@habits-squad) Introduce reminders (local notification or email toggle).
-- [ ] # TODO(@habits-squad) Support habit archival and reactivation flows.
+## Reports & exports
+- [x] Add more reports: category trend over time, cashflow by account, and combined ZIP with PDFs/PNGs.
+- [ ] Let users pick export destination (file picker) for ledger/portfolio/reports.
+- [x] Add retention toggle/config for exports and surface export folder opener.
 
-## Liabilities & Debts - Vedell Jones
-- [ ] # TODO(@debts-squad) Implement liabilities repository with create/read/update and payoff schedule storage.
-- [ ] # TODO(@debts-squad) Finish snowball and avalanche calculators with deterministic ordering.
-- [ ] # TODO(@debts-squad) Generate payoff timeline chart PNG via `services.reports` (UI currently renders a TODO placeholder on `/liabilities/`).
-- [ ] # TODO(@debts-squad) Add ability to record actual payments and reconcile balances.
-- [ ] # TODO(@debts-squad) Surface debt-free date projections in UI.
+## Imports & watcher
+- [ ] Add auto-detect/mapping suggestions for CSV imports; idempotent upsert for transactions by external_id.
+- [ ] Wire optional watcher (debounce/retry) to auto-import from watched folder.
 
-## Portfolio (Optional)(KD)
-- [x] # TODO(@portfolio-squad) Wire upload form to accept CSV and call `import_csv.import_csv_file`.
-- [x] # TODO(@portfolio-squad) Implement repository to persist holdings + allocation snapshots.
-- [x] # TODO(@portfolio-squad) Render allocation donut chart via Matplotlib.
-- [x] # TODO(@portfolio-squad) Add gain/loss table with cost basis calculations.
-- [x] # TODO(@portfolio-squad) Provide export of holdings to CSV.
- - [x] # TODO(@imports) Add account and currency column support in CSV imports and mapping suggestions so portfolio uploads can record account_id + currency.
- - [x] # TODO(@ledger-squad) Persist parsed portfolio-imported transactions into the ledger repository (ensure account_id and currency are stored and respected by reporting).
- - [x] # TODO(@frontend) Update portfolio templates to show upload progress, validation messaging, and export/download links.
- - [x] # TODO(@qa-team) Add idempotency & end-to-end tests for portfolio CSV import -> persist -> allocation snapshot.
+## Quality & tests
+- [ ] UI automation/regression for new dialogs (budgets, habits, debts payments, portfolio CRUD) and reports exports.
+- [ ] Performance test path for large imports/ledger pagination.
+- [ ] Coverage for admin full-export/restore and guest purge isolation.
 
-## Services & Integrations
-- [ ] # TODO(@imports) Implement idempotent `upsert_transactions` with external_id matching.
-- [ ] # TODO(@imports) Add column auto-detection + mapping suggestions.
-- [ ] # TODO(@watcher) Start watchdog observer on app boot when watched folder configured.
-- [ ] # TODO(@watcher) Add debounce + retry logic for duplicate filesystem events.
-- [ ] # TODO(@reports) Implement `build_spending_chart` with category color palette.
-- [ ] # TODO(@reports) Implement `export_spending_png` to persist chart via renderer protocol.
-- [ ] # TODO(@analytics) Add rolling cash flow computation in `services.budgeting`.
- - [ ] # TODO(@imports) Implement the persistence path: take parsed dicts from `import_csv` and insert/update ORM models via repository/session_scope (portfolio and transactions).
- - [ ] # TODO(@qa-team) Add DB-backed tests for import persistence and idempotency (use a temporary SQLite DB fixture).
-
-## Admin & Operations(KD)
-- [x] # TODO(@admin-squad) Implement `run_demo_seed` to populate all tables with sample data.
-- [x] # TODO(@admin-squad) Implement `run_export` to bundle CSV + PNG artifacts into zip.
-- [x] # TODO(@admin-squad) Add admin UI feedback (progress indicators, error handling).
-- [x] # TODO(@admin-squad) Create CLI commands (`flask pocketsage seed`, etc.).
-- [x] # TODO(@frontend) Update admin templates to show export/download button, seed confirmation UI, and progress/status indicators wired to endpoints.
-- [x] # TODO(@ops-team) Implement exports retention/rotation and filesystem permissions for `instance/exports` (ensure secure access and cleanup policy).
-- [x] # TODO(@framework-owner) Register background worker or scheduler (e.g., APScheduler/Celery) and wire `run_demo_seed` / `run_export` into it; provide a job-status API.
-- [x] # TODO(@qa-team) Add route and integration tests for `/admin/export/download`, seed confirmation flow, and background task behavior (mocking worker runtimes).
-
-## Desktop UI
-- [x] Shell & navigation (NavigationRail/AppBar/status bar, shortcuts).
-- [x] Dashboard widgets and charts (KPI cards, spending donut, cashflow trend, upcoming payments, habits).
-- [x] Ledger grid with filters/pagination and CSV import/export hooks.
-- [x] Habits heatmap and streak metrics with today toggle.
-- [x] Debts strategy toggle and payoff summary using payoff service.
-- [ ] Budgets progress (month selector, CRUD, alerts).
-- [ ] Portfolio allocations chart and CSV wiring polish.
-- [ ] Settings/Admin wiring for backup/import placeholders.
-
-## Desktop UX Sprint (Session Tasks)
-- [x] # TODO(@desktop) Remove persistent footer/status text from layout (`src/pocketsage/desktop/components/layout.py`).
-- [x] # TODO(@desktop) Smooth/disable view transitions and centralize navigation handlers (`src/pocketsage/desktop/app.py`, `src/pocketsage/desktop/controllers.py`, `src/pocketsage/desktop/navigation_helpers.py`).
-- [x] # TODO(@desktop) Wire buttons and help navigation across dashboard/ledger/settings/help (`src/pocketsage/desktop/views/*.py`).
-- [x] # TODO(@desktop) Add shared FilePicker and hook ledger/portfolio imports (`src/pocketsage/desktop/app.py`, `src/pocketsage/desktop/views/ledger.py`, `src/pocketsage/desktop/views/settings.py`, `src/pocketsage/services/importers.py`).
-- [x] # TODO(@desktop) Clarify demo seed vs. reset flows and hook Settings actions (`src/pocketsage/services/admin_tasks.py`, `src/pocketsage/desktop/views/settings.py`).
-- [x] # TODO(@qa-team) Add navigation/controller and help/habits route tests (`tests/test_desktop_navigation.py`, `tests/test_desktop_actions.py`).
-- [x] # TODO(@qa-team) Add import handler/service tests for ledger/portfolio (`tests/test_import_services.py`, `tests/test_desktop_actions.py`).
-- [x] # TODO(@qa-team) Extend demo seed/reset coverage for predictable demo mode (`tests/test_admin_tasks.py`).
-
-## Desktop UX Sprint (Nov 2025)
-- [ ] # TODO(@desktop) Align demo seed/reset flows and Settings notifications (`src/pocketsage/services/admin_tasks.py`, `src/pocketsage/desktop/views/settings.py`, `tests/test_admin_tasks.py`).
-- [ ] # TODO(@desktop) Introduce controller layer for nav/buttons plus consistent handlers (`src/pocketsage/desktop/controllers.py`, `src/pocketsage/desktop/app.py`, `src/pocketsage/desktop/views/*`).
-- [ ] # TODO(@desktop) Ensure `/habits` route is reachable via nav + shortcuts with regression tests (`src/pocketsage/desktop/navigation_helpers.py`, `tests/test_desktop_navigation.py`).
-- [ ] # TODO(@desktop) Implement CSV import persistence for ledger/portfolio with tests (`src/pocketsage/services/importers.py`, `tests/test_import_services.py`).
-- [ ] # TODO(@desktop) Add shared FilePicker and wire ledger/portfolio import buttons (`src/pocketsage/desktop/app.py`, `src/pocketsage/desktop/views/ledger.py`, `src/pocketsage/desktop/views/settings.py`).
-
-### Desktop UX Hardening (Nov 2025)
-- [ ] # TODO(@desktop) Finalize demo seed/reset flows and notifications (`services/admin_tasks.py`, `desktop/views/settings.py`, `tests/test_admin_tasks.py`).
-- [ ] # TODO(@desktop) Introduce controller helpers so nav/app bar/dashboard buttons share logic (`desktop/controllers.py`, `desktop/components/layout.py`, `desktop/views/dashboard.py`).
-- [ ] # TODO(@desktop) Guarantee Habits route + shortcuts render via router with regression tests (`desktop/views/habits.py`, `tests/test_desktop_navigation.py`).
-- [ ] # TODO(@desktop) Wire ledger and portfolio CSV imports through shared file picker + services (`desktop/app.py`, `desktop/views/ledger.py`, `desktop/views/settings.py`, `src/pocketsage/services/importers.py`, `tests/test_import_services.py`).
-## Testing & QA(KD)
-- [x] # TODO(@qa-team) Replace skipped tests with golden datasets for budgeting/debts services.
-- [x] # TODO(@qa-team) Add route smoke tests verifying template context variables.
-- [x] # TODO(@qa-team) Add CSV import idempotency regression tests using fixtures.
-- [x] # TODO(@qa-team) Configure CI workflow (GitHub Actions) running lint + tests + packaging dry run.
-- [ ] # TODO(@qa-team) Remove route smoke test skip once shared base templates render successfully.
+## Packaging & docs
+- [ ] Make packaging non-interactive (skip prompts) and document `scripts\\build_desktop.bat` usage/results.
+- [ ] Update Help/README after manual QA with any UX notes and CSV guidance.

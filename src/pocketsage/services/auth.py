@@ -181,3 +181,23 @@ def set_role(*, user_id: int, role: str, session_factory: SessionFactory) -> Use
         session.refresh(user)
         session.expunge(user)
         return user
+
+
+def reset_password(*, user_id: int, password: str, session_factory: SessionFactory) -> User:
+    """Reset a user's password to the provided value."""
+
+    if not password:
+        raise ValueError("Password cannot be empty")
+    password_hash = _hasher.hash(password)
+    with session_factory() as session:
+        user = session.get(User, user_id)
+        if user is None:
+            raise ValueError("User not found")
+        if _is_guest_username(user.username):
+            raise ValueError("Cannot reset password for guest user")
+        user.password_hash = password_hash
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        session.expunge(user)
+        return user

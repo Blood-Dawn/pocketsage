@@ -19,10 +19,11 @@ def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
     """Build the app bar with title, month selector, and quick actions."""
 
     today = date.today()
+    base_month = (getattr(ctx, "current_month", None) or today).replace(day=1)
     options: list[ft.dropdown.Option] = []
     for offset in (-1, 0, 1):
-        month = (today.month - 1 + offset) % 12 + 1
-        year = today.year + ((today.month - 1 + offset) // 12)
+        month = (base_month.month - 1 + offset) % 12 + 1
+        year = base_month.year + ((base_month.month - 1 + offset) // 12)
         label = date(year, month, 1).strftime("%b %Y")
         options.append(ft.dropdown.Option(key=f"{year}-{month:02d}", text=label))
 
@@ -31,11 +32,15 @@ def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
             ctx.current_month = date.fromisoformat(f"{e.control.value}-01")
         page.snack_bar = ft.SnackBar(content=ft.Text(f"Switched to {e.control.value}"))
         page.snack_bar.open = True
+        # Refresh month-aware views inline so the change is visible immediately.
+        current_route = getattr(page, "route", "")
+        if current_route in {"/budgets", "/reports"}:
+            page.go(current_route)
         page.update()
 
     month_selector = ft.Dropdown(
         options=options,
-        value=f"{today.year}-{today.month:02d}",
+        value=f"{base_month.year}-{base_month.month:02d}",
         width=150,
         dense=True,
         on_change=set_month,

@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING
 
 import flet as ft
 
-from ...services.admin_tasks import run_export
+from ...services import importers
+from ...services.admin_tasks import backup_database, restore_database, run_export
+from ...services.watcher import start_watcher
 from .. import controllers
 from ..components import build_app_bar, build_main_layout
 
@@ -62,15 +64,103 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     def export_data(_):
         try:
-            exports_dir = ctx.config.DATA_DIR
+            exports_dir = ctx.config.DATA_DIR / "exports"
             path = run_export(
                 Path(exports_dir),
                 session_factory=ctx.session_factory,
                 user_id=ctx.require_user_id(),
+                retention=ctx.config.EXPORT_RETENTION if hasattr(ctx.config, "EXPORT_RETENTION") else 5,
             )
             _notify(f"Export ready: {path}")
         except Exception as exc:
             _notify(f"Export failed: {exc}")
+
+    def backup_db(_):
+        try:
+            backups_dir = ctx.config.DATA_DIR / "backups"
+            path = backup_database(backups_dir, config=ctx.config)
+            _notify(f"Backup saved: {path}")
+        except Exception as exc:
+            _notify(f"Backup failed: {exc}")
+
+    restore_picker = ft.FilePicker()
+
+    def restore_db(_):
+        restore_picker.pick_files(
+            allow_multiple=False,
+            allowed_extensions=["db"],
+        )
+
+    def _on_restore(e: ft.FilePickerResultEvent):
+        selected = e.files[0] if e.files else None
+        if not selected or not selected.path:
+            return
+        try:
+            target = restore_database(Path(selected.path), config=ctx.config)
+            _notify(f"Database restored to {target}; restart app to reload.")
+        except Exception as exc:
+            _notify(f"Restore failed: {exc}")
+
+    restore_picker.on_result = _on_restore
+    page.overlay = (page.overlay or []) + [restore_picker]
+
+    # Watched folder imports
+    watcher_picker = ft.FilePicker()
+    page.overlay.append(watcher_picker)
+    watcher_label = ft.Ref[ft.Text]()
+
+    def _stop_watcher():
+        if ctx.watcher_observer:
+            try:
+                ctx.watcher_observer.stop()
+            except Exception:
+                pass
+            ctx.watcher_observer = None
+            ctx.watched_folder = None
+        if watcher_label.current:
+            watcher_label.current.value = "Watcher stopped"
+            watcher_label.current.update()
+
+    def _start_watcher(folder: Path):
+        _stop_watcher()
+
+        def _import_file(csv_path: Path):
+            try:
+                importers.import_ledger_transactions(
+                    csv_path=csv_path,
+                    session_factory=ctx.session_factory,
+                    user_id=ctx.require_user_id(),
+                )
+            except Exception:
+                pass
+
+        try:
+            observer = start_watcher(folder=folder, importer=_import_file)
+            ctx.watcher_observer = observer
+            ctx.watched_folder = str(folder)
+            if watcher_label.current:
+                watcher_label.current.value = f"Watching: {folder}"
+                watcher_label.current.update()
+            _notify(f"Watching folder for CSV imports: {folder}")
+        except Exception as exc:
+            _notify(f"Watcher failed: {exc}")
+
+    def _on_watch_pick(e: ft.FilePickerResultEvent):
+        if e.path:
+            _start_watcher(Path(e.path))
+
+    watcher_picker.on_result = _on_watch_pick
+
+    def choose_watch_folder(_):
+        watcher_picker.get_directory_path()
+
+    data_dir_field = ft.TextField(
+        label="Current data directory",
+        value=str(ctx.config.DATA_DIR),
+        read_only=True,
+        border=ft.InputBorder.UNDERLINE,
+        expand=True,
+    )
 
     database_section = ft.Card(
         content=ft.Container(
@@ -86,20 +176,37 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         spacing=8,
                     ),
                     ft.Container(height=8),
+                    data_dir_field,
+                    ft.Container(height=8),
                     ft.Row(
                         [
                             ft.FilledButton(
                                 "Backup Database",
                                 icon=ft.Icons.BACKUP,
-                                on_click=lambda _: _notify("Backup not yet implemented"),
+                                on_click=backup_db,
                             ),
                             ft.FilledButton(
                                 "Export Data",
                                 icon=ft.Icons.DOWNLOAD,
                                 on_click=export_data,
                             ),
+                            ft.TextButton(
+                                "Restore from backup (.db)",
+                                icon=ft.Icons.RESTORE,
+                                on_click=restore_db,
+                            ),
                         ],
                         spacing=8,
+                    ),
+                    ft.Text(
+                        "To change data directory, set POCKETSAGE_DATA_DIR and restart. Backups can be restored here.",
+                        size=12,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                    ft.Text(
+                        f"Export retention: {ctx.config.EXPORT_RETENTION} archives (configure in config).",
+                        size=12,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
                 ],
             ),
@@ -172,6 +279,24 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 icon=ft.Icons.HELP_OUTLINE,
                                 on_click=lambda _: controllers.go_to_help(page),
                             ),
+                        ],
+                        spacing=8,
+                    ),
+                    ft.Row(
+                        [
+                            ft.Text("Watched folder for CSV auto-import:", size=13),
+                            ft.Text("", ref=watcher_label, size=13, color=ft.Colors.ON_SURFACE_VARIANT),
+                        ],
+                        spacing=8,
+                    ),
+                    ft.Row(
+                        [
+                            ft.FilledButton(
+                                "Choose folder",
+                                icon=ft.Icons.FOLDER_OPEN,
+                                on_click=choose_watch_folder,
+                            ),
+                            ft.TextButton("Stop watcher", on_click=lambda _: _stop_watcher()),
                         ],
                         spacing=8,
                     ),
