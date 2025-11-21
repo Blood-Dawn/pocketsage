@@ -1,9 +1,9 @@
-# PocketSage TODO (solo owner)
+# PocketSage TODO
 
 ## App polish & UX
 - [x] Budgets: add create flow for budgets and budget lines (current month); respect selected month; copy previous month; line edit/delete.
 - [x] Habits: add create/archive UI.  
-  - [ ] Add reminders/notifications; extend heatmap/calendar range.
+- [x] Add reminders/notifications; extend heatmap/calendar range.
 - [x] Debts: persist payment history and reconcile to ledger transaction; consider amortization detail/table export.
 - [x] Portfolio: add filters (account) and optional market value inputs; refresh allocation chart accordingly.
 - [x] Dashboard: add richer KPIs (overspend warnings, last-month vs this-month) and tidy any placeholder text.

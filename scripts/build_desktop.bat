@@ -28,8 +28,8 @@ flet pack run_desktop.py ^
     --name "PocketSage" ^
     --product-name "PocketSage" ^
     --product-version "0.1.0" ^
-    --file-description "Offline Finance & Habit Tracker"
+    --file-description "Offline Finance & Habit Tracker" ^
+    --delete-build
 
 echo Build complete! Binary should be in dist\ directory
 echo Windows: dist\PocketSage\PocketSage.exe
-pause

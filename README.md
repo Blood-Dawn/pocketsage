@@ -28,9 +28,8 @@ If the schema changes or you get stuck at login, you can delete the local SQLite
 
 ## Packaging
 - `make package` builds a desktop executable with `flet pack run_desktop.py` (outputs to `dist/`).
-- Platform scripts: `bash scripts/build_desktop.sh` (Linux/macOS) or `scripts\build_desktop.bat` (Windows).
+- Platform scripts: `bash scripts/build_desktop.sh` (Linux/macOS) or `scripts\build_desktop.bat` (Windows, now non-interactive with `--delete-build`).
 - Output paths: Windows `dist\PocketSage\PocketSage.exe`, macOS `dist/PocketSage.app`, Linux `dist/PocketSage/PocketSage`.
-- Tip: when prompted during `scripts\build_desktop.bat` about deleting the `build` directory, answer `y` to avoid the CLI waiting for input in non-interactive shells.
 
 ### Clean Rebuild (Windows PowerShell)
 Use these commands when you need to purge everything and regenerate the desktop binary:

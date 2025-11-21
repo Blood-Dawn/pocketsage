@@ -208,6 +208,9 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
             width=200,
         )
 
+        reminder_switch = ft.Switch(label="Remind me daily", value=False)
+        reminder_time = ft.TextField(label="Reminder time (HH:MM)", width=160, hint_text="08:00")
+
         def save_habit(_):
             try:
                 from ...models.habit import Habit
@@ -219,6 +222,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     user_id=uid,
                 )
                 ctx.habit_repo.create(habit, user_id=uid)
+                # TODO(@habits-squad): wire reminder_switch/time to system notifications
                 dialog.open = False
                 refresh_habit_list()
                 page.snack_bar = ft.SnackBar(content=ft.Text("Habit created"))
@@ -231,7 +235,11 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         dialog = ft.AlertDialog(
             title=ft.Text("Create habit"),
-            content=ft.Column([name_field, desc_field, cadence_field], tight=True, spacing=8),
+            content=ft.Column(
+                [name_field, desc_field, cadence_field, reminder_switch, reminder_time],
+                tight=True,
+                spacing=8,
+            ),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: setattr(dialog, "open", False)),
                 ft.FilledButton("Create", on_click=save_habit),
