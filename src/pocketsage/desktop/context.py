@@ -18,6 +18,7 @@ from ..infra.repositories import (
     SQLModelHabitRepository,
     SQLModelHoldingRepository,
     SQLModelLiabilityRepository,
+    SQLModelSettingsRepository,
     SQLModelTransactionRepository,
 )
 from ..models.user import User
@@ -41,6 +42,7 @@ class AppContext:
     habit_repo: SQLModelHabitRepository
     liability_repo: SQLModelLiabilityRepository
     holding_repo: SQLModelHoldingRepository
+    settings_repo: SQLModelSettingsRepository
 
     # UI State
     theme_mode: ft.ThemeMode
@@ -90,6 +92,7 @@ def create_app_context(config: Optional[BaseConfig] = None) -> AppContext:
     habit_repo = SQLModelHabitRepository(session_factory)
     liability_repo = SQLModelLiabilityRepository(session_factory)
     holding_repo = SQLModelHoldingRepository(session_factory)
+    settings_repo = SQLModelSettingsRepository(session_factory)
 
     # Initialize UI state
     current_date = date.today()
@@ -104,6 +107,7 @@ def create_app_context(config: Optional[BaseConfig] = None) -> AppContext:
         habit_repo=habit_repo,
         liability_repo=liability_repo,
         holding_repo=holding_repo,
+        settings_repo=settings_repo,
         theme_mode=ft.ThemeMode.DARK,
         current_account_id=None,
         current_month=current_date.replace(day=1),

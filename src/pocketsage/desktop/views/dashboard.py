@@ -32,6 +32,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
     # Get account balances (net worth)
     accounts = ctx.account_repo.list_all(user_id=uid)
     net_worth = sum(ctx.account_repo.get_balance(acc.id, user_id=uid) for acc in accounts if acc.id)
+    holdings_value = ctx.holding_repo.get_total_market_value(user_id=uid) if hasattr(ctx.holding_repo, "get_total_market_value") else 0.0
 
     # Get total debt
     total_debt = ctx.liability_repo.get_total_debt(user_id=uid)
@@ -49,6 +50,15 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     f"${net_worth:,.2f}",
                     icon=ft.Icons.ACCOUNT_BALANCE_WALLET,
                     color=ft.Colors.PRIMARY,
+                ),
+                expand=True,
+            ),
+            ft.Container(
+                content=build_stat_card(
+                    "Portfolio MV",
+                    f"${holdings_value:,.2f}",
+                    icon=ft.Icons.TRENDING_UP,
+                    color=ft.Colors.BLUE,
                 ),
                 expand=True,
             ),
@@ -83,6 +93,15 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
         spacing=16,
     )
 
+    # Month-over-month net change
+    last_month = (today.replace(day=1) - timedelta(days=1)).replace(day=1)
+    prev_end = today.replace(day=1)
+    prev_txs = ctx.transaction_repo.filter_by_date_range(last_month, prev_end, user_id=uid)
+    prev_income = sum(t.amount for t in prev_txs if t.amount > 0)
+    prev_expenses = sum(abs(t.amount) for t in prev_txs if t.amount < 0)
+    prev_net = prev_income - prev_expenses
+    delta_net = net - prev_net
+
     # Second row of stats
     active_liabilities = len(ctx.liability_repo.list_active(user_id=uid))
     secondary_stats = ft.Row(
@@ -94,6 +113,16 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     icon=ft.Icons.CREDIT_CARD,
                     color=ft.Colors.RED if total_debt > 0 else ft.Colors.GREEN,
                     subtitle=f"{active_liabilities} active liabilities",
+                ),
+                expand=True,
+            ),
+            ft.Container(
+                content=build_stat_card(
+                    "MoM Net Change",
+                    f"${delta_net:,.2f}",
+                    icon=ft.Icons.CHANGE_HISTORY,
+                    color=ft.Colors.GREEN if delta_net >= 0 else ft.Colors.RED,
+                    subtitle="Vs previous month",
                 ),
                 expand=True,
             ),

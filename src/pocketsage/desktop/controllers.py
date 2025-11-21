@@ -149,6 +149,34 @@ def go_to_help(page: ft.Page) -> None:
     navigate(page, "/help")
 
 
+def pick_export_destination(
+    ctx: AppContext,
+    page: ft.Page,
+    *,
+    on_path_selected: callable[[Path], None],
+    suggested_name: str,
+) -> None:
+    """Let user pick a folder for exports and call the callback with a full file path."""
+
+    picker = ctx.file_picker
+    if picker is None:
+        _show_snack(page, "File picker is not available.")
+        return
+
+    def _on_dir(e: ft.FilePickerResultEvent):
+        selected = e.path if e and e.path else None
+        picker.on_result = None  # detach temporary handler
+        ctx.file_picker_mode = None
+        if not selected:
+            return
+        out_path = Path(selected) / suggested_name
+        on_path_selected(out_path)
+
+    picker.on_result = _on_dir
+    ctx.file_picker_mode = "export"
+    picker.get_directory_path()
+
+
 def logout(ctx: AppContext, page: ft.Page) -> None:
     """Clear session and return to login."""
 

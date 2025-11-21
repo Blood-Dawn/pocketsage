@@ -25,7 +25,17 @@ def main(page: ft.Page) -> None:
 
     # Configure page
     page.title = "PocketSage"
-    page.theme_mode = ft.ThemeMode.DARK
+    # Create app context (needs config)
+    ctx = create_app_context()
+    ctx.page = page
+    # Theme preference
+    persisted_theme = ctx.settings_repo.get("theme_mode")
+    if persisted_theme and persisted_theme.value.lower() == "light":
+        page.theme_mode = ft.ThemeMode.LIGHT
+        ctx.theme_mode = ft.ThemeMode.LIGHT
+    else:
+        page.theme_mode = ft.ThemeMode.DARK
+        ctx.theme_mode = ft.ThemeMode.DARK
     page.padding = 0
     page.window_width = 1280
     page.window_height = 800
@@ -39,10 +49,6 @@ def main(page: ft.Page) -> None:
     )
     page.theme = ft.Theme(page_transitions=transitions)
     page.dark_theme = ft.Theme(page_transitions=transitions)
-
-    # Create app context
-    ctx = create_app_context()
-    ctx.page = page
 
     # Shared file picker overlay for imports
     controllers.attach_file_picker(ctx, page)

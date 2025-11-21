@@ -27,6 +27,18 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
     chart_ref = ft.Ref[ft.Image]()
     total_holdings_text = ft.Ref[ft.Text]()
     cost_basis_text = ft.Ref[ft.Text]()
+    market_value_text = ft.Ref[ft.Text]()
+    account_filter = ft.Dropdown(
+        label="Account filter",
+        options=[ft.dropdown.Option("", "All accounts")]
+        + [
+            ft.dropdown.Option(str(a.id), a.name)
+            for a in ctx.account_repo.list_all(user_id=uid)
+            if a.id is not None
+        ],
+        value="",
+        width=220,
+    )
 
     def _account_name(account_id: int | None) -> str:
         if account_id is None:
@@ -35,32 +47,39 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
         return acct.name if acct else "Account missing"
 
     def _export_csv(_):
-        try:
-            holdings = ctx.holding_repo.list_all(user_id=uid)
-            exports_dir = Path(ctx.config.DATA_DIR) / "exports"
-            exports_dir.mkdir(parents=True, exist_ok=True)
-            stamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            output = exports_dir / f"holdings_export_{stamp}.csv"
-            with output.open("w", newline="") as handle:
-                writer = csv.writer(handle)
-                writer.writerow(["symbol", "quantity", "avg_price", "cost_basis", "account"])
-                for h in holdings:
-                    writer.writerow(
-                        [
-                            h.symbol,
-                            f"{h.quantity:.4f}",
-                            f"{h.avg_price:.2f}",
-                            f"{h.quantity * h.avg_price:.2f}",
-                            _account_name(h.account_id),
-                        ]
-                    )
-            page.snack_bar = ft.SnackBar(
-                content=ft.Text(f"Exported holdings to {output}"), show_close_icon=True
-            )
-            page.snack_bar.open = True
-            page.update()
-        except Exception as exc:
-            show_error_dialog(page, "Export failed", str(exc))
+        holdings = ctx.holding_repo.list_all(user_id=uid)
+
+        def _write(path: Path):
+            try:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with path.open("w", newline="") as handle:
+                    writer = csv.writer(handle)
+                    writer.writerow(["symbol", "quantity", "avg_price", "cost_basis", "account"])
+                    for h in holdings:
+                        writer.writerow(
+                            [
+                                h.symbol,
+                                f"{h.quantity:.4f}",
+                                f"{h.avg_price:.2f}",
+                                f"{h.quantity * h.avg_price:.2f}",
+                                _account_name(h.account_id),
+                            ]
+                        )
+                page.snack_bar = ft.SnackBar(
+                    content=ft.Text(f"Exported holdings to {path}"), show_close_icon=True
+                )
+                page.snack_bar.open = True
+                page.update()
+            except Exception as exc:
+                show_error_dialog(page, "Export failed", str(exc))
+
+        stamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        controllers.pick_export_destination(
+            ctx,
+            page,
+            suggested_name=f"holdings_export_{stamp}.csv",
+            on_path_selected=_write,
+        )
 
     def _open_dialog(existing: Holding | None = None) -> None:
         accounts = ctx.account_repo.list_all(user_id=uid)
@@ -81,6 +100,12 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
             width=180,
             keyboard_type=ft.KeyboardType.NUMBER,
         )
+        market_price = ft.TextField(
+            label="Market price (optional)",
+            value=str(existing.market_price if existing else ""),
+            width=180,
+            keyboard_type=ft.KeyboardType.NUMBER,
+        )
         account_dd = ft.Dropdown(
             label="Account",
             options=[ft.dropdown.Option(str(a.id), a.name) for a in accounts if a.id is not None]
@@ -97,6 +122,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     symbol=(symbol.value or "").strip().upper(),
                     quantity=float(qty.value or 0),
                     avg_price=float(price.value or 0),
+                    market_price=float(market_price.value or 0),
                     account_id=account_id,
                     currency="USD",
                     user_id=uid,
@@ -112,7 +138,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         dialog = ft.AlertDialog(
             title=ft.Text(title),
-            content=ft.Column([symbol, qty, price, account_dd], tight=True, spacing=8),
+            content=ft.Column([symbol, qty, price, market_price, account_dd], tight=True, spacing=8),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: setattr(dialog, "open", False)),
                 ft.FilledButton("Save", on_click=_save),
@@ -133,24 +159,38 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
         show_confirm_dialog(page, "Delete holding", "Are you sure?", _do_delete)
 
     def _refresh() -> None:
-        holdings = ctx.holding_repo.list_all(user_id=uid)
+        selected_account = (
+            int(account_filter.value) if account_filter.value and account_filter.value.isdigit() else None
+        )
+        holdings = (
+            ctx.holding_repo.list_by_account(selected_account, user_id=uid)
+            if selected_account
+            else ctx.holding_repo.list_all(user_id=uid)
+        )
         total_cost_basis = ctx.holding_repo.get_total_cost_basis(user_id=uid)
+        total_market_value = ctx.holding_repo.get_total_market_value(user_id=uid)
 
         if total_holdings_text.current:
             total_holdings_text.current.value = str(len(holdings))
         if cost_basis_text.current:
             cost_basis_text.current.value = f"${total_cost_basis:,.2f}"
+        if market_value_text.current:
+            market_value_text.current.value = f"${total_market_value:,.2f}"
 
         rows: list[ft.DataRow] = []
         for h in holdings:
             cost_basis = h.quantity * h.avg_price
+            market_price_val = h.market_price if getattr(h, "market_price", 0.0) else h.avg_price
+            market_value = h.quantity * market_price_val
             rows.append(
                 ft.DataRow(
                     cells=[
                         ft.DataCell(ft.Text(h.symbol)),
                         ft.DataCell(ft.Text(f"{h.quantity:,.4f}")),
                         ft.DataCell(ft.Text(f"${h.avg_price:,.2f}")),
+                        ft.DataCell(ft.Text(f"${market_price_val:,.2f}")),
                         ft.DataCell(ft.Text(f"${cost_basis:,.2f}")),
+                        ft.DataCell(ft.Text(f"${market_value:,.2f}")),
                         ft.DataCell(ft.Text(_account_name(h.account_id))),
                         ft.DataCell(
                             ft.Row(
@@ -175,7 +215,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
             )
 
         if not rows:
-            rows = [ft.DataRow(cells=[ft.DataCell(ft.Text("No holdings found")) for _ in range(6)])]
+            rows = [ft.DataRow(cells=[ft.DataCell(ft.Text("No holdings found")) for _ in range(7)])]
 
         if table_ref.current:
             table_ref.current.rows = rows
@@ -190,7 +230,9 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.DataColumn(ft.Text("Symbol")),
             ft.DataColumn(ft.Text("Quantity")),
             ft.DataColumn(ft.Text("Avg Price")),
+            ft.DataColumn(ft.Text("Market Price")),
             ft.DataColumn(ft.Text("Cost Basis")),
+            ft.DataColumn(ft.Text("Market Value")),
             ft.DataColumn(ft.Text("Account")),
             ft.DataColumn(ft.Text("Actions")),
         ],
@@ -215,6 +257,18 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 weight=ft.FontWeight.BOLD,
                                 color=ft.Colors.PRIMARY,
                                 ref=cost_basis_text,
+                            ),
+                            ft.Text(
+                                "Total Market Value",
+                                size=14,
+                                color=ft.Colors.ON_SURFACE_VARIANT,
+                            ),
+                            ft.Text(
+                                "",
+                                size=24,
+                                weight=ft.FontWeight.BOLD,
+                                color=ft.Colors.GREEN,
+                                ref=market_value_text,
                             ),
                         ],
                         spacing=4,
@@ -250,6 +304,8 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             ),
+            ft.Container(height=12),
+            ft.Row([account_filter, ft.TextButton("Apply filter", on_click=lambda _: _refresh())]),
             ft.Container(height=16),
             summary_card,
             ft.Container(height=16),

@@ -402,10 +402,11 @@ def _seed_budget(session: Session, categories: dict[str, Category], user_id: int
 
 
 def reset_demo_database(
-    user_id: int, session_factory: Optional[SessionFactory] = None
+    user_id: int, session_factory: Optional[SessionFactory] = None, reseed: bool = True
 ) -> SeedSummary:
     """Reset demo data for a specific user."""
 
+    # Guard against accidental cross-user resets
     with _get_session(session_factory) as session:
         models = (
             Transaction,
@@ -423,7 +424,9 @@ def reset_demo_database(
             for row in rows:
                 session.delete(row)
         session.commit()
-    return run_demo_seed(session_factory=session_factory, user_id=user_id, force=True)
+    if reseed:
+        return run_demo_seed(session_factory=session_factory, user_id=user_id, force=True)
+    return SeedSummary(transactions=0, categories=0, accounts=0, habits=0, liabilities=0, budgets=0)
 
 
 def run_demo_seed(

@@ -229,20 +229,27 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         show_confirm_dialog(page, "Delete transaction", "Are you sure?", confirm)
 
-    def export_csv(_):
+    def _write_export(path: Path):
         try:
-            exports_dir = Path(ctx.config.DATA_DIR) / "exports"
-            exports_dir.mkdir(parents=True, exist_ok=True)
-            stamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            output_path = exports_dir / f"ledger_export_{stamp}.csv"
-            export_transactions_csv(transactions=filtered, output_path=output_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            export_transactions_csv(transactions=filtered, output_path=path)
             page.snack_bar = ft.SnackBar(
-                content=ft.Text(f"Exported to {output_path}"), show_close_icon=True
+                content=ft.Text(f"Exported to {path}"), show_close_icon=True
             )
             page.snack_bar.open = True
             page.update()
         except Exception as exc:
             show_error_dialog(page, "Export failed", str(exc))
+
+    def export_csv(_):
+        stamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        suggested = f"ledger_export_{stamp}.csv"
+        controllers.pick_export_destination(
+            ctx,
+            page,
+            suggested_name=suggested,
+            on_path_selected=_write_export,
+        )
 
     filter_bar = ft.Row(
         [

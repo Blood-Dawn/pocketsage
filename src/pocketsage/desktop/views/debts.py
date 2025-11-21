@@ -8,6 +8,7 @@ import flet as ft
 
 from ...models.liability import Liability
 from ...services.debts import DebtAccount, avalanche_schedule, snowball_schedule
+from ...services.liabilities import build_payment_transaction
 from ..charts import debt_payoff_chart_png
 from ..components import build_app_bar, build_main_layout
 from ..components.dialogs import show_confirm_dialog, show_error_dialog
@@ -212,6 +213,19 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             value=str(liability.minimum_payment),
             autofocus=True,
         )
+        account_options = ctx.account_repo.list_all(user_id=uid)
+        account_dd = ft.Dropdown(
+            label="Account",
+            options=[ft.dropdown.Option(str(a.id), a.name) for a in account_options if a.id],
+            width=220,
+        )
+        category_options = [c for c in ctx.category_repo.list_all(user_id=uid) if c.id]
+        category_dd = ft.Dropdown(
+            label="Category",
+            options=[ft.dropdown.Option(str(c.id), c.name) for c in category_options],
+            width=220,
+        )
+        reconcile_switch = ft.Switch(label="Also add to ledger", value=True)
 
         def _apply(_):
             try:
@@ -221,6 +235,15 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     raise ValueError("Liability not found")
                 current.balance = max(0.0, current.balance - payment)
                 ctx.liability_repo.update(current, user_id=uid)
+                if reconcile_switch.value:
+                    txn = build_payment_transaction(
+                        liability=current,
+                        amount=payment,
+                        account_id=int(account_dd.value) if account_dd.value else None,
+                        category_id=int(category_dd.value) if category_dd.value else None,
+                        user_id=uid,
+                    )
+                    ctx.transaction_repo.create(txn, user_id=uid)
                 payment_dialog.open = False
                 _refresh()
             except Exception as exc:
@@ -228,7 +251,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         payment_dialog = ft.AlertDialog(
             title=ft.Text(f"Record payment for {liability.name}"),
-            content=amount_field,
+            content=ft.Column([amount_field, account_dd, category_dd, reconcile_switch], spacing=8),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: setattr(payment_dialog, "open", False)),
                 ft.FilledButton("Apply", on_click=_apply),

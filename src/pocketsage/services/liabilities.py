@@ -125,4 +125,29 @@ def flatten_schedules(
     return schedules
 
 
+def build_payment_transaction(
+    *,
+    liability: Liability,
+    amount: float,
+    account_id: int | None,
+    category_id: int | None,
+    user_id: int,
+) -> "Transaction":
+    """Construct a ledger transaction that represents a liability payment."""
+
+    from datetime import datetime, timezone
+    from ..models.transaction import Transaction
+
+    return Transaction(
+        user_id=user_id,
+        occurred_at=datetime.now(timezone.utc),
+        amount=-abs(amount),
+        memo=f"Payment toward {liability.name}",
+        account_id=account_id,
+        category_id=category_id,
+        currency="USD",
+        liability_id=liability.id,
+    )
+
+
 __all__ = ["PaymentProjection", "generate_payment_schedule", "flatten_schedules"]

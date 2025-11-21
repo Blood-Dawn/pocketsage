@@ -24,10 +24,20 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
     streak_ref = ft.Ref[ft.Text]()
     longest_ref = ft.Ref[ft.Text]()
     selected_habit: int | None = None
+    heatmap_days = ft.Dropdown(
+        label="Heatmap window",
+        options=[
+            ft.dropdown.Option("28", "Last 28 days"),
+            ft.dropdown.Option("90", "Last 90 days"),
+            ft.dropdown.Option("180", "Last 180 days"),
+        ],
+        value="90",
+        width=180,
+    )
 
-    def render_heatmap(habit_id: int):
+    def render_heatmap(habit_id: int, days: int = 90):
         today = date.today()
-        start = today - timedelta(days=27)
+        start = today - timedelta(days=days - 1)
         entries = ctx.habit_repo.get_entries_for_habit(habit_id, start, today, user_id=uid)
         completed = {e.occurred_on for e in entries if e.value > 0}
         cells: list[ft.Control] = []
@@ -58,7 +68,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         longest_ref.current.value = (
             f"Longest streak: {ctx.habit_repo.get_longest_streak(hid, user_id=uid)}"
         )
-        render_heatmap(hid)
+        render_heatmap(hid, days=heatmap_days.value if heatmap_days.value else 90)
         page.update()
 
     def refresh_habit_list():
@@ -178,6 +188,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.Text("", ref=streak_ref),
             ft.Text("", ref=longest_ref),
             ft.Text("Last 28 days", weight=ft.FontWeight.BOLD),
+            ft.Row([heatmap_days], alignment=ft.MainAxisAlignment.START),
             heatmap,
         ],
         spacing=8,

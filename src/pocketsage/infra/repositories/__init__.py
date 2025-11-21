@@ -7,6 +7,7 @@ from .habit import SQLModelHabitRepository
 from .holding import SQLModelHoldingRepository
 from .liability import SQLModelLiabilityRepository
 from .transaction import SQLModelTransactionRepository
+from .settings import SQLModelSettingsRepository
 
 __all__ = [
     "SQLModelAccountRepository",
@@ -16,4 +17,5 @@ __all__ = [
     "SQLModelHoldingRepository",
     "SQLModelLiabilityRepository",
     "SQLModelTransactionRepository",
+    "SQLModelSettingsRepository",
 ]

@@ -95,6 +95,19 @@ class SQLModelHoldingRepository:
             holdings = session.exec(statement).all()
             return sum(h.quantity * h.avg_price for h in holdings)
 
+    def get_total_market_value(self, *, user_id: int, account_id: Optional[int] = None) -> float:
+        """Calculate total market value using market_price when provided."""
+        with self.session_factory() as session:
+            statement = select(Holding).where(Holding.user_id == user_id)
+            if account_id is not None:
+                statement = statement.where(Holding.account_id == account_id)
+            holdings = session.exec(statement).all()
+            total = 0.0
+            for h in holdings:
+                price = h.market_price if getattr(h, "market_price", 0.0) else h.avg_price
+                total += h.quantity * price
+            return total
+
     def upsert_by_symbol(self, holding: Holding, *, user_id: int) -> Holding:
         """Insert or update a holding by symbol.
 

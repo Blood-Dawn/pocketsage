@@ -32,10 +32,12 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
             page.theme_mode = ft.ThemeMode.LIGHT
             ctx.theme_mode = ft.ThemeMode.LIGHT
             theme_switch.value = False
+            ctx.settings_repo.set("theme_mode", "light", "Preferred theme mode")
         else:
             page.theme_mode = ft.ThemeMode.DARK
             ctx.theme_mode = ft.ThemeMode.DARK
             theme_switch.value = True
+            ctx.settings_repo.set("theme_mode", "dark", "Preferred theme mode")
         page.update()
 
     theme_switch = ft.Switch(

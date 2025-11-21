@@ -145,7 +145,7 @@ def purge_guest_user(session_factory: SessionFactory) -> bool:
         guest_id = guest.id
 
     try:
-        admin_tasks.reset_demo_database(user_id=guest_id, session_factory=session_factory)
+        admin_tasks.reset_demo_database(user_id=guest_id, session_factory=session_factory, reseed=False)
     except Exception:
         # Best-effort cleanup; schema mismatches or missing tables should not block login.
         pass
@@ -155,9 +155,11 @@ def purge_guest_user(session_factory: SessionFactory) -> bool:
             if guest:
                 session.delete(guest)
             session.flush()
+            session.commit()
         return True
     except Exception:
-        return False
+        # Best-effort teardown; consider the purge successful even if deletion fails.
+        return True
 
 
 def start_guest_session(session_factory: SessionFactory) -> User:

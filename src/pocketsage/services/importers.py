@@ -80,8 +80,9 @@ def import_ledger_transactions(
                 account_id=account_id,
                 currency=currency or "USD",
             )
-            session.add(txn)
-            created += 1
+            upserted = upsert_transaction(session, txn, user_id=user_id)
+            if upserted:
+                created += 1
 
         session.flush()
 
@@ -119,6 +120,7 @@ def import_portfolio_holdings(
             )
             currency = _sanitize_currency(row.get("currency")) or "USD"
             acquired_at = _parse_datetime(row.get("as_of"))
+            market_price = _safe_float(row.get("market_price")) or 0.0
 
             existing = _lookup_holding(session, symbol, account_id, user_id)
             if existing:
@@ -126,6 +128,7 @@ def import_portfolio_holdings(
                 existing.avg_price = avg_price
                 existing.acquired_at = acquired_at
                 existing.currency = currency
+                existing.market_price = market_price
             else:
                 holding = Holding(
                     user_id=user_id,
@@ -135,6 +138,7 @@ def import_portfolio_holdings(
                     acquired_at=acquired_at,
                     account_id=account_id,
                     currency=currency,
+                    market_price=market_price,
                 )
                 session.add(holding)
 
@@ -168,6 +172,34 @@ def _transaction_exists(session: Session, external_id: str, *, user_id: int) -> 
         Transaction.external_id == external_id, Transaction.user_id == user_id
     )
     return session.exec(statement).first() is not None
+
+
+def upsert_transaction(session: Session, txn: Transaction, *, user_id: int) -> bool:
+    """Insert or update by external_id when present; returns True if created."""
+
+    created = False
+    if txn.external_id:
+        existing = session.exec(
+            select(Transaction).where(
+                Transaction.external_id == txn.external_id, Transaction.user_id == user_id
+            )
+        ).first()
+        if existing:
+            existing.amount = txn.amount
+            existing.occurred_at = txn.occurred_at
+            existing.memo = txn.memo
+            existing.category_id = txn.category_id
+            existing.account_id = txn.account_id
+            existing.currency = txn.currency
+            existing.liability_id = txn.liability_id
+            session.add(existing)
+        else:
+            created = True
+            session.add(txn)
+    else:
+        created = True
+        session.add(txn)
+    return created
 
 
 _SLUG_PATTERN = re.compile(r"[^a-z0-9]+")

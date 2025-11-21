@@ -38,16 +38,20 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
         out.mkdir(parents=True, exist_ok=True)
         return out
 
-    def export_all(_):
+    def export_all_to(custom_path: Path | None = None):
         try:
+            target_dir = custom_path.parent if custom_path else _exports_dir()
             path = run_export(
-                _exports_dir(), session_factory=ctx.session_factory, user_id=uid
+                target_dir,
+                session_factory=ctx.session_factory,
+                user_id=uid,
+                retention=ctx.config.EXPORT_RETENTION,
             )
             notify(f"Export ready: {path}")
         except Exception as exc:
             notify(f"Export failed: {exc}")
 
-    def export_monthly_spending(_):
+    def export_monthly_spending(custom_path: Path | None = None):
         try:
             month = ctx.current_month
             start = datetime(month.year, month.month, 1)
@@ -58,13 +62,17 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
             txs = ctx.transaction_repo.search(
                 start_date=start, end_date=end, user_id=uid, category_id=None, account_id=None, text=None  # type: ignore[arg-type]
             )
-            output = _exports_dir() / f"spending_{month.strftime('%Y_%m')}.png"
+            output = (
+                custom_path
+                if custom_path is not None
+                else _exports_dir() / f"spending_{month.strftime('%Y_%m')}.png"
+            )
             export_spending_png(transactions=txs, output_path=output, renderer=None)  # type: ignore[arg-type]
             notify(f"Monthly spending saved to {output}")
         except Exception as exc:
             notify(f"Spending report failed: {exc}")
 
-    def export_ytd_summary(_):
+    def export_ytd_summary(custom_path: Path | None = None):
         try:
             year = ctx.current_month.year
             start = datetime(year, 1, 1)
@@ -75,7 +83,11 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
             income = sum(t.amount for t in txs if t.amount > 0)
             expenses = sum(abs(t.amount) for t in txs if t.amount < 0)
             net = income - expenses
-            output = _exports_dir() / f"ytd_summary_{year}.csv"
+            output = (
+                custom_path
+                if custom_path is not None
+                else _exports_dir() / f"ytd_summary_{year}.csv"
+            )
             with output.open("w", newline="") as handle:
                 writer = csv.writer(handle)
                 writer.writerow(["metric", "amount"])
@@ -86,7 +98,7 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
         except Exception as exc:
             notify(f"YTD summary failed: {exc}")
 
-    def export_debt_report(_):
+    def export_debt_report(custom_csv: Path | None = None, custom_chart: Path | None = None):
         try:
             liabilities = ctx.liability_repo.list_all(user_id=uid)
             if not liabilities:
@@ -107,7 +119,11 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
             alt_schedule = avalanche_schedule(debts=debts, surplus=0.0)
             stamp = datetime.now().strftime("%Y%m%d%H%M%S")
 
-            output_csv = _exports_dir() / f"debt_payoff_{stamp}.csv"
+            output_csv = (
+                custom_csv
+                if custom_csv is not None
+                else _exports_dir() / f"debt_payoff_{stamp}.csv"
+            )
             with output_csv.open("w", newline="") as handle:
                 writer = csv.writer(handle)
                 writer.writerow(["date", "strategy", "total_payment", "remaining_balance"])
@@ -123,41 +139,47 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         writer.writerow([entry.get("date", ""), label, f"{total_payment:.2f}", f"{remaining:.2f}"])
 
             chart_src = debt_payoff_chart_png(schedule)
-            chart_dst = _exports_dir() / f"debt_payoff_{stamp}.png"
+            chart_dst = (
+                custom_chart
+                if custom_chart is not None
+                else _exports_dir() / f"debt_payoff_{stamp}.png"
+            )
             shutil.copy(chart_src, chart_dst)
             notify(f"Debt payoff report saved to {output_csv}")
         except Exception as exc:
             notify(f"Debt report failed: {exc}")
 
-    def export_category_trend(_):
+    def export_category_trend(custom_path: Path | None = None):
         try:
             txs = ctx.transaction_repo.list_all(user_id=uid, limit=5000)
             categories = {c.id: c.name for c in ctx.category_repo.list_all(user_id=uid) if c.id}
             png = category_trend_png(txs, category_lookup=categories)
             stamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            dest = _exports_dir() / f"category_trend_{stamp}.png"
+            dest = custom_path if custom_path is not None else _exports_dir() / f"category_trend_{stamp}.png"
             shutil.copy(png, dest)
             notify(f"Category trend saved to {dest}")
         except Exception as exc:
             notify(f"Category trend failed: {exc}")
 
-    def export_cashflow_by_account(_):
+    def export_cashflow_by_account(custom_path: Path | None = None):
         try:
             txs = ctx.transaction_repo.list_all(user_id=uid, limit=5000)
             accounts = {a.id: a.name for a in ctx.account_repo.list_all(user_id=uid) if a.id}
             png = cashflow_by_account_png(txs, account_lookup=accounts)
             stamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            dest = _exports_dir() / f"cashflow_accounts_{stamp}.png"
+            dest = custom_path if custom_path is not None else _exports_dir() / f"cashflow_accounts_{stamp}.png"
             shutil.copy(png, dest)
             notify(f"Cashflow by account saved to {dest}")
         except Exception as exc:
             notify(f"Cashflow by account failed: {exc}")
 
-    def export_combined_bundle(_):
+    def export_combined_bundle(custom_path: Path | None = None):
         try:
-            exports_dir = _exports_dir()
+            exports_dir = _exports_dir() if custom_path is None else custom_path.parent
             stamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            bundle_path = exports_dir / f"reports_bundle_{stamp}.zip"
+            bundle_path = (
+                custom_path if custom_path is not None else exports_dir / f"reports_bundle_{stamp}.zip"
+            )
             with TemporaryDirectory() as tmpdir:
                 tmp = Path(tmpdir)
                 # Transactions CSV
@@ -169,7 +191,7 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 export_spending_png(transactions=txs, output_path=spending_png, renderer=None)  # type: ignore[arg-type]
                 # YTD CSV
                 ytd_csv = tmp / "ytd_summary.csv"
-                export_ytd_summary(None)
+                export_ytd_summary(tmp / "ytd_summary.csv")
                 # Debt report
                 liabilities = ctx.liability_repo.list_all(user_id=uid)
                 debts = [
@@ -221,37 +243,72 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
             _report_card(
                 title="Full data export",
                 description="Generate ZIP with CSVs and charts.",
-                on_click=export_all,
+                on_click=lambda _: controllers.pick_export_destination(
+                    ctx,
+                    page,
+                    suggested_name="full_export.zip",
+                    on_path_selected=lambda p: export_all_to(p),
+                ),
             ),
             _report_card(
                 title="Monthly spending report",
                 description="Current month category breakdown.",
-                on_click=export_monthly_spending,
+                on_click=lambda _: controllers.pick_export_destination(
+                    ctx,
+                    page,
+                    suggested_name="spending.png",
+                    on_path_selected=lambda p: export_monthly_spending(p),
+                ),
             ),
             _report_card(
                 title="Year-to-date summary",
                 description="Income vs expense year-to-date.",
-                on_click=export_ytd_summary,
+                on_click=lambda _: controllers.pick_export_destination(
+                    ctx,
+                    page,
+                    suggested_name="ytd_summary.csv",
+                    on_path_selected=lambda p: export_ytd_summary(p),
+                ),
             ),
             _report_card(
                 title="Debt payoff summary",
                 description="Latest payoff projection as CSV + chart.",
-                on_click=export_debt_report,
+                on_click=lambda _: controllers.pick_export_destination(
+                    ctx,
+                    page,
+                    suggested_name="debt_payoff.csv",
+                    on_path_selected=lambda p: export_debt_report(p, p.with_suffix(".png")),
+                ),
             ),
             _report_card(
                 title="Category trend",
                 description="Stacked expenses by category across recent months.",
-                on_click=export_category_trend,
+                on_click=lambda _: controllers.pick_export_destination(
+                    ctx,
+                    page,
+                    suggested_name="category_trend.png",
+                    on_path_selected=lambda p: export_category_trend(p),
+                ),
             ),
             _report_card(
                 title="Cashflow by account",
                 description="Net cashflow per account.",
-                on_click=export_cashflow_by_account,
+                on_click=lambda _: controllers.pick_export_destination(
+                    ctx,
+                    page,
+                    suggested_name="cashflow_by_account.png",
+                    on_path_selected=lambda p: export_cashflow_by_account(p),
+                ),
             ),
             _report_card(
                 title="Combined bundle",
                 description="ZIP of transactions, spending, YTD, debt, trend, cashflow.",
-                on_click=export_combined_bundle,
+                on_click=lambda _: controllers.pick_export_destination(
+                    ctx,
+                    page,
+                    suggested_name="reports_bundle.zip",
+                    on_path_selected=lambda p: export_combined_bundle(p),
+                ),
             ),
         ],
         spacing=12,

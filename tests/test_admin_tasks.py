@@ -124,3 +124,30 @@ def test_reset_demo_database_drops_custom_rows(session_factory):
 
     assert "Custom Row" not in memos
     assert summary.transactions == len(memos)
+
+
+def test_guest_purge_isolation(session_factory):
+    factory, engine, user = session_factory
+    # Seed data for real user
+    run_demo_seed(session_factory=factory, user_id=user.id)
+
+    # Create guest and add a txn
+    guest = auth.ensure_guest_user(session_factory=factory)
+    with session_scope(engine) as session:
+        session.add(
+            Transaction(
+                memo="Guest Tx",
+                amount=-5.0,
+                occurred_at=datetime.now(timezone.utc),
+                user_id=guest.id,
+            )
+        )
+
+    # Purge guest and ensure main user data unaffected
+    assert auth.purge_guest_user(session_factory=factory)
+    with session_scope(engine) as session:
+        user_memos = {tx.memo for tx in session.exec(select(Transaction).where(Transaction.user_id == user.id))}
+        guest_memos = list(session.exec(select(Transaction).where(Transaction.user_id == guest.id)))
+
+    assert "Guest Tx" not in user_memos
+    assert guest_memos == []
