@@ -58,12 +58,21 @@ def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
         ),
     ]
     if ctx.current_user:
+        user_chip_label = "Guest session" if getattr(ctx, "guest_mode", False) else ctx.current_user.username
         quick_actions.append(
             ft.Chip(
-                label=ft.Text(ctx.current_user.username),
+                label=ft.Text(user_chip_label),
                 leading=ft.Icon(ft.Icons.PERSON),
             )
         )
+        if getattr(ctx, "guest_mode", False):
+            quick_actions.append(
+                ft.Chip(
+                    label=ft.Text("Not saved; sign up to keep data"),
+                    leading=ft.Icon(ft.Icons.WARNING_AMBER),
+                    bgcolor=ft.Colors.AMBER_100,
+                )
+            )
         quick_actions.append(
             ft.IconButton(
                 icon=ft.Icons.LOGOUT,

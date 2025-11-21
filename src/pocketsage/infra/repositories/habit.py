@@ -90,6 +90,7 @@ class SQLModelHabitRepository:
         with self.session_factory() as session:
             statement = (
                 select(HabitEntry)
+                .where(HabitEntry.user_id == user_id)
                 .where(HabitEntry.habit_id == habit_id)
                 .where(HabitEntry.occurred_on == occurred_on)
             )
@@ -105,6 +106,7 @@ class SQLModelHabitRepository:
         with self.session_factory() as session:
             statement = (
                 select(HabitEntry)
+                .where(HabitEntry.user_id == user_id)
                 .where(HabitEntry.habit_id == habit_id)
                 .where(HabitEntry.occurred_on >= start_date)
                 .where(HabitEntry.occurred_on <= end_date)
@@ -120,6 +122,7 @@ class SQLModelHabitRepository:
             entry.user_id = user_id
             existing = session.exec(
                 select(HabitEntry)
+                .where(HabitEntry.user_id == user_id)
                 .where(HabitEntry.habit_id == entry.habit_id)
                 .where(HabitEntry.occurred_on == entry.occurred_on)
             ).first()
@@ -143,6 +146,7 @@ class SQLModelHabitRepository:
         with self.session_factory() as session:
             entry = session.exec(
                 select(HabitEntry)
+                .where(HabitEntry.user_id == user_id)
                 .where(HabitEntry.habit_id == habit_id)
                 .where(HabitEntry.occurred_on == occurred_on)
             ).first()
@@ -162,6 +166,7 @@ class SQLModelHabitRepository:
             while True:
                 statement = (
                     select(HabitEntry)
+                    .where(HabitEntry.user_id == user_id)
                     .where(HabitEntry.habit_id == habit_id)
                     .where(HabitEntry.occurred_on == current_date)
                 )
@@ -180,6 +185,7 @@ class SQLModelHabitRepository:
         with self.session_factory() as session:
             statement = (
                 select(HabitEntry)
+                .where(HabitEntry.user_id == user_id)
                 .where(HabitEntry.habit_id == habit_id)
                 .where(HabitEntry.value > 0)
                 .order_by(HabitEntry.occurred_on)  # type: ignore

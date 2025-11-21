@@ -53,6 +53,7 @@ class AppContext:
     file_picker_mode: Optional[str] = None
 
     current_user: Optional[User] = None
+    guest_mode: bool = False
 
     def require_user_id(self) -> int:
         """Return the current user id or raise if not set."""
@@ -102,4 +103,5 @@ def create_app_context(config: Optional[BaseConfig] = None) -> AppContext:
         theme_mode=ft.ThemeMode.DARK,
         current_account_id=None,
         current_month=current_date.replace(day=1),
+        guest_mode=False,
     )

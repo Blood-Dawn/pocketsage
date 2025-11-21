@@ -19,6 +19,8 @@ src/pocketsage/desktop/components/dialogs.py
 src/pocketsage/desktop/components/layout.py
 src/pocketsage/desktop/components/widgets.py
 src/pocketsage/desktop/views/__init__.py
+src/pocketsage/desktop/views/admin.py
+src/pocketsage/desktop/views/auth.py
 src/pocketsage/desktop/views/budgets.py
 src/pocketsage/desktop/views/dashboard.py
 src/pocketsage/desktop/views/debts.py
@@ -57,8 +59,10 @@ src/pocketsage/models/liability.py
 src/pocketsage/models/portfolio.py
 src/pocketsage/models/settings.py
 src/pocketsage/models/transaction.py
+src/pocketsage/models/user.py
 src/pocketsage/services/__init__.py
 src/pocketsage/services/admin_tasks.py
+src/pocketsage/services/auth.py
 src/pocketsage/services/budgeting.py
 src/pocketsage/services/debts.py
 src/pocketsage/services/export_csv.py

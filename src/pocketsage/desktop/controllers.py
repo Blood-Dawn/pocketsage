@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Optional
 
 import flet as ft
 
-from ..services import admin_tasks, importers
+from ..services import admin_tasks, auth, importers
 from .navigation_helpers import handle_navigation_selection, resolve_shortcut_route
 
 if TYPE_CHECKING:
@@ -152,7 +152,13 @@ def go_to_help(page: ft.Page) -> None:
 def logout(ctx: AppContext, page: ft.Page) -> None:
     """Clear session and return to login."""
 
+    if ctx.guest_mode:
+        try:
+            auth.purge_guest_user(ctx.session_factory)
+        except Exception:
+            pass
     ctx.current_user = None
+    ctx.guest_mode = False
     navigate(page, "/login")
 
 

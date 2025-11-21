@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Callable, Optional
 
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
+from argon2.exceptions import InvalidHash, VerificationError, VerifyMismatchError
 from sqlmodel import Session, select
 
 from ..models.user import User
@@ -13,7 +13,14 @@ from ..models.user import User
 SessionFactory = Callable[[], Session]
 
 _hasher = PasswordHasher()
-_ALLOWED_ROLES = {"user", "admin"}
+_ALLOWED_ROLES = {"user", "admin", "guest"}
+GUEST_USERNAME = "guest"
+
+
+def _is_guest_username(username: str) -> bool:
+    """Return True when the username is reserved for guest sessions."""
+
+    return username.strip().lower() == GUEST_USERNAME
 
 
 def _normalize_role(role: str) -> str:
@@ -26,13 +33,18 @@ def _normalize_role(role: str) -> str:
 def list_users(session_factory: SessionFactory) -> list[User]:
     """Return all users ordered by creation time."""
     with session_factory() as session:
-        users = list(session.exec(select(User).order_by(User.created_at)).all())
+        users = list(
+            session.exec(
+                select(User).where(User.username != GUEST_USERNAME).order_by(User.created_at)
+            ).all()
+        )
         session.expunge_all()
     return users
 
 
 def get_user_by_username(username: str, session_factory: SessionFactory) -> Optional[User]:
     """Fetch a user by username."""
+    username = username.strip()
     with session_factory() as session:
         user = session.exec(select(User).where(User.username == username)).first()
         if user:
@@ -43,7 +55,10 @@ def get_user_by_username(username: str, session_factory: SessionFactory) -> Opti
 def any_users_exist(session_factory: SessionFactory) -> bool:
     """Determine if any users exist for bootstrapping login/onboarding."""
     with session_factory() as session:
-        return session.exec(select(User.id)).first() is not None
+        return (
+            session.exec(select(User.id).where(User.username != GUEST_USERNAME)).first()
+            is not None
+        )
 
 
 def create_user(
@@ -56,6 +71,9 @@ def create_user(
     """Create a new user with hashed password."""
 
     normalized_role = _normalize_role(role)
+    username = username.strip()
+    if _is_guest_username(username):
+        raise ValueError("The guest account is reserved for temporary sessions.")
     password_hash = _hasher.hash(password)
     with session_factory() as session:
         existing = session.exec(select(User).where(User.username == username)).first()
@@ -77,13 +95,16 @@ def authenticate(
 ) -> Optional[User]:
     """Validate credentials and return the user when correct."""
 
+    username = username.strip()
+    if not username:
+        return None
     with session_factory() as session:
         user = session.exec(select(User).where(User.username == username)).first()
         if user is None:
             return None
         try:
             _hasher.verify(user.password_hash, password)
-        except VerifyMismatchError:
+        except (VerifyMismatchError, InvalidHash, VerificationError):
             return None
 
         session.refresh(user)
@@ -93,6 +114,57 @@ def authenticate(
         session.refresh(user)
         session.expunge(user)
         return user
+
+
+def ensure_guest_user(session_factory: SessionFactory) -> User:
+    """Create or return the reserved guest user for temporary sessions."""
+
+    with session_factory() as session:
+        guest = session.exec(select(User).where(User.username == GUEST_USERNAME)).first()
+        if guest:
+            session.expunge(guest)
+            return guest
+        password_hash = _hasher.hash(GUEST_USERNAME)
+        guest = User(username=GUEST_USERNAME, password_hash=password_hash, role="guest")
+        session.add(guest)
+        session.flush()
+        session.refresh(guest)
+        session.expunge(guest)
+        return guest
+
+
+def purge_guest_user(session_factory: SessionFactory) -> bool:
+    """Delete guest user data so sessions never persist to disk."""
+
+    from . import admin_tasks
+
+    with session_factory() as session:
+        guest = session.exec(select(User).where(User.username == GUEST_USERNAME)).first()
+        if guest is None or guest.id is None:
+            return False
+        guest_id = guest.id
+
+    try:
+        admin_tasks.reset_demo_database(user_id=guest_id, session_factory=session_factory)
+    except Exception:
+        # Best-effort cleanup; schema mismatches or missing tables should not block login.
+        pass
+    try:
+        with session_factory() as session:
+            guest = session.get(User, guest_id)
+            if guest:
+                session.delete(guest)
+            session.flush()
+        return True
+    except Exception:
+        return False
+
+
+def start_guest_session(session_factory: SessionFactory) -> User:
+    """Reset any prior guest data and return a fresh guest user instance."""
+
+    purge_guest_user(session_factory)
+    return ensure_guest_user(session_factory)
 
 
 def set_role(*, user_id: int, role: str, session_factory: SessionFactory) -> User:

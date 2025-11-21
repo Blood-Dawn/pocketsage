@@ -17,6 +17,15 @@ PocketSage is now a **desktop-only** personal finance and habit tracker. It uses
 4. `python run_desktop.py` to launch the app (shortcuts: `Ctrl+N` new transaction, `Ctrl+Shift+H` new habit, `Ctrl+1..7` navigation)
 5. Optional: `make demo-seed` or `python scripts/seed_demo.py` to preload sample data.
 
+### Reset local database (recreate schema)
+If the schema changes or you get stuck at login, you can delete the local SQLite file and let the app recreate it (all data will be lost):
+1. Close the app.
+2. Backup then remove the DB files: `instance/pocketsage.db` (and any `pocketsage.db-wal` / `pocketsage.db-shm` files).
+   - PowerShell: `Remove-Item -Force -ErrorAction SilentlyContinue instance\pocketsage.db, instance\pocketsage.db-wal, instance\pocketsage.db-shm`
+   - macOS/Linux: `rm -f instance/pocketsage.db instance/pocketsage.db-wal instance/pocketsage.db-shm`
+3. Relaunch: `python run_desktop.py` (or `make dev`). The schema will be recreated automatically.
+4. Optional: re-seed demo data with `make demo-seed` or `python scripts/seed_demo.py`.
+
 ## Packaging
 - `make package` builds a desktop executable with `flet pack run_desktop.py` (outputs to `dist/`).
 - Platform scripts: `bash scripts/build_desktop.sh` (Linux/macOS) or `scripts\build_desktop.bat` (Windows).

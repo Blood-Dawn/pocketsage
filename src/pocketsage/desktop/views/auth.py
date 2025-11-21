@@ -20,6 +20,10 @@ def build_auth_view(ctx: AppContext, page: ft.Page) -> ft.View:
         page.go("/dashboard")
         return ft.View(route="/login", controls=[], padding=0)
 
+    try:
+        auth.purge_guest_user(ctx.session_factory)
+    except Exception:
+        pass
     users_exist = auth.any_users_exist(ctx.session_factory)
     status_text = ft.Ref[ft.Text]()
 
@@ -56,7 +60,19 @@ def build_auth_view(ctx: AppContext, page: ft.Page) -> ft.View:
             _show_message("Invalid credentials")
             return
         ctx.current_user = user
+        ctx.guest_mode = False
         _show_message(f"Welcome back, {user.username}")
+        page.go("/dashboard")
+
+    def start_guest_mode(_):
+        try:
+            guest = auth.start_guest_session(ctx.session_factory)
+        except Exception as exc:  # pragma: no cover - user facing guard
+            _show_message(f"Guest mode unavailable ({exc})")
+            return
+        ctx.current_user = guest
+        ctx.guest_mode = True
+        _show_message("Guest mode enabled. Data clears when you exit.")
         page.go("/dashboard")
 
     def handle_create_user(_):
@@ -78,6 +94,7 @@ def build_auth_view(ctx: AppContext, page: ft.Page) -> ft.View:
             _show_message(str(exc))
             return
         ctx.current_user = user
+        ctx.guest_mode = False
         _show_message(f"Account created for {user.username}")
         page.go("/dashboard")
 
@@ -115,6 +132,27 @@ def build_auth_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             "Create and continue",
                             icon=ft.Icons.PERSON_ADD,
                             on_click=handle_create_user,
+                        ),
+                    ],
+                    spacing=12,
+                ),
+            ),
+            elevation=2,
+        ),
+        ft.Card(
+            content=ft.Container(
+                padding=20,
+                content=ft.Column(
+                    [
+                        ft.Text("Try as guest", size=20, weight=ft.FontWeight.BOLD),
+                        ft.Text(
+                            "Use PocketSage without an account. We'll clear anything you add when you close.",
+                            color=ft.Colors.ON_SURFACE_VARIANT,
+                        ),
+                        ft.FilledButton(
+                            "Continue as guest",
+                            icon=ft.Icons.LOCK_OPEN,
+                            on_click=start_guest_mode,
                         ),
                     ],
                     spacing=12,
