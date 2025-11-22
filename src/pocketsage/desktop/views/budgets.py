@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import flet as ft
 
 from ...models.budget import Budget, BudgetLine
+from ...models.category import Category
 from ..components import build_app_bar, build_main_layout, build_progress_bar
 
 if TYPE_CHECKING:
@@ -26,13 +27,26 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     def show_create_budget_dialog():
         categories = ctx.category_repo.list_all(user_id=uid)
+        if not categories:
+            default_cat = ctx.category_repo.create(
+                Category(
+                    name="General",
+                    slug="general",
+                    category_type="expense",
+                    user_id=uid,
+                ),
+                user_id=uid,
+            )
+            categories = [default_cat]
         label_field = ft.TextField(label="Label", value=f"{today.strftime('%B %Y')} Budget")
         category_dd = ft.Dropdown(
             label="Category",
             options=[ft.dropdown.Option(str(c.id), c.name) for c in categories],
             width=220,
         )
-        amount_field = ft.TextField(label="Planned amount", width=180)
+        amount_field = ft.TextField(
+            label="Planned amount", width=180, helper_text="Optional first line amount"
+        )
 
         def save_budget(_):
             from calendar import monthrange
@@ -109,6 +123,17 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     def add_budget_line(budget_id: int):
         categories = ctx.category_repo.list_all(user_id=uid)
+        if not categories:
+            default_cat = ctx.category_repo.create(
+                Category(
+                    name="General",
+                    slug="general",
+                    category_type="expense",
+                    user_id=uid,
+                ),
+                user_id=uid,
+            )
+            categories = [default_cat]
         category_dd = ft.Dropdown(
             label="Category",
             options=[ft.dropdown.Option(str(c.id), c.name) for c in categories],

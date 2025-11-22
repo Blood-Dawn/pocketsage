@@ -14,6 +14,7 @@ import flet as ft
 from ...services.admin_tasks import run_export
 from ...services.debts import DebtAccount, avalanche_schedule, snowball_schedule
 from ...services.reports import export_spending_png, export_transactions_csv
+from .. import controllers
 from ..charts import (
     cashflow_by_account_png,
     category_trend_png,

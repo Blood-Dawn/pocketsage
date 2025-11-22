@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 import flet as ft
 
 from ...models.portfolio import Holding
+from ...models.account import Account
+from ...devtools import dev_log
 from .. import controllers
 from ..charts import allocation_chart_png
 from ..components import build_app_bar, build_main_layout
@@ -23,6 +25,12 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Build the portfolio holdings view."""
 
     uid = ctx.require_user_id()
+    accounts = ctx.account_repo.list_all(user_id=uid)
+    if not accounts:
+        default_account = ctx.account_repo.create(
+            Account(name="Brokerage", currency="USD", user_id=uid), user_id=uid
+        )
+        accounts = [default_account]
     table_ref = ft.Ref[ft.DataTable]()
     chart_ref = ft.Ref[ft.Image]()
     total_holdings_text = ft.Ref[ft.Text]()
@@ -64,13 +72,14 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 f"{h.quantity * h.avg_price:.2f}",
                                 _account_name(h.account_id),
                             ]
-                        )
+                            )
                 page.snack_bar = ft.SnackBar(
                     content=ft.Text(f"Exported holdings to {path}"), show_close_icon=True
                 )
                 page.snack_bar.open = True
                 page.update()
             except Exception as exc:
+                dev_log(ctx.config, "Portfolio export failed", exc=exc, context={"path": path})
                 show_error_dialog(page, "Export failed", str(exc))
 
         stamp = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -82,7 +91,12 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
         )
 
     def _open_dialog(existing: Holding | None = None) -> None:
-        accounts = ctx.account_repo.list_all(user_id=uid)
+        accounts_local = ctx.account_repo.list_all(user_id=uid)
+        if not accounts_local:
+            default_account = ctx.account_repo.create(
+                Account(name="Brokerage", currency="USD", user_id=uid), user_id=uid
+            )
+            accounts_local = [default_account]
         editing = existing is not None
         title = "Edit holding" if editing else "Add holding"
         symbol = ft.TextField(
@@ -108,7 +122,9 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
         )
         account_dd = ft.Dropdown(
             label="Account",
-            options=[ft.dropdown.Option(str(a.id), a.name) for a in accounts if a.id is not None]
+            options=[
+                ft.dropdown.Option(str(a.id), a.name) for a in accounts_local if a.id is not None
+            ]
             + [ft.dropdown.Option("", "Unassigned")],
             value=str(existing.account_id) if existing and existing.account_id else "",
             width=200,
@@ -131,9 +147,19 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ctx.holding_repo.update(record, user_id=uid)
                 else:
                     ctx.holding_repo.create(record, user_id=uid)
+                dev_log(
+                    ctx.config,
+                    "Holding saved",
+                    context={
+                        "symbol": record.symbol,
+                        "editing": editing,
+                        "account_id": record.account_id,
+                    },
+                )
                 dialog.open = False
                 _refresh()
             except Exception as exc:
+                dev_log(ctx.config, "Holding save failed", exc=exc, context={"symbol": symbol.value})
                 show_error_dialog(page, "Save failed", str(exc))
 
         dialog = ft.AlertDialog(
@@ -154,6 +180,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         def _do_delete() -> None:
             ctx.holding_repo.delete(holding_id, user_id=uid)
+            dev_log(ctx.config, "Holding deleted", context={"id": holding_id})
             _refresh()
 
         show_confirm_dialog(page, "Delete holding", "Are you sure?", _do_delete)
@@ -215,12 +242,26 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
             )
 
         if not rows:
-            rows = [ft.DataRow(cells=[ft.DataCell(ft.Text("No holdings found")) for _ in range(7)])]
+            rows = [
+                ft.DataRow(
+                    cells=[
+                        ft.DataCell(ft.Text("No holdings found")),
+                        ft.DataCell(ft.Text("")),
+                        ft.DataCell(ft.Text("")),
+                        ft.DataCell(ft.Text("")),
+                        ft.DataCell(ft.Text("")),
+                        ft.DataCell(ft.Text("")),
+                        ft.DataCell(ft.Text("")),
+                        ft.DataCell(ft.Text("")),
+                    ]
+                )
+            ]
 
         if table_ref.current:
             table_ref.current.rows = rows
 
         if chart_ref.current:
+            chart_ref.current.visible = bool(holdings)
             chart_ref.current.src = str(allocation_chart_png(holdings)) if holdings else ""
         page.update()
 

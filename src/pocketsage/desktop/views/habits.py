@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import flet as ft
 
 from ...models.habit import HabitEntry
+from ...devtools import dev_log
 from ..components import build_app_bar, build_main_layout
 
 if TYPE_CHECKING:
@@ -35,9 +36,20 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         width=180,
     )
 
-    def render_heatmap(habit_id: int, days: int = 90):
+    def _window_days() -> int:
+        """Return the selected heatmap window as an int with fallback."""
+
+        raw = heatmap_days.value
+        try:
+            return int(raw) if raw is not None else 90
+        except (TypeError, ValueError):
+            dev_log(ctx.config, "Invalid heatmap window value", context={"value": raw})
+            return 90
+
+    def render_heatmap(habit_id: int, days: int | None = None):
+        window = days if days is not None else _window_days()
         today = date.today()
-        start = today - timedelta(days=days - 1)
+        start = today - timedelta(days=window - 1)
         entries = ctx.habit_repo.get_entries_for_habit(habit_id, start, today, user_id=uid)
         completed = {e.occurred_on for e in entries if e.value > 0}
         cells: list[ft.Control] = []
@@ -47,14 +59,19 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
             color = ft.Colors.GREEN if is_done else ft.Colors.SURFACE_CONTAINER_HIGHEST
             cells.append(
                 ft.Container(
-                    width=20,
-                    height=20,
+                    width=18,
+                    height=18,
                     bgcolor=color,
-                    border_radius=4,
+                    border_radius=3,
                     tooltip=day.isoformat(),
                 )
             )
             day += timedelta(days=1)
+        # Pad grid to a full week rows for nicer alignment
+        remainder = len(cells) % 7
+        if remainder:
+            for _ in range(7 - remainder):
+                cells.append(ft.Container(width=18, height=18, bgcolor=ft.Colors.SURFACE_DIM))
         heatmap_ref.current.controls = cells
         heatmap_ref.current.update()
 
@@ -68,7 +85,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         longest_ref.current.value = (
             f"Longest streak: {ctx.habit_repo.get_longest_streak(hid, user_id=uid)}"
         )
-        render_heatmap(hid, days=heatmap_days.value if heatmap_days.value else 90)
+        render_heatmap(hid)
         page.update()
 
     def refresh_habit_list():
@@ -87,11 +104,13 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 entry = ctx.habit_repo.get_entry(habit_id, today, user_id=uid)
                 if entry:
                     ctx.habit_repo.delete_entry(habit_id, today, user_id=uid)
+                    dev_log(ctx.config, "Habit unchecked", context={"habit_id": habit_id})
                 else:
                     ctx.habit_repo.upsert_entry(
                         HabitEntry(habit_id=habit_id, occurred_on=today, value=1, user_id=uid),
                         user_id=uid,
                     )
+                    dev_log(ctx.config, "Habit completed", context={"habit_id": habit_id})
                 refresh_habit_list()
                 page.snack_bar = ft.SnackBar(content=ft.Text("Habit updated"))
                 page.snack_bar.open = True
@@ -102,6 +121,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 if rec:
                     rec.is_active = False
                     ctx.habit_repo.update(rec, user_id=uid)
+                    dev_log(ctx.config, "Habit archived", context={"habit_id": habit_id})
                 refresh_habit_list()
                 page.snack_bar = ft.SnackBar(content=ft.Text("Habit archived"))
                 page.snack_bar.open = True
@@ -181,6 +201,12 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         expand=True,
     )
 
+    def _on_heatmap_change(e):
+        if selected_habit is not None:
+            render_heatmap(selected_habit)
+
+    heatmap_days.on_change = _on_heatmap_change
+
     detail_panel = ft.Column(
         [
             ft.Text("Habit detail", size=16, weight=ft.FontWeight.BOLD),
@@ -197,7 +223,11 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     def open_create_dialog(_):
         name_field = ft.TextField(label="Name", width=260, autofocus=True)
-        desc_field = ft.TextField(label="Description", width=260)
+        desc_field = ft.TextField(
+            label="Description",
+            width=260,
+            helper_text="Optional: why this habit matters.",
+        )
         cadence_field = ft.Dropdown(
             label="Cadence",
             options=[
@@ -222,6 +252,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     user_id=uid,
                 )
                 ctx.habit_repo.create(habit, user_id=uid)
+                dev_log(ctx.config, "Habit created", context={"name": habit.name})
                 # TODO(@habits-squad): wire reminder_switch/time to system notifications
                 dialog.open = False
                 refresh_habit_list()
@@ -229,6 +260,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 page.snack_bar.open = True
                 page.update()
             except Exception as exc:
+                dev_log(ctx.config, "Habit create failed", exc=exc)
                 page.snack_bar = ft.SnackBar(content=ft.Text(f"Failed to create: {exc}"))
                 page.snack_bar.open = True
                 page.update()

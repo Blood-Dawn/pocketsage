@@ -38,23 +38,29 @@ class SQLModelHoldingRepository:
     def list_all(self, *, user_id: int) -> list[Holding]:
         """List all holdings."""
         with self.session_factory() as session:
-            statement = (
-                select(Holding)
-                .where(Holding.user_id == user_id)
-                .order_by(Holding.symbol)  # type: ignore
-            )
-            return list(session.exec(statement).all())
+            try:
+                statement = (
+                    select(Holding)
+                    .where(Holding.user_id == user_id)
+                    .order_by(Holding.symbol)  # type: ignore
+                )
+                return list(session.exec(statement).all())
+            except Exception:
+                return []
 
     def list_by_account(self, account_id: int, *, user_id: int) -> list[Holding]:
         """List holdings for a specific account."""
         with self.session_factory() as session:
-            statement = (
-                select(Holding)
-                .where(Holding.user_id == user_id)
-                .where(Holding.account_id == account_id)
-                .order_by(Holding.symbol)  # type: ignore
-            )
-            return list(session.exec(statement).all())
+            try:
+                statement = (
+                    select(Holding)
+                    .where(Holding.user_id == user_id)
+                    .where(Holding.account_id == account_id)
+                    .order_by(Holding.symbol)  # type: ignore
+                )
+                return list(session.exec(statement).all())
+            except Exception:
+                return []
 
     def create(self, holding: Holding, *, user_id: int) -> Holding:
         """Create a new holding."""
@@ -87,26 +93,32 @@ class SQLModelHoldingRepository:
     def get_total_cost_basis(self, *, user_id: int, account_id: Optional[int] = None) -> float:
         """Calculate total cost basis across holdings."""
         with self.session_factory() as session:
-            statement = select(Holding).where(Holding.user_id == user_id)
+            try:
+                statement = select(Holding).where(Holding.user_id == user_id)
 
-            if account_id is not None:
-                statement = statement.where(Holding.account_id == account_id)
+                if account_id is not None:
+                    statement = statement.where(Holding.account_id == account_id)
 
-            holdings = session.exec(statement).all()
-            return sum(h.quantity * h.avg_price for h in holdings)
+                holdings = session.exec(statement).all()
+                return sum(h.quantity * h.avg_price for h in holdings)
+            except Exception:
+                return 0.0
 
     def get_total_market_value(self, *, user_id: int, account_id: Optional[int] = None) -> float:
         """Calculate total market value using market_price when provided."""
         with self.session_factory() as session:
-            statement = select(Holding).where(Holding.user_id == user_id)
-            if account_id is not None:
-                statement = statement.where(Holding.account_id == account_id)
-            holdings = session.exec(statement).all()
-            total = 0.0
-            for h in holdings:
-                price = h.market_price if getattr(h, "market_price", 0.0) else h.avg_price
-                total += h.quantity * price
-            return total
+            try:
+                statement = select(Holding).where(Holding.user_id == user_id)
+                if account_id is not None:
+                    statement = statement.where(Holding.account_id == account_id)
+                holdings = session.exec(statement).all()
+                total = 0.0
+                for h in holdings:
+                    price = h.market_price if getattr(h, "market_price", 0.0) else h.avg_price
+                    total += h.quantity * price
+                return total
+            except Exception:
+                return 0.0
 
     def upsert_by_symbol(self, holding: Holding, *, user_id: int) -> Holding:
         """Insert or update a holding by symbol.

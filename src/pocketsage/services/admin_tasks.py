@@ -262,6 +262,128 @@ def _seed_transactions(
         existing.user_id = user_id
 
 
+def _heavy_transactions_seed(session: Session, user_id: int, accounts: dict[str, Account]) -> None:
+    """Generate a randomized heavy transaction dataset for testing."""
+
+    import random
+    from datetime import timedelta
+
+    start_date = datetime(2015, 1, 1, tzinfo=timezone.utc)
+    end_date = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    income_categories = ["Salary", "Bonus", "Interest", "Dividends", "Refund"]
+    expense_categories = [
+        "Groceries",
+        "Dining Out",
+        "Rent",
+        "Utilities",
+        "Internet",
+        "Phone",
+        "Gas",
+        "Transit",
+        "Medical",
+        "Subscriptions",
+        "Gaming",
+        "Clothing",
+        "Gifts",
+        "Travel",
+        "Education",
+        "Pets",
+        "Household",
+        "Entertainment",
+    ]
+    transfer_categories = ["Transfer In", "Transfer Out", "Payment", "Rebalance"]
+    merchants = [
+        "Amazon",
+        "Walmart",
+        "Target",
+        "Steam",
+        "Netflix",
+        "Spotify",
+        "Hulu",
+        "Uber",
+        "Lyft",
+        "Publix",
+        "Aldi",
+        "Costco",
+        "Shell",
+        "Chevron",
+        "Local Cafe",
+        "Electric Co",
+        "Water & Sewer",
+        "Mobile Carrier",
+        "Gym",
+        "Bookstore",
+        "Pharmacy",
+        "Airline",
+        "Hotel",
+        "GameStop",
+    ]
+
+    # ensure base categories exist
+    category_cache: dict[str, Category] = {}
+    for name in income_categories + expense_categories + transfer_categories:
+        slug = name.lower().replace(" ", "-")
+        existing = session.exec(
+            select(Category).where(Category.slug == slug, Category.user_id == user_id)
+        ).first()
+        if not existing:
+            existing = Category(
+                user_id=user_id,
+                name=name,
+                slug=slug,
+                category_type="income" if name in income_categories else "expense",
+            )
+            session.add(existing)
+            session.flush()
+        category_cache[name] = existing
+
+    account_ids = [acct.id for acct in accounts.values() if acct.id]
+    balances = {aid: random.uniform(500, 4000) for aid in account_ids}
+
+    current_date = start_date
+    txn_idx = 1
+    rows: list[Transaction] = []
+    while current_date < end_date:
+        for _ in range(random.randint(0, 6)):
+            roll = random.random()
+            if roll < 0.15:
+                txn_type = "income"
+                category_name = random.choice(income_categories)
+                amount = round(random.uniform(200, 3000), 2)
+            elif roll < 0.75:
+                txn_type = "expense"
+                category_name = random.choice(expense_categories)
+                amount = round(-random.uniform(5, 400), 2)
+            else:
+                txn_type = "transfer"
+                category_name = random.choice(transfer_categories)
+                amount = round(random.uniform(50, 1500), 2)
+                if random.random() < 0.5:
+                    amount = -amount
+
+            account_id = random.choice(account_ids)
+            balances[account_id] = balances.get(account_id, 0) + amount
+            merchant = random.choice(merchants)
+            memo = f"{category_name} - {merchant}"
+            rows.append(
+                Transaction(
+                    user_id=user_id,
+                    occurred_at=current_date,
+                    amount=amount,
+                    memo=memo,
+                    external_id=f"heavy-{txn_idx}",
+                    category_id=category_cache[category_name].id,
+                    account_id=account_id,
+                    currency="USD",
+                )
+            )
+            txn_idx += 1
+        current_date += timedelta(days=1)
+
+    session.add_all(rows)
+    session.flush()
+
+
 def _seed_habits(session: Session, user_id: int) -> None:
     habit_specs = [
         {

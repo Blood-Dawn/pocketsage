@@ -14,8 +14,11 @@ class CSVImporter(Protocol):
         ...
 
 
-def start_watcher(*, folder: Path, importer: CSVImporter):
-    """Start a watchdog observer for the provided folder."""
+def start_watcher(*, folder: Path, importer: CSVImporter, allowed_filename: str | None = None):
+    """Start a watchdog observer for the provided folder.
+
+    When allowed_filename is provided, only matching files will be processed.
+    """
 
     try:
         events_mod = importlib.import_module("watchdog.events")
@@ -34,8 +37,11 @@ def start_watcher(*, folder: Path, importer: CSVImporter):
         def on_created(self, event) -> None:  # pragma: no cover - integration path
             if getattr(event, "is_directory", False):
                 return
+            candidate = Path(event.src_path)
+            if allowed_filename and candidate.name != allowed_filename:
+                return
             # TODO(@teammate): debounce rapid duplicate events and batch processing.
-            self.importer(csv_path=Path(event.src_path))
+            self.importer(csv_path=candidate)
 
     observer = Observer()
     handler = _Handler(importer=importer)

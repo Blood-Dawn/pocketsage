@@ -29,10 +29,12 @@ if not hasattr(ft, "colors"):
 from pocketsage.desktop.context import create_app_context
 from pocketsage.desktop.navigation import Router
 from pocketsage.desktop.views import (
+    admin,
     budgets,
     dashboard,
     debts,
     habits,
+    help as help_view,
     ledger,
     portfolio,
     reports,
@@ -94,6 +96,8 @@ def _build_views():
         portfolio.build_portfolio_view,
         reports.build_reports_view,
         settings.build_settings_view,
+        help_view.build_help_view,
+        admin.build_admin_view,
     ]
     return ctx, page, builders
 

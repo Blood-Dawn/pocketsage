@@ -80,7 +80,7 @@ Desktop-only guide for PocketSage. Use this as the working source for architectu
 - Export permission failures: validate directory ownership/permissions, recreate directories to reapply secure defaults, check parent traversal rights, review logs for `PermissionError`/`OSError`.
 
 ## Data Seeding, Admin Tasks, and Retention
-- Demo seed and export wired through `services/admin_tasks.py`; exports bundle CSV + PNG artifacts, retained to five latest archives. Ensure target directories writable and secured; adjust retention constant if policy changes.
+- Demo seed and export wired through `services/admin_tasks.py`; exports bundle CSV + PNG artifacts, retained to five latest archives. UI uses heavy randomized seed for testing; CLI seed remains light/deterministic. Ensure target directories writable and secured; adjust retention constant if policy changes.
 
 ## Nov 2025 Desktop UX Updates
 - Removed persistent footer/status bar from layout to keep views clean.

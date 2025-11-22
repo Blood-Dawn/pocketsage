@@ -6,6 +6,7 @@ import flet as ft
 
 from . import controllers
 from .context import create_app_context
+from ..devtools import dev_log
 from .navigation import Router
 from .views.admin import build_admin_view
 from .views.auth import build_auth_view
@@ -24,10 +25,19 @@ def main(page: ft.Page) -> None:
     """Main entry point for the Flet desktop app."""
 
     # Configure page
-    page.title = "PocketSage"
     # Create app context (needs config)
     ctx = create_app_context()
     ctx.page = page
+    page.title = "PocketSage (DEV)" if ctx.dev_mode else "PocketSage"
+    if ctx.dev_mode:
+        dev_log(ctx.config, "Dev mode enabled", context={"data_dir": ctx.config.DATA_DIR})
+        page.banner = ft.Banner(
+            bgcolor=ft.Colors.AMBER_50,
+            leading=ft.Icon(ft.Icons.BUG_REPORT, color=ft.Colors.AMBER_700),
+            content=ft.Text("Developer mode: errors will be printed to the console."),
+            actions=[ft.TextButton("Hide", on_click=lambda e: setattr(page.banner, "open", False))],
+            open=True,
+        )
     # Theme preference
     persisted_theme = ctx.settings_repo.get("theme_mode")
     if persisted_theme and persisted_theme.value.lower() == "light":

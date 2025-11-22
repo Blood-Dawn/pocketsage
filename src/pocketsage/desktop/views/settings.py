@@ -10,6 +10,7 @@ import flet as ft
 from ...services import importers
 from ...services.admin_tasks import backup_database, restore_database, run_export
 from ...services.watcher import start_watcher
+from ...devtools import dev_log
 from .. import controllers
 from ..components import build_app_bar, build_main_layout
 
@@ -21,6 +22,7 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Build the settings/admin view."""
 
     def _notify(message: str):
+        dev_log(ctx.config, "Settings notice", context={"message": message})
         page.snack_bar = ft.SnackBar(content=ft.Text(message))
         page.snack_bar.open = True
         page.update()
@@ -75,6 +77,7 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
             )
             _notify(f"Export ready: {path}")
         except Exception as exc:
+            dev_log(ctx.config, "Export failed", exc=exc)
             _notify(f"Export failed: {exc}")
 
     def backup_db(_):
@@ -83,6 +86,7 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
             path = backup_database(backups_dir, config=ctx.config)
             _notify(f"Backup saved: {path}")
         except Exception as exc:
+            dev_log(ctx.config, "Backup failed", exc=exc)
             _notify(f"Backup failed: {exc}")
 
     restore_picker = ft.FilePicker()
@@ -101,15 +105,21 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
             target = restore_database(Path(selected.path), config=ctx.config)
             _notify(f"Database restored to {target}; restart app to reload.")
         except Exception as exc:
+            dev_log(ctx.config, "Restore failed", exc=exc, context={"path": selected.path})
             _notify(f"Restore failed: {exc}")
 
     restore_picker.on_result = _on_restore
-    page.overlay = (page.overlay or []) + [restore_picker]
+    if page.overlay is None:
+        page.overlay = []
+    page.overlay.append(restore_picker)
 
     # Watched folder imports
     watcher_picker = ft.FilePicker()
+    if page.overlay is None:
+        page.overlay = []
     page.overlay.append(watcher_picker)
     watcher_label = ft.Ref[ft.Text]()
+    watch_target: dict[str, str | None] = {"target": None, "filename": None}
 
     def _stop_watcher():
         if ctx.watcher_observer:
@@ -119,42 +129,78 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 pass
             ctx.watcher_observer = None
             ctx.watched_folder = None
+            watch_target["target"] = None
+            watch_target["filename"] = None
         if watcher_label.current:
             watcher_label.current.value = "Watcher stopped"
             watcher_label.current.update()
+        dev_log(ctx.config, "Watcher stopped")
 
     def _start_watcher(folder: Path):
         _stop_watcher()
+        target_folder = folder if folder.is_dir() else folder.parent
+        watch_filename = folder.name if folder.is_file() else None
 
         def _import_file(csv_path: Path):
+            if watch_filename and csv_path.name != watch_filename:
+                dev_log(
+                    ctx.config,
+                    "Watcher ignored file",
+                    context={"expected": watch_filename, "seen": csv_path.name},
+                )
+                return
             try:
-                importers.import_ledger_transactions(
+                created = importers.import_ledger_transactions(
                     csv_path=csv_path,
                     session_factory=ctx.session_factory,
                     user_id=ctx.require_user_id(),
                 )
-            except Exception:
-                pass
+                dev_log(
+                    ctx.config,
+                    "Watcher imported file",
+                    context={"path": csv_path, "created": created},
+                )
+            except Exception as exc:
+                dev_log(ctx.config, "Watcher import failed", exc=exc, context={"path": csv_path})
+                if ctx.dev_mode:
+                    _notify(f"Auto-import failed: {exc}")
 
         try:
-            observer = start_watcher(folder=folder, importer=_import_file)
+            observer = start_watcher(
+                folder=target_folder, importer=_import_file, allowed_filename=watch_filename
+            )
             ctx.watcher_observer = observer
-            ctx.watched_folder = str(folder)
+            ctx.watched_folder = str(target_folder)
+            watch_target["target"] = str(target_folder)
+            watch_target["filename"] = watch_filename
             if watcher_label.current:
-                watcher_label.current.value = f"Watching: {folder}"
+                watcher_label.current.value = (
+                    f"Watching file {watch_filename} in {target_folder}"
+                    if watch_filename
+                    else f"Watching folder: {target_folder}"
+                )
                 watcher_label.current.update()
-            _notify(f"Watching folder for CSV imports: {folder}")
+            _notify(
+                f"Watching {'file' if watch_filename else 'folder'} for CSV imports: {folder}"
+            )
         except Exception as exc:
+            dev_log(ctx.config, "Watcher start failed", exc=exc, context={"folder": folder})
             _notify(f"Watcher failed: {exc}")
 
     def _on_watch_pick(e: ft.FilePickerResultEvent):
-        if e.path:
-            _start_watcher(Path(e.path))
+        selected = e.files[0] if e and e.files else None
+        if selected and selected.path:
+            _start_watcher(Path(selected.path))
+        else:
+            dev_log(ctx.config, "Watcher pick canceled or empty")
 
     watcher_picker.on_result = _on_watch_pick
 
-    def choose_watch_folder(_):
-        watcher_picker.get_directory_path()
+    def choose_watch_target(_):
+        watcher_picker.pick_files(
+            allow_multiple=False,
+            allowed_extensions=["csv"],
+        )
 
     data_dir_field = ft.TextField(
         label="Current data directory",
@@ -286,7 +332,7 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ),
                     ft.Row(
                         [
-                            ft.Text("Watched folder for CSV auto-import:", size=13),
+                            ft.Text("Watched CSV/file for auto-import:", size=13),
                             ft.Text("", ref=watcher_label, size=13, color=ft.Colors.ON_SURFACE_VARIANT),
                         ],
                         spacing=8,
@@ -294,9 +340,9 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.Row(
                         [
                             ft.FilledButton(
-                                "Choose folder",
+                                "Choose file",
                                 icon=ft.Icons.FOLDER_OPEN,
-                                on_click=choose_watch_folder,
+                                on_click=choose_watch_target,
                             ),
                             ft.TextButton("Stop watcher", on_click=lambda _: _stop_watcher()),
                         ],

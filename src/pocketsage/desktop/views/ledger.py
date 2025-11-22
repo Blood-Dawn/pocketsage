@@ -10,7 +10,10 @@ from typing import TYPE_CHECKING
 import flet as ft
 
 from ...models.transaction import Transaction
+from ...models.account import Account
+from ...models.category import Category
 from ...services.export_csv import export_transactions_csv
+from ...devtools import dev_log
 from .. import controllers
 from ..components import build_app_bar, build_main_layout
 from ..components.dialogs import show_confirm_dialog, show_error_dialog
@@ -165,11 +168,43 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     def add_transaction_dialog(_):
         categories = ctx.category_repo.list_all(user_id=uid)
+        if not categories:
+            default_cat = ctx.category_repo.create(
+                Category(
+                    name="General",
+                    slug="general",
+                    category_type="expense",
+                    user_id=uid,
+                ),
+                user_id=uid,
+            )
+            categories = [default_cat]
+
         accounts = ctx.account_repo.list_all(user_id=uid)
-        amount = ft.TextField(label="Amount", width=200)
-        memo = ft.TextField(label="Memo", expand=True)
+        if not accounts:
+            default_account = ctx.account_repo.create(
+                Account(name="Cash", currency="USD", user_id=uid), user_id=uid
+            )
+            accounts = [default_account]
+
+        amount = ft.TextField(
+            label="Amount",
+            width=200,
+            helper_text="Enter amount; positive for income, negative for expenses.",
+        )
+        memo = ft.TextField(label="Memo", expand=True, helper_text="What was this transaction for?")
         date_field = ft.TextField(
             label="Date", value=datetime.now().strftime("%Y-%m-%d"), width=200
+        )
+        type_toggle = ft.RadioGroup(
+            value="expense",
+            content=ft.Row(
+                [
+                    ft.Radio(value="income", label="Income"),
+                    ft.Radio(value="expense", label="Expense"),
+                ],
+                spacing=12,
+            ),
         )
         category_dd = ft.Dropdown(
             label="Category",
@@ -184,9 +219,18 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         def save_txn(_):
             try:
-                occurred_at = datetime.fromisoformat(date_field.value)
+                occurred_at = datetime.fromisoformat(date_field.value.strip())
+                amt_val = float(amount.value or 0)
+                if type_toggle.value == "expense" and amt_val > 0:
+                    amt_val = -amt_val
+                if type_toggle.value == "income" and amt_val < 0:
+                    amt_val = abs(amt_val)
+                if amt_val == 0:
+                    raise ValueError("Amount cannot be zero")
+                if not memo.value:
+                    raise ValueError("Memo is required")
                 txn = Transaction(
-                    amount=float(amount.value or 0),
+                    amount=amt_val,
                     memo=memo.value or "",
                     occurred_at=occurred_at,
                     category_id=int(category_dd.value) if category_dd.value else None,
@@ -194,18 +238,46 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     currency="USD",
                 )
                 ctx.transaction_repo.create(txn, user_id=uid)
+                dev_log(
+                    ctx.config,
+                    "Ledger transaction saved",
+                    context={
+                        "memo": txn.memo,
+                        "amount": txn.amount,
+                        "category_id": txn.category_id,
+                    },
+                )
                 dlg.open = False
                 apply_filters(current_page)
-                page.snack_bar = ft.SnackBar(content=ft.Text("Transaction saved"))
+                page.snack_bar = ft.SnackBar(
+                    content=ft.Text(
+                        f"Transaction saved ({'income' if amt_val >= 0 else 'expense'} ${abs(amt_val):,.2f})"
+                    )
+                )
                 page.snack_bar.open = True
                 page.update()
             except Exception as exc:
+                dev_log(ctx.config, "Ledger save failed", exc=exc)
                 show_error_dialog(page, "Save failed", str(exc))
 
         dlg = ft.AlertDialog(
             title=ft.Text("Add transaction"),
             content=ft.Column(
-                [amount, memo, date_field, category_dd, account_dd], tight=True, spacing=8
+                [
+                    ft.Text(
+                        "Enter the transaction details. Expenses will be saved as negatives.",
+                        size=12,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                    amount,
+                    type_toggle,
+                    memo,
+                    date_field,
+                    category_dd,
+                    account_dd,
+                ],
+                tight=True,
+                spacing=8,
             ),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: setattr(dlg, "open", False)),
@@ -223,8 +295,10 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         def confirm():
             try:
                 ctx.transaction_repo.delete(txn_id, user_id=uid)
+                dev_log(ctx.config, "Transaction deleted", context={"id": txn_id})
                 apply_filters(current_page)
             except Exception as exc:
+                dev_log(ctx.config, "Delete failed", exc=exc, context={"id": txn_id})
                 show_error_dialog(page, "Delete failed", str(exc))
 
         show_confirm_dialog(page, "Delete transaction", "Are you sure?", confirm)
@@ -244,6 +318,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     def export_csv(_):
         stamp = datetime.now().strftime("%Y%m%d%H%M%S")
         suggested = f"ledger_export_{stamp}.csv"
+        dev_log(ctx.config, "Starting ledger export", context={"suggested": suggested})
         controllers.pick_export_destination(
             ctx,
             page,

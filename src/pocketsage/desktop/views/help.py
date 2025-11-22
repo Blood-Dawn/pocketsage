@@ -17,7 +17,7 @@ def _code_block(text: str) -> ft.Container:
     return ft.Container(
         content=ft.Text(text, selectable=True, font_family="monospace", size=12),
         padding=12,
-        bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
+        bgcolor=getattr(ft.Colors, "SURFACE_CONTAINER_LOW", ft.Colors.SURFACE_CONTAINER_HIGHEST),
         border_radius=8,
     )
 

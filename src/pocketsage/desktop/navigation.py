@@ -9,6 +9,8 @@ import flet as ft
 if TYPE_CHECKING:
     from .context import AppContext
 
+from ..devtools import dev_log
+
 
 # View builder type
 ViewBuilder = Callable[["AppContext", ft.Page], ft.View]
@@ -55,6 +57,7 @@ class Router:
                 self.page.views.append(view)
             self.page.update()
         except Exception as ex:
+            dev_log(self.context.config, "Route load failed", exc=ex, context={"route": route})
             self.show_error(f"Error loading view: {ex}")
 
     def view_pop(self, e: ft.ViewPopEvent) -> None:

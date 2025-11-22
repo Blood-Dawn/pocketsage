@@ -53,6 +53,7 @@ class AppContext:
     page: Optional[ft.Page] = None
     file_picker: Optional[ft.FilePicker] = None
     file_picker_mode: Optional[str] = None
+    dev_mode: bool = False
 
     current_user: Optional[User] = None
     guest_mode: bool = False
@@ -99,6 +100,7 @@ def create_app_context(config: Optional[BaseConfig] = None) -> AppContext:
 
     return AppContext(
         config=config,
+        dev_mode=config.DEV_MODE,
         session_factory=session_factory,
         transaction_repo=transaction_repo,
         account_repo=account_repo,

@@ -48,6 +48,7 @@ src/pocketsage/infra/repositories/category.py
 src/pocketsage/infra/repositories/habit.py
 src/pocketsage/infra/repositories/holding.py
 src/pocketsage/infra/repositories/liability.py
+src/pocketsage/infra/repositories/settings.py
 src/pocketsage/infra/repositories/transaction.py
 src/pocketsage/models/__init__.py
 src/pocketsage/models/account.py
@@ -66,6 +67,7 @@ src/pocketsage/services/auth.py
 src/pocketsage/services/budgeting.py
 src/pocketsage/services/debts.py
 src/pocketsage/services/export_csv.py
+src/pocketsage/services/heavy_seed.py
 src/pocketsage/services/import_csv.py
 src/pocketsage/services/importers.py
 src/pocketsage/services/jobs.py
@@ -83,8 +85,10 @@ tests/test_desktop_navigation.py
 tests/test_desktop_smoke.py
 tests/test_export_csv.py
 tests/test_habit_streaks.py
+tests/test_holding_repo_resilience.py
 tests/test_import_services.py
 tests/test_integration_workflows.py
 tests/test_ledger_repository.py
 tests/test_money_representation.py
+tests/test_performance.py
 tests/test_repositories.py

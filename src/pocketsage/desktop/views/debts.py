@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import flet as ft
 
 from ...models.liability import Liability
+from ...devtools import dev_log
 from ...services.debts import DebtAccount, avalanche_schedule, snowball_schedule
 from ...services.liabilities import build_payment_transaction
 from ..charts import debt_payoff_chart_png
@@ -85,6 +86,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         if payoff_chart_ref.current is not None:
             chart_path = debt_payoff_chart_png(schedule) if schedule else None
             payoff_chart_ref.current.src = str(chart_path) if chart_path else ""
+            payoff_chart_ref.current.visible = bool(chart_path)
 
     def _refresh() -> None:
         liabilities = ctx.liability_repo.list_all(user_id=uid)
@@ -164,6 +166,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             label="Minimum payment",
             value=str(getattr(liability, "minimum_payment", "") or ""),
             width=180,
+            helper_text="What you must pay each month.",
         )
         due_day = ft.TextField(
             label="Due day (1-28)",
@@ -179,16 +182,22 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     balance=float(balance.value or 0),
                     apr=float(apr.value or 0),
                     minimum_payment=float(minimum_payment.value or 0),
-                    due_day=int(due_day.value or 1),
+                    due_day=max(1, min(28, int(due_day.value or 1))),
                     user_id=uid,
                 )
                 if editing:
                     ctx.liability_repo.update(record, user_id=uid)
                 else:
                     ctx.liability_repo.create(record, user_id=uid)
+                dev_log(
+                    ctx.config,
+                    "Liability saved",
+                    context={"id": getattr(record, "id", None), "editing": editing},
+                )
                 dialog.open = False
                 _refresh()
             except Exception as exc:
+                dev_log(ctx.config, "Liability save failed", exc=exc)
                 show_error_dialog(page, "Save failed", str(exc))
 
         dialog = ft.AlertDialog(
@@ -244,9 +253,15 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         user_id=uid,
                     )
                     ctx.transaction_repo.create(txn, user_id=uid)
+                dev_log(
+                    ctx.config,
+                    "Payment applied",
+                    context={"liability": liability.id, "amount": payment},
+                )
                 payment_dialog.open = False
                 _refresh()
             except Exception as exc:
+                dev_log(ctx.config, "Payment failed", exc=exc, context={"liability": liability.id})
                 show_error_dialog(page, "Payment failed", str(exc))
 
         payment_dialog = ft.AlertDialog(
@@ -267,6 +282,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         def _delete():
             ctx.liability_repo.delete(liability_id, user_id=uid)
+            dev_log(ctx.config, "Liability deleted", context={"id": liability_id})
             _refresh()
 
         show_confirm_dialog(page, "Delete liability", "Are you sure?", _delete)

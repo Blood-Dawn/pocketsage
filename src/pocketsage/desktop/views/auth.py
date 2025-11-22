@@ -52,11 +52,7 @@ def build_auth_view(ctx: AppContext, page: ft.Page) -> ft.View:
     def _ensure_seed(user_id: int) -> None:
         """Seed per-user demo data the first time a user signs in."""
 
-        has_data = bool(ctx.transaction_repo.list_all(user_id=user_id, limit=1))
-        if not has_data:
-            admin_tasks.run_demo_seed(
-                session_factory=ctx.session_factory, user_id=user_id, force=True
-            )
+        # Keep login fast; only seed when explicitly requested via admin/settings.
         ctx.current_month = date.today().replace(day=1)
         ctx.current_account_id = None
 

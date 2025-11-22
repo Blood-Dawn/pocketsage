@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Optional
 import flet as ft
 
 from ..services import admin_tasks, auth, importers
+from ..devtools import dev_log
 from .navigation_helpers import handle_navigation_selection, resolve_shortcut_route
 
 if TYPE_CHECKING:
@@ -20,6 +21,12 @@ def _show_snack(page: ft.Page, message: str) -> None:
     page.snack_bar = ft.SnackBar(content=ft.Text(message))
     page.snack_bar.open = True
     page.update()
+
+
+def _ctx_config(ctx: AppContext | object) -> object | None:
+    """Return config attribute if present to keep dev logging resilient in tests."""
+
+    return getattr(ctx, "config", None)
 
 
 def navigate(page: ft.Page, route: str) -> None:
@@ -51,10 +58,18 @@ def handle_shortcut(page: ft.Page, key: str, ctrl: bool, shift: bool) -> bool:
 def run_demo_seed(ctx: AppContext, page: ft.Page) -> None:
     """Seed demo data and surface a friendly summary."""
 
-    summary = admin_tasks.run_demo_seed(
-        session_factory=ctx.session_factory, user_id=ctx.require_user_id()
-    )
-    _show_snack(page, f"Demo data ready ({summary.transactions} transactions)")
+    try:
+        from ..services.heavy_seed import run_heavy_seed
+
+        summary = run_heavy_seed(
+            session_factory=ctx.session_factory, user_id=ctx.require_user_id()
+        )
+        _show_snack(page, f"Demo data ready (heavy {summary.transactions} transactions)")
+    except Exception:
+        summary = admin_tasks.run_demo_seed(
+            session_factory=ctx.session_factory, user_id=ctx.require_user_id()
+        )
+        _show_snack(page, f"Demo data ready ({summary.transactions} transactions)")
 
 
 def reset_demo_data(ctx: AppContext, page: ft.Page) -> None:
@@ -74,9 +89,15 @@ def attach_file_picker(ctx: AppContext, page: ft.Page) -> ft.FilePicker:
         mode = ctx.file_picker_mode
         ctx.file_picker_mode = None
         if not selected or not selected.path:
+            dev_log(_ctx_config(ctx), "File picker dismissed or missing path", context={"mode": mode})
             return
 
         csv_path = Path(selected.path)
+        dev_log(
+            _ctx_config(ctx),
+            "Import picker selected",
+            context={"mode": mode, "path": csv_path},
+        )
         try:
             if mode == "ledger":
                 created = importers.import_ledger_transactions(
@@ -84,7 +105,17 @@ def attach_file_picker(ctx: AppContext, page: ft.Page) -> ft.FilePicker:
                     session_factory=ctx.session_factory,
                     user_id=ctx.require_user_id(),
                 )
-                _show_snack(page, f"Imported {created} transactions")
+                dev_log(
+                    _ctx_config(ctx),
+                    "Ledger import completed",
+                    context={"path": csv_path, "created": created},
+                )
+                msg = (
+                    f"Imported {created} transactions"
+                    if created
+                    else "No new transactions imported (duplicates or invalid rows?)"
+                )
+                _show_snack(page, msg)
                 navigate(page, "/ledger")
             elif mode == "portfolio":
                 created = importers.import_portfolio_holdings(
@@ -92,11 +123,27 @@ def attach_file_picker(ctx: AppContext, page: ft.Page) -> ft.FilePicker:
                     session_factory=ctx.session_factory,
                     user_id=ctx.require_user_id(),
                 )
-                _show_snack(page, f"Imported {created} holdings")
+                dev_log(
+                    _ctx_config(ctx),
+                    "Portfolio import completed",
+                    context={"path": csv_path, "created": created},
+                )
+                msg = (
+                    f"Imported {created} holdings"
+                    if created
+                    else "No holdings imported (empty file or invalid rows)"
+                )
+                _show_snack(page, msg)
                 navigate(page, "/portfolio")
             else:
                 _show_snack(page, "No import action configured.")
         except Exception as exc:  # pragma: no cover - user-facing guard
+            dev_log(
+                _ctx_config(ctx),
+                "Import failed",
+                exc=exc,
+                context={"path": csv_path, "mode": mode},
+            )
             _show_snack(page, f"Import failed: {exc}")
 
     picker = ft.FilePicker(on_result=_import_result)
@@ -125,6 +172,7 @@ def start_ledger_import(ctx: AppContext, page: ft.Page) -> None:
     if _ensure_picker(ctx, page) is None:
         return
     ctx.file_picker_mode = "ledger"
+    dev_log(_ctx_config(ctx), "Opening ledger import picker")
     ctx.file_picker.pick_files(
         allow_multiple=False,
         allowed_extensions=["csv"],
@@ -137,6 +185,7 @@ def start_portfolio_import(ctx: AppContext, page: ft.Page) -> None:
     if _ensure_picker(ctx, page) is None:
         return
     ctx.file_picker_mode = "portfolio"
+    dev_log(_ctx_config(ctx), "Opening portfolio import picker")
     ctx.file_picker.pick_files(
         allow_multiple=False,
         allowed_extensions=["csv"],
@@ -168,8 +217,10 @@ def pick_export_destination(
         picker.on_result = None  # detach temporary handler
         ctx.file_picker_mode = None
         if not selected:
+            dev_log(_ctx_config(ctx), "Export destination canceled")
             return
         out_path = Path(selected) / suggested_name
+        dev_log(_ctx_config(ctx), "Export destination selected", context={"path": out_path})
         on_path_selected(out_path)
 
     picker.on_result = _on_dir

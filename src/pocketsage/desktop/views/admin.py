@@ -16,6 +16,7 @@ from ...services.admin_tasks import (
     run_demo_seed,
     run_export,
 )
+from ...services.heavy_seed import run_heavy_seed
 from ..components import build_app_bar, build_main_layout
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -184,7 +185,10 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
             _show_message(f"Restore failed: {exc}")
 
     restore_picker.on_result = _restore_result
-    page.overlay = (page.overlay or []) + [restore_picker]
+    try:
+        page.overlay.append(restore_picker)
+    except Exception:
+        pass
 
     def backup_db(_):
         try:
@@ -199,8 +203,8 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
         if user_id is None:
             _show_message("Select a user to seed")
             return
-        summary = run_demo_seed(session_factory=ctx.session_factory, user_id=user_id, force=True)
-        _show_message(f"Seeded demo data ({summary.transactions} transactions)")
+        summary = run_heavy_seed(session_factory=ctx.session_factory, user_id=user_id)
+        _show_message(f"Seeded heavy demo data ({summary.transactions} transactions)")
 
     def reset_action(_):
         user_id = _selected_id()

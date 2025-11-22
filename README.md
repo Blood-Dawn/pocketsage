@@ -17,6 +17,12 @@ PocketSage is now a **desktop-only** personal finance and habit tracker. It uses
 4. `python run_desktop.py` to launch the app (shortcuts: `Ctrl+N` new transaction, `Ctrl+Shift+H` new habit, `Ctrl+1..7` navigation)
 5. Optional: `make demo-seed` or `python scripts/seed_demo.py` to preload sample data.
 
+### Run in developer mode
+Enable verbose console diagnostics, dev banner, and extra error snackbars (imports/exports/watcher) by setting `POCKETSAGE_DEV_MODE=true` when starting the app:
+- Windows PowerShell: `$env:POCKETSAGE_DEV_MODE='true'; python run_desktop.py`
+- macOS/Linux: `POCKETSAGE_DEV_MODE=true python run_desktop.py`
+Watch the terminal for `[DEV] ...` messages and tracebacks when actions fail.
+
 ### Reset local database (recreate schema)
 If the schema changes or you get stuck at login, you can delete the local SQLite file and let the app recreate it (all data will be lost):
 1. Close the app.
@@ -25,6 +31,7 @@ If the schema changes or you get stuck at login, you can delete the local SQLite
    - macOS/Linux: `rm -f instance/pocketsage.db instance/pocketsage.db-wal instance/pocketsage.db-shm`
 3. Relaunch: `python run_desktop.py` (or `make dev`). The schema will be recreated automatically.
 4. Optional: re-seed demo data with `make demo-seed` or `python scripts/seed_demo.py`.
+5. If you see schema mismatches (e.g., after adding new columns), delete the DB as above and rerun; a fresh file will be created with the latest schema.
 
 ## Packaging
 - `make package` builds a desktop executable with `flet pack run_desktop.py` (outputs to `dist/`).
@@ -64,6 +71,7 @@ python -m venv .venv
 - `POCKETSAGE_DATABASE_URL` overrides the computed SQLite URL.
 - `POCKETSAGE_USE_SQLCIPHER` / `POCKETSAGE_SQLCIPHER_KEY` reserved for future SQLCipher support.
 - `POCKETSAGE_SECRET_KEY` remains for forward compatibility; no Flask usage in desktop mode.
+- `POCKETSAGE_DEV_MODE=true` surfaces console diagnostics and error snackbars for imports/exports/navigation.
 
 ## Folder Highlights
 - `src/pocketsage/` – config, models, services (including `services/admin_tasks.py` for seeding/exports), domain protocols, infra repositories, desktop UI.
@@ -82,5 +90,10 @@ python -m venv .venv
 
 ## Demo Data Seeding
 The seeding path is fully desktop-aware and idempotent:
-- `make demo-seed` (or `python scripts/seed_demo.py`) seeds categories, accounts, six sample transactions, habits with entries, liabilities, and a simple monthly budget.
-- The seeder uses `pocketsage.services.admin_tasks.run_demo_seed` and respects `POCKETSAGE_DATABASE_URL` / `POCKETSAGE_DATA_DIR`. Re-running the seed will not duplicate rows.
+- Desktop UI/Admin uses a heavy randomized seed for testing richer datasets (10-year synthetic ledger) via the “Seed demo data” button.
+- CLI helpers remain light/deterministic: `make demo-seed` (or `python scripts/seed_demo.py`) seeds categories, accounts, six sample transactions, habits with entries, liabilities, and a simple monthly budget.
+- Light seeder uses `pocketsage.services.admin_tasks.run_demo_seed` and respects `POCKETSAGE_DATABASE_URL` / `POCKETSAGE_DATA_DIR`. Re-running the light seed will not duplicate rows.
+
+## Tests
+- Run `pytest` (or `pytest -m "not performance"` to skip perf guardrails).
+- Performance marker: `pytest -m performance` runs the ledger import guardrail test.

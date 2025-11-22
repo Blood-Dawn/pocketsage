@@ -34,6 +34,7 @@ class BaseConfig:
         self.SECRET_KEY = os.getenv("POCKETSAGE_SECRET_KEY", "replace-me")
         self.DATA_DIR = self._resolve_data_dir()
         self.USE_SQLCIPHER = _env_bool(self.SQLCIPHER_FLAG, default=False)
+        self.DEV_MODE = _env_bool("POCKETSAGE_DEV_MODE", default=False)
         self.DATABASE_URL = os.getenv("POCKETSAGE_DATABASE_URL", self._build_sqlite_url())
         # TODO(@security-team): fail fast when SECRET_KEY is default in production modes.
 
