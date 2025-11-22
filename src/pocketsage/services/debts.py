@@ -1,5 +1,14 @@
 """Debt payoff calculators."""
 
+# TODO(@codex): Debt payoff calculation logic (snowball and avalanche)
+#    - Snowball: order debts by ascending balance (DONE)
+#    - Avalanche: order by descending APR (DONE)
+#    - Simulate month-by-month payments (DONE)
+#    - Apply extra payments to target debt after minimums (DONE)
+#    - Return payoff schedule with time and total interest (DONE)
+#    - Handle edge cases: tiny payments, infinite loops (DONE - max_iterations guard)
+#    - Ensure minimum payment always reduces principal (DONE - minimum_progress)
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass

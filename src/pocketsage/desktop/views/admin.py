@@ -1,5 +1,12 @@
 """Admin view for user management, metrics, and seeding."""
 
+# TODO(@codex): Admin tools for data management (seeding, backup, restore)
+#    - Demo data seed button (DONE - run_demo_seed and run_heavy_seed)
+#    - Backup data (export all data to zip) (DONE - backup_database)
+#    - Restore data (import from zip) (DONE - restore_database)
+#    - Protect admin actions with confirmation dialogs (DONE)
+#    - For login-free MVP, allow guest users to access admin features
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -26,7 +33,18 @@ if TYPE_CHECKING:  # pragma: no cover
 def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Render admin dashboard with user controls."""
 
-    if ctx.current_user is None or ctx.current_user.role != "admin":
+    # TODO(@codex): Allow guest users to access admin features in login-free MVP
+    #    - In single-user mode, all admin features should be accessible
+    #    - When multi-user is re-enabled, restore admin role check
+    #    - For now, only block if no user is set at all
+    if ctx.current_user is None:
+        page.snack_bar = ft.SnackBar(content=ft.Text("No user context available"))
+        page.snack_bar.open = True
+        page.go("/dashboard")
+        return ft.View(route="/admin", controls=[], padding=0)
+
+    # Allow both admin and guest users (for MVP)
+    if not ctx.guest_mode and ctx.current_user.role not in ("admin", "guest"):
         page.snack_bar = ft.SnackBar(content=ft.Text("Admin access required"))
         page.snack_bar.open = True
         page.go("/dashboard")

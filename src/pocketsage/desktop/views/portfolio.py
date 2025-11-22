@@ -1,5 +1,14 @@
 """Portfolio view implementation."""
 
+# TODO(@codex): Portfolio MVP features (optional module):
+#    - CSV import for holdings (parse symbol, quantity, prices) (DONE)
+#    - Holdings CRUD (add/edit/delete holdings manually) (DONE)
+#    - Allocation visualization (pie/donut chart by holding) (DONE)
+#    - Export holdings to CSV (DONE)
+#    - Show total portfolio value and unrealized gain/loss (DONE)
+#    - Optional price update mechanism (manual input or CSV)
+#    - Time series tracking (future: track portfolio value over time)
+
 from __future__ import annotations
 
 import csv

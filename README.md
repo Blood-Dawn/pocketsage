@@ -4,6 +4,16 @@ PocketSage is now a **desktop-only** personal finance and habit tracker. It uses
 
 > All web/Flask code has been removed. The desktop shell is the single supported experience going forward.
 
+## Login-Free MVP
+
+PocketSage now operates in **guest mode by default** for simplified single-user operation:
+- **No login required** - The app starts directly in the dashboard
+- **Persistent data** - All your data is saved locally and persists across sessions
+- **Offline-first** - Everything works without an internet connection
+- **Privacy-focused** - Your data never leaves your machine
+
+This design is ideal for personal finance tracking where you are the only user. Multi-user authentication can be re-enabled in the future if needed.
+
 ## Stack Snapshot
 - Python 3.11, Flet desktop UI
 - SQLModel + SQLite (SQLCipher toggle planned), Matplotlib for charts/exports
@@ -16,6 +26,8 @@ PocketSage is now a **desktop-only** personal finance and habit tracker. It uses
 3. `cp .env.example .env`
 4. `python run_desktop.py` to launch the app (shortcuts: `Ctrl+N` new transaction, `Ctrl+Shift+H` new habit, `Ctrl+1..7` navigation)
 5. Optional: `make demo-seed` or `python scripts/seed_demo.py` to preload sample data.
+
+**Note:** The app now starts directly in **guest mode** without requiring login. All your data is saved locally and persists between sessions. This is perfect for single-user, offline-first operation.
 
 ### Run in developer mode
 Enable verbose console diagnostics, dev banner, and extra error snackbars (imports/exports/watcher) by setting `POCKETSAGE_DEV_MODE=true` when starting the app:

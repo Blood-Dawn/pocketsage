@@ -94,8 +94,11 @@ def main(page: ft.Page) -> None:
 
     page.on_keyboard_event = handle_shortcuts
 
+    # TODO(@codex): Skip login and go directly to dashboard for guest mode MVP
+    #    - No authentication required; user is automatically logged in as guest
+    #    - This provides immediate access to the app without login screens
     # Navigate to default route
-    page.go("/login")
+    page.go("/dashboard")
 
 
 if __name__ == "__main__":

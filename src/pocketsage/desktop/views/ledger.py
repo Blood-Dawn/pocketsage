@@ -1,5 +1,14 @@
 """Ledger view implementation."""
 
+# TODO(@codex): Ledger MVP features to implement/enhance:
+#    - Transaction CRUD with filtering by date and category (DONE)
+#    - Categories management UI (add/edit categories)
+#    - Budget tracking display (show current vs budgeted amounts with progress bars)
+#    - Monthly summaries (income vs expense for current month) (DONE - basic)
+#    - Spending chart (pie/bar chart of expenses by category)
+#    - CSV import/export (DONE - export implemented, import needs idempotency)
+#    - Form validation with clear error messages (DONE - basic)
+
 from __future__ import annotations
 
 import math
@@ -72,6 +81,10 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         nonlocal filtered, current_page, total_pages
         start_dt = parse_date(start_field.value or "")
         end_dt = parse_date(end_field.value or "")
+        # TODO(@codex): Fix category filter to handle "All" selection properly
+        #    - When "All" is selected, category_field.value is empty string ""
+        #    - Must not attempt int conversion on empty string (prevents ValueError)
+        #    - Only convert to int if value isdigit() check passes
         raw_category = (category_field.value or "").strip()
         category_id = int(raw_category) if raw_category.isdigit() else None
         txs = ctx.transaction_repo.search(
@@ -166,6 +179,12 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         target = max(1, min(target, total_pages))
         apply_filters(target)
 
+    # TODO(@codex): Add transaction dialog with form validation
+    #    - Validate that amount is a number (DONE)
+    #    - Validate that date is valid (DONE)
+    #    - Ensure memo is not empty (DONE)
+    #    - Show clear error messages on invalid input (DONE via show_error_dialog)
+    #    - This addresses FR-8 (validation) and NFR-17 (error messages)
     def add_transaction_dialog(_):
         categories = ctx.category_repo.list_all(user_id=uid)
         if not categories:
@@ -341,6 +360,11 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         wrap=True,
     )
 
+    # TODO(@codex): Add budget tracking to summary cards
+    #    - Display budget for current month (e.g., "Budget: $2000")
+    #    - Show progress bar or percentage of budget used
+    #    - Highlight when over budget (change color to red/warning)
+    #    - This addresses FR-13 (budget thresholds) and UR-3 (monitor budgets)
     summary_cards = ft.Row(
         [
             ft.Card(
@@ -382,6 +406,11 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         ],
         spacing=12,
     )
+    # TODO(@codex): Embed spending chart (category breakdown)
+    #    - Generate a pie or bar chart image of expenses by category for the month
+    #    - Use Matplotlib to create the chart
+    #    - Display the chart below summary cards
+    #    - This addresses FR-11 (spending visualization) and UR-2 (view charts)
 
     table = ft.DataTable(
         ref=table_ref,
