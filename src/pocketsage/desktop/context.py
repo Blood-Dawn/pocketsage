@@ -85,6 +85,13 @@ def create_app_context(config: Optional[BaseConfig] = None) -> AppContext:
     # Create session factory
     session_factory = create_session_factory(engine)
 
+    # TODO(@codex): Auto-initialize guest user for login-free MVP
+    #    - Ensure guest user exists on every app startup
+    #    - Guest data persists across sessions (not purged like in start_guest_session)
+    #    - This allows offline-first operation without authentication
+    from ..services import auth
+    guest_user = auth.ensure_guest_user(session_factory)
+
     # Initialize repositories
     transaction_repo = SQLModelTransactionRepository(session_factory)
     account_repo = SQLModelAccountRepository(session_factory)
@@ -113,5 +120,6 @@ def create_app_context(config: Optional[BaseConfig] = None) -> AppContext:
         theme_mode=ft.ThemeMode.DARK,
         current_account_id=None,
         current_month=current_date.replace(day=1),
-        guest_mode=False,
+        current_user=guest_user,
+        guest_mode=True,
     )

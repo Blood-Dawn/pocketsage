@@ -1,5 +1,10 @@
 """Authentication and onboarding view for the desktop app."""
 
+# TODO(@codex): Login view bypassed for login-free MVP
+#    - This view is no longer used in the default flow (app starts in guest mode)
+#    - Kept for future multi-user functionality when auth is re-enabled
+#    - For now, accessing /login will redirect to dashboard automatically
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -17,8 +22,11 @@ if TYPE_CHECKING:  # pragma: no cover
 def build_auth_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Render login/onboarding screen."""
 
-    # Redirect if already authenticated
-    if ctx.current_user is not None:
+    # TODO(@codex): Always redirect to dashboard in login-free MVP
+    #    - Guest user is auto-created on app startup
+    #    - No need to show login screen for single-user offline app
+    # Redirect if already authenticated (or in guest mode)
+    if ctx.current_user is not None or ctx.guest_mode:
         page.go("/dashboard")
         return ft.View(route="/login", controls=[], padding=0)
 

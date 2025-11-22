@@ -1,5 +1,14 @@
 """Debts view implementation."""
 
+# TODO(@codex): Debts MVP features to implement/enhance:
+#    - Liability CRUD (add/edit/delete debts) (DONE)
+#    - Payoff strategy calculation (snowball/avalanche) (DONE)
+#    - Payoff timeline chart showing balance reduction (DONE)
+#    - Payment recording to update balances (DONE)
+#    - Debt list with summary (total debt, weighted APR) (DONE)
+#    - Edge case handling (tiny payments, infinite loops) (needs verification)
+#    - Advanced: multiple budgets, custom payoff order, credit score impact (future)
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -216,6 +225,12 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         dialog.open = True
         page.update()
 
+    # TODO(@codex): Record payment action for a debt
+    #    - Allow user to input payment amount (beyond minimum)
+    #    - Update remaining balance when payment is recorded (DONE)
+    #    - Adjust payoff schedule after payment (DONE - via _refresh)
+    #    - Optionally create a transaction in the ledger (DONE - reconcile switch)
+    #    - This addresses UR-17 (record payments) and FR-23 (update schedule)
     def _record_payment(liability: Liability) -> None:
         amount_field = ft.TextField(
             label="Payment amount",

@@ -1,5 +1,14 @@
 """Admin utilities for the desktop app (demo seed, exports, retention)."""
 
+# TODO(@codex): Admin service functions for data management
+#    - Demo data seeding (run_demo_seed) - creates sample data (DONE)
+#    - Backup export (backup_database) - exports all data to zip (DONE)
+#    - Restore from backup (restore_database) - imports from zip (DONE)
+#    - Reset database (reset_demo_database) - clears user data (DONE)
+#    - Export reports (run_export) - generates charts and CSVs (DONE)
+#    - Ensure idempotent seeding (no duplicates on re-run)
+#    - Log operations for debugging
+
 from __future__ import annotations
 
 import os

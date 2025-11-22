@@ -1,5 +1,13 @@
 """Habits view implementation."""
 
+# TODO(@codex): Habits MVP features to implement/enhance:
+#    - Habit CRUD (create/edit/archive habits) (DONE - basic create/archive)
+#    - Daily toggle for marking habits complete (DONE)
+#    - Streak calculation (current and longest) (DONE)
+#    - Visualization (heatmap/calendar of completion) (DONE)
+#    - Habit linking to spending notes (future stretch goal)
+#    - Optional reminders (field exists, notification scheduling is future)
+
 from __future__ import annotations
 
 from datetime import date, timedelta
@@ -100,6 +108,11 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
             is_completed = today_entry is not None and today_entry.value > 0
             streak_label = f"Current: {current_streak} / Longest: {longest_streak}"
 
+            # TODO(@codex): Handle daily toggle logic for habits
+            #    - On toggle on: create HabitEntry for today, recalc streak (DONE)
+            #    - On toggle off: remove today's entry, recalc streak (DONE)
+            #    - Update streak display immediately after toggling (DONE)
+            #    - This implements FR-14 (streak tracking) and UR-11 (daily check-ins)
             def toggle_habit(_e, habit_id=habit.id):
                 entry = ctx.habit_repo.get_entry(habit_id, today, user_id=uid)
                 if entry:
