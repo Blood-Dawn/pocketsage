@@ -23,6 +23,7 @@ dependencies = [
 
 [project.optional-dependencies]
 watcher = ["watchdog>=3.0.0"]
+scheduler = ["apscheduler>=3.10.0"]
 dev = [
 	"black==24.8.0",
 	"pytest==8.2.0",

@@ -7,6 +7,8 @@ import flet as ft
 from . import controllers
 from .context import create_app_context
 from ..devtools import dev_log
+from ..logging_config import get_logger, setup_logging
+from ..scheduler import create_scheduler
 from .navigation import Router
 from .views.admin import build_admin_view
 from .views.budgets import build_budgets_view
@@ -26,6 +28,21 @@ def main(page: ft.Page) -> None:
     # Configure page
     # Create app context (needs config)
     ctx = create_app_context()
+
+    # Initialize structured logging
+    logger = setup_logging(ctx.config)
+    logger.info("PocketSage desktop application starting")
+
+    # Initialize background scheduler for periodic tasks
+    scheduler = create_scheduler(ctx, auto_start=True)
+
+    # Cleanup on page close
+    def on_page_close(_):
+        logger.info("Application closing, shutting down scheduler")
+        scheduler.stop()
+
+    page.on_close = on_page_close
+
     ctx.page = page
     page.title = "PocketSage (DEV)" if ctx.dev_mode else "PocketSage"
     if ctx.dev_mode:
