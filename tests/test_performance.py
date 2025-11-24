@@ -1,5 +1,4 @@
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -45,7 +44,7 @@ def test_import_performance(tmp_path: Path):
         password="test",
         session_factory=session_factory,
     )
-    csv_path = _generate_csv(tmp_path, rows=1200)
+    csv_path = _generate_csv(tmp_path, rows=5000)
 
     start = time.perf_counter()
     created = importers.import_ledger_transactions(
@@ -64,11 +63,52 @@ def test_import_performance(tmp_path: Path):
     elapsed = time.perf_counter() - start
 
     assert created > 0
-    # Guardrails: keep within a reasonable bound for 1.2k rows on dev machines
-    assert elapsed < 3.0
+    # Guardrails: keep within a reasonable bound for ~5k rows on dev machines
+    assert elapsed < 12.0
 
     with session_factory() as session:
         total = session.exec(
             select(Transaction).where(Transaction.user_id == user.id)
         ).all()
     assert len(total) == created
+
+
+@pytest.mark.performance
+def test_pagination_cost(tmp_path: Path):
+    """Ensure pagination queries stay within reasonable bounds."""
+
+    engine = _make_temp_engine(tmp_path)
+    session_factory = lambda: session_scope(engine)
+    user: User = create_user(
+        username="perf2",
+        password="test",
+        session_factory=session_factory,
+    )
+    csv_path = _generate_csv(tmp_path, rows=20000)
+    importers.import_ledger_transactions(
+        csv_path=csv_path,
+        session_factory=session_factory,
+        mapping=ColumnMapping(
+            amount="amount",
+            occurred_at="date",
+            memo="memo",
+            account_name="account",
+            category="category",
+            external_id="transaction_id",
+        ),
+        user_id=user.id,
+    )
+    start = time.perf_counter()
+    with session_factory() as session:
+        # Simulate pagination windows
+        for offset in range(0, 20000, 500):
+            _ = session.exec(
+                select(Transaction)
+                .where(Transaction.user_id == user.id)
+                .order_by(Transaction.occurred_at.desc())  # type: ignore
+                .offset(offset)
+                .limit(500)
+            ).all()
+    elapsed = time.perf_counter() - start
+    # Guardrail: ensure we can iterate through 20k rows in slices reasonably fast
+    assert elapsed < 10.0

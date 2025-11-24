@@ -18,28 +18,39 @@ class ReportRenderer(Protocol):
         ...
 
 
-def build_spending_chart(*, transactions: Iterable[Transaction]) -> Figure:
+def build_spending_chart(
+    *,
+    transactions: Iterable[Transaction],
+    category_lookup: dict[object, str] | None = None,
+) -> Figure:
     """Create a matplotlib donut chart representing spending by category.
 
     Transactions with negative amounts are considered expenses and aggregated by category_id.
+    Labels are resolved via ``category_lookup`` when provided for readability/accessibility.
     """
 
-    # Aggregate by category_id
     totals: dict = {}
     for tx in transactions:
         cid = getattr(tx, "category_id", "uncategorized") or "uncategorized"
         amt = float(getattr(tx, "amount", 0) or 0)
-        # Only consider outflows
         if amt >= 0:
             continue
         totals[cid] = totals.get(cid, 0) + abs(amt)
 
-    labels = [str(k) for k in totals.keys()]
+    labels = [category_lookup.get(k, str(k)) if category_lookup else str(k) for k in totals.keys()]
     sizes = [v for v in totals.values()]
 
     fig, ax = plt.subplots(figsize=(6, 4))
     if sizes:
-        wedges, texts = ax.pie(sizes, labels=labels, wedgeprops=dict(width=0.4), startangle=90)
+        cmap = plt.get_cmap("tab20c")
+        colors = cmap.colors[: len(sizes)]
+        wedges, _ = ax.pie(
+            sizes,
+            labels=labels,
+            wedgeprops=dict(width=0.4),
+            startangle=90,
+            colors=colors,
+        )
         ax.axis("equal")
         ax.set_title("Spending by Category")
     else:

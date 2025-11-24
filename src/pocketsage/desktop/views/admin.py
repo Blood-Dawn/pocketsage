@@ -53,6 +53,11 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
     status_ref = ft.Ref[ft.Text]()
     users = auth.list_users(ctx.session_factory)
     selected_user_id = ft.Ref[ft.Dropdown]()
+    retention_text = ft.Text(
+        f"Export retention: {ctx.config.EXPORT_RETENTION} archives; stored under {ctx.config.DATA_DIR / 'exports'}",
+        size=12,
+        color=ft.Colors.ON_SURFACE_VARIANT,
+    )
 
     def _selected_id() -> int | None:
         raw = selected_user_id.current.value if selected_user_id.current else None
@@ -74,6 +79,8 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
             status_ref.current.value = ""
         page.update()
 
+    busy = {"value": False}
+
     def _show_message(message: str):
         page.snack_bar = ft.SnackBar(content=ft.Text(message))
         page.snack_bar.open = True
@@ -81,6 +88,34 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
             status_ref.current.value = message
             status_ref.current.update()
         page.update()
+
+    def _with_spinner(task: callable, label: str):
+        """Show a modal spinner while running a long task."""
+
+        if busy["value"]:
+            return
+        busy["value"] = True
+        spinner = ft.AlertDialog(
+            modal=True,
+            content=ft.Column(
+                [
+                    ft.ProgressRing(),
+                    ft.Text(label),
+                ],
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                alignment=ft.MainAxisAlignment.CENTER,
+                spacing=12,
+            ),
+        )
+        page.dialog = spinner
+        spinner.open = True
+        page.update()
+        try:
+            task()
+        finally:
+            spinner.open = False
+            page.update()
+            busy["value"] = False
 
     def create_user_action(_):
         username = create_username.value.strip()
@@ -172,17 +207,20 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
         page.update()
 
     def export_all_users(_):
-        try:
-            exports_dir = ctx.config.DATA_DIR / "exports"
-            path = run_export(
-                exports_dir,
-                session_factory=ctx.session_factory,
-                user_id=None,
-                retention=ctx.config.EXPORT_RETENTION,
-            )
-            _show_message(f"All-user export ready: {path}")
-        except Exception as exc:  # pragma: no cover - user facing
-            _show_message(f"Export failed: {exc}")
+        def _task():
+            try:
+                exports_dir = ctx.config.DATA_DIR / "exports"
+                path = run_export(
+                    exports_dir,
+                    session_factory=ctx.session_factory,
+                    user_id=None,
+                    retention=ctx.config.EXPORT_RETENTION,
+                )
+                _show_message(f"All-user export ready: {path}")
+            except Exception as exc:  # pragma: no cover - user facing
+                _show_message(f"Export failed: {exc}")
+
+        _with_spinner(_task, "Exporting all users...")
 
     restore_picker = ft.FilePicker()
 
@@ -196,11 +234,14 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
         selected = e.files[0] if e.files else None
         if not selected or not selected.path:
             return
-        try:
-            restored = restore_database(Path(selected.path), config=ctx.config)
-            _show_message(f"Database restored to {restored} (restart app to reload)")
-        except Exception as exc:  # pragma: no cover - user facing
-            _show_message(f"Restore failed: {exc}")
+        def _task():
+            try:
+                restored = restore_database(Path(selected.path), config=ctx.config)
+                _show_message(f"Database restored to {restored} (restart app to reload)")
+            except Exception as exc:  # pragma: no cover - user facing
+                _show_message(f"Restore failed: {exc}")
+
+        _with_spinner(_task, "Restoring database...")
 
     restore_picker.on_result = _restore_result
     try:
@@ -209,28 +250,37 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
         pass
 
     def backup_db(_):
-        try:
-            backups_dir = ctx.config.DATA_DIR / "backups"
-            backup_path = backup_database(backups_dir, config=ctx.config)
-            _show_message(f"Backup saved: {backup_path}")
-        except Exception as exc:  # pragma: no cover - user facing
-            _show_message(f"Backup failed: {exc}")
+        def _task():
+            try:
+                backups_dir = ctx.config.DATA_DIR / "backups"
+                backup_path = backup_database(backups_dir, config=ctx.config)
+                _show_message(f"Backup saved: {backup_path}")
+            except Exception as exc:  # pragma: no cover - user facing
+                _show_message(f"Backup failed: {exc}")
+
+        _with_spinner(_task, "Creating backup...")
 
     def seed_action(_):
         user_id = _selected_id()
         if user_id is None:
             _show_message("Select a user to seed")
             return
-        summary = run_heavy_seed(session_factory=ctx.session_factory, user_id=user_id)
-        _show_message(f"Seeded heavy demo data ({summary.transactions} transactions)")
+        def _task():
+            summary = run_heavy_seed(session_factory=ctx.session_factory, user_id=user_id)
+            _show_message(f"Seeded heavy demo data ({summary.transactions} transactions)")
+
+        _with_spinner(_task, "Seeding demo data...")
 
     def reset_action(_):
         user_id = _selected_id()
         if user_id is None:
             _show_message("Select a user to reset")
             return
-        summary = reset_demo_database(user_id=user_id, session_factory=ctx.session_factory)
-        _show_message(f"Reset demo data ({summary.transactions} transactions)")
+        def _task():
+            summary = reset_demo_database(user_id=user_id, session_factory=ctx.session_factory)
+            _show_message(f"Reset demo data ({summary.transactions} transactions)")
+
+        _with_spinner(_task, "Resetting demo data...")
 
     def _metrics():
         with ctx.session_factory() as session:

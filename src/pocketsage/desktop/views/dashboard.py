@@ -40,6 +40,11 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
     # Get active habits
     active_habits = ctx.habit_repo.list_active(user_id=uid)
     habit_count = len(active_habits)
+    habits_done_today = sum(
+        1
+        for h in active_habits
+        if ctx.habit_repo.get_entry(h.id, date.today(), user_id=uid)
+    )
 
     # Build stat cards
     stat_cards = ft.Row(
@@ -129,10 +134,10 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.Container(
                 content=build_stat_card(
                     "Active Habits",
-                    str(habit_count),
+                    f"{habits_done_today}/{habit_count}",
                     icon=ft.Icons.CHECK_CIRCLE,
                     color=ft.Colors.BLUE,
-                    subtitle="Track your daily progress",
+                    subtitle="Done today / total active",
                 ),
                 expand=True,
             ),

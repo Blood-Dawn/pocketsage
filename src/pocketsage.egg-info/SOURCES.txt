@@ -2,6 +2,7 @@ README.md
 pyproject.toml
 src/pocketsage/__init__.py
 src/pocketsage/config.py
+src/pocketsage/devtools.py
 src/pocketsage.egg-info/PKG-INFO
 src/pocketsage.egg-info/SOURCES.txt
 src/pocketsage.egg-info/dependency_links.txt
@@ -67,6 +68,7 @@ src/pocketsage/services/auth.py
 src/pocketsage/services/budgeting.py
 src/pocketsage/services/debts.py
 src/pocketsage/services/export_csv.py
+src/pocketsage/services/habits.py
 src/pocketsage/services/heavy_seed.py
 src/pocketsage/services/import_csv.py
 src/pocketsage/services/importers.py
@@ -76,6 +78,7 @@ src/pocketsage/services/reports.py
 src/pocketsage/services/watcher.py
 tests/test_admin_tasks.py
 tests/test_budgeting.py
+tests/test_button_wiring.py
 tests/test_csv_import_comprehensive.py
 tests/test_debt_calculations.py
 tests/test_debt_payoff_chart.py
@@ -92,3 +95,4 @@ tests/test_ledger_repository.py
 tests/test_money_representation.py
 tests/test_performance.py
 tests/test_repositories.py
+tests/test_ui_regression.py

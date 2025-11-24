@@ -66,8 +66,14 @@ class AppContext:
         """Return the current user id or raise if not set."""
 
         if self.current_user is None or self.current_user.id is None:
-            raise RuntimeError("User is not authenticated")
-        return self.current_user.id
+            # In the login-free desktop shell, fall back to the reserved guest user so
+            # downstream operations always have a user_id for FK writes.
+            from ..services import auth
+
+            guest = auth.ensure_guest_user(self.session_factory)
+            self.current_user = guest
+            self.guest_mode = True
+        return self.current_user.id  # type: ignore[return-value]
 
 
 def create_app_context(config: Optional[BaseConfig] = None) -> AppContext:
@@ -85,10 +91,6 @@ def create_app_context(config: Optional[BaseConfig] = None) -> AppContext:
     # Create session factory
     session_factory = create_session_factory(engine)
 
-    # TODO(@codex): Auto-initialize guest user for login-free MVP
-    #    - Ensure guest user exists on every app startup
-    #    - Guest data persists across sessions (not purged like in start_guest_session)
-    #    - This allows offline-first operation without authentication
     from ..services import auth
     guest_user = auth.ensure_guest_user(session_factory)
 

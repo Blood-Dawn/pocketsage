@@ -44,6 +44,7 @@ def _calculate_schedule(*, debts: Iterable[DebtAccount], surplus: float) -> list
     payoff_schedule: list[dict] = []
     current_date = date.today().replace(day=1)
     rolled_minimums = 0.0  # freed minimum payments from debts already cleared
+    total_interest = 0.0
 
     def _next_month(value: date) -> date:
         month = value.month + 1
@@ -58,7 +59,7 @@ def _calculate_schedule(*, debts: Iterable[DebtAccount], surplus: float) -> list
     while any(d["balance"] > 0 for d in debts):
         iterations += 1
         if iterations > max_iterations:
-            break
+            raise ValueError("Payoff schedule did not converge; payments too low")
 
         extra_pool = surplus + rolled_minimums
         row = {"date": current_date.isoformat(), "payments": {}}
@@ -71,6 +72,7 @@ def _calculate_schedule(*, debts: Iterable[DebtAccount], surplus: float) -> list
             monthly_interest_float = float(
                 monthly_interest.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             )
+            total_interest += monthly_interest_float
 
             # Apply surplus to the first active debt each period
             payment = debt["minimum_payment"]
@@ -104,6 +106,23 @@ def _calculate_schedule(*, debts: Iterable[DebtAccount], surplus: float) -> list
         current_date = _next_month(current_date)
 
     return payoff_schedule
+
+
+def schedule_summary(schedule: list[dict]) -> tuple[str | None, float, int]:
+    """Return (payoff_date_iso, total_interest, months)."""
+
+    if not schedule:
+        return None, 0.0, 0
+    payoff_date = schedule[-1].get("date")
+    total_interest = 0.0
+    for entry in schedule:
+        payments = entry.get("payments", {}) if isinstance(entry, dict) else {}
+        for p in payments.values():
+            try:
+                total_interest += float(p.get("interest_paid", 0.0) or 0.0)
+            except Exception:
+                continue
+    return str(payoff_date) if payoff_date else None, total_interest, len(schedule)
 
 
 def snowball_schedule(*, debts: Iterable[DebtAccount], surplus: float) -> list[dict]:

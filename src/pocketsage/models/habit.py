@@ -23,6 +23,9 @@ class Habit(SQLModel, table=True):
     description: str = Field(default="", max_length=255)
     cadence: str = Field(default="daily", max_length=32)
     is_active: bool = Field(default=True, nullable=False)
+    reminder_time: Optional[str] = Field(
+        default=None, max_length=8, description="Optional HH:MM reminder placeholder"
+    )
 
     entries: list["HabitEntry"] = Relationship(
         back_populates="habit",

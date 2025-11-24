@@ -10,13 +10,14 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING
 
 import flet as ft
 
-from ...models.habit import HabitEntry
+from ...models.habit import Habit, HabitEntry
 from ...devtools import dev_log
+from ...services.habits import reminder_placeholder
 from ..components import build_app_bar, build_main_layout
 
 if TYPE_CHECKING:
@@ -28,11 +29,15 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     uid = ctx.require_user_id()
     habit_list_ref = ft.Ref[ft.Column]()
+    archived_list_ref = ft.Ref[ft.Column]()
     heatmap_ref = ft.Ref[ft.GridView]()
     selected_ref = ft.Ref[ft.Text]()
     streak_ref = ft.Ref[ft.Text]()
     longest_ref = ft.Ref[ft.Text]()
+    reminder_ref = ft.Ref[ft.Text]()
+    heatmap_label_ref = ft.Ref[ft.Text]()
     selected_habit: int | None = None
+    show_archived_checkbox = ft.Checkbox(label="Show archived", value=False)
     heatmap_days = ft.Dropdown(
         label="Heatmap window",
         options=[
@@ -53,6 +58,16 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         except (TypeError, ValueError):
             dev_log(ctx.config, "Invalid heatmap window value", context={"value": raw})
             return 90
+
+    def _validate_reminder(raw: str | None) -> str | None:
+        """Return HH:MM string when valid, otherwise None."""
+        if not raw:
+            return None
+        try:
+            datetime.strptime(raw.strip(), "%H:%M")
+            return raw.strip()
+        except ValueError:
+            return None
 
     def render_heatmap(habit_id: int, days: int | None = None):
         window = days if days is not None else _window_days()
@@ -82,6 +97,9 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 cells.append(ft.Container(width=18, height=18, bgcolor=ft.Colors.SURFACE_DIM))
         heatmap_ref.current.controls = cells
         heatmap_ref.current.update()
+        if heatmap_label_ref.current:
+            heatmap_label_ref.current.value = f"Last {window} days"
+            heatmap_label_ref.current.update()
 
     def select_habit(hid: int, name: str):
         nonlocal selected_habit
@@ -93,14 +111,60 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         longest_ref.current.value = (
             f"Longest streak: {ctx.habit_repo.get_longest_streak(hid, user_id=uid)}"
         )
+        habit_obj = ctx.habit_repo.get_by_id(hid, user_id=uid)
+        if reminder_ref.current and habit_obj:
+            reminder_ref.current.value = reminder_placeholder(habit_obj)
+            reminder_ref.current.update()
         render_heatmap(hid)
         page.update()
 
-    def refresh_habit_list():
+    def refresh_habit_list(show_archived: bool = False):
         habits = ctx.habit_repo.list_active(user_id=uid)
-        rows: list[ft.Control] = []
+        archived = ctx.habit_repo.list_all(user_id=uid, include_inactive=True)
+        archived = [h for h in archived if not h.is_active]
         today = date.today()
 
+        def _toggle_habit(habit_id: int):
+            entry = ctx.habit_repo.get_entry(habit_id, today, user_id=uid)
+            if entry:
+                ctx.habit_repo.delete_entry(habit_id, today, user_id=uid)
+                dev_log(ctx.config, "Habit unchecked", context={"habit_id": habit_id})
+            else:
+                ctx.habit_repo.upsert_entry(
+                    HabitEntry(habit_id=habit_id, occurred_on=today, value=1, user_id=uid),
+                    user_id=uid,
+                )
+                dev_log(ctx.config, "Habit completed", context={"habit_id": habit_id})
+            refresh_habit_list(show_archived)
+            if selected_habit == habit_id:
+                habit_obj = ctx.habit_repo.get_by_id(habit_id, user_id=uid)
+                if habit_obj:
+                    select_habit(habit_id, habit_obj.name)
+            page.snack_bar = ft.SnackBar(content=ft.Text("Habit updated"))
+            page.snack_bar.open = True
+            page.update()
+
+        def _archive(habit_id: int, is_active: bool):
+            rec = ctx.habit_repo.get_by_id(habit_id, user_id=uid)
+            if rec:
+                rec.is_active = is_active
+                ctx.habit_repo.update(rec, user_id=uid)
+                dev_log(
+                    ctx.config,
+                    "Habit status changed",
+                    context={"habit_id": habit_id, "active": is_active},
+                )
+            refresh_habit_list(show_archived)
+            page.snack_bar = ft.SnackBar(
+                content=ft.Text("Habit reactivated" if is_active else "Habit archived")
+            )
+            page.snack_bar.open = True
+            page.update()
+
+        def _edit(habit: Habit):
+            open_create_dialog(None, habit=habit)
+
+        rows: list[ft.Control] = []
         for habit in habits:
             current_streak = ctx.habit_repo.get_current_streak(habit.id, user_id=uid)
             longest_streak = ctx.habit_repo.get_longest_streak(habit.id, user_id=uid)
@@ -108,44 +172,15 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
             is_completed = today_entry is not None and today_entry.value > 0
             streak_label = f"Current: {current_streak} / Longest: {longest_streak}"
 
-            # TODO(@codex): Handle daily toggle logic for habits
-            #    - On toggle on: create HabitEntry for today, recalc streak (DONE)
-            #    - On toggle off: remove today's entry, recalc streak (DONE)
-            #    - Update streak display immediately after toggling (DONE)
-            #    - This implements FR-14 (streak tracking) and UR-11 (daily check-ins)
-            def toggle_habit(_e, habit_id=habit.id):
-                entry = ctx.habit_repo.get_entry(habit_id, today, user_id=uid)
-                if entry:
-                    ctx.habit_repo.delete_entry(habit_id, today, user_id=uid)
-                    dev_log(ctx.config, "Habit unchecked", context={"habit_id": habit_id})
-                else:
-                    ctx.habit_repo.upsert_entry(
-                        HabitEntry(habit_id=habit_id, occurred_on=today, value=1, user_id=uid),
-                        user_id=uid,
-                    )
-                    dev_log(ctx.config, "Habit completed", context={"habit_id": habit_id})
-                refresh_habit_list()
-                page.snack_bar = ft.SnackBar(content=ft.Text("Habit updated"))
-                page.snack_bar.open = True
-                page.update()
-
-            def archive_habit(_e, habit_id=habit.id):
-                rec = ctx.habit_repo.get_by_id(habit_id, user_id=uid)
-                if rec:
-                    rec.is_active = False
-                    ctx.habit_repo.update(rec, user_id=uid)
-                    dev_log(ctx.config, "Habit archived", context={"habit_id": habit_id})
-                refresh_habit_list()
-                page.snack_bar = ft.SnackBar(content=ft.Text("Habit archived"))
-                page.snack_bar.open = True
-                page.update()
-
             rows.append(
                 ft.Card(
                     content=ft.Container(
                         content=ft.Row(
                             [
-                                ft.Switch(value=is_completed, on_change=toggle_habit),
+                                ft.Switch(
+                                    value=is_completed,
+                                    on_change=lambda _e, hid=habit.id: _toggle_habit(hid),
+                                ),
                                 ft.Column(
                                     [
                                         ft.Text(habit.name, size=16, weight=ft.FontWeight.BOLD),
@@ -163,9 +198,14 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                     expand=True,
                                 ),
                                 ft.IconButton(
+                                    icon=ft.Icons.EDIT,
+                                    tooltip="Edit",
+                                    on_click=lambda _e, h=habit: _edit(h),
+                                ),
+                                ft.IconButton(
                                     icon=ft.Icons.ARCHIVE_OUTLINED,
                                     tooltip="Archive habit",
-                                    on_click=archive_habit,
+                                    on_click=lambda _e, hid=habit.id: _archive(hid, False),
                                 ),
                             ],
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -199,10 +239,37 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
             )
 
         habit_list_ref.current.controls = rows
+
+        archived_rows: list[ft.Control] = []
+        if show_archived and archived:
+            for habit in archived:
+                archived_rows.append(
+                    ft.Row(
+                        [
+                            ft.Text(habit.name),
+                            ft.TextButton(
+                                "Reactivate",
+                                on_click=lambda _e, hid=habit.id: _archive(hid, True),
+                            ),
+                        ],
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    )
+                )
+        elif show_archived:
+            archived_rows.append(ft.Text("No archived habits"))
+
+        if archived_list_ref.current is not None:
+            archived_list_ref.current.controls = archived_rows
+            if getattr(archived_list_ref.current, "page", None):
+                archived_list_ref.current.update()
+
         page.update()
+
+    show_archived_checkbox.on_change = lambda _e: refresh_habit_list(show_archived_checkbox.value)
 
     habit_list = ft.Column(ref=habit_list_ref, spacing=8, expand=True)
     habit_list_ref.current = habit_list
+    archived_list = ft.Column(ref=archived_list_ref, spacing=4)
 
     heatmap = ft.GridView(
         ref=heatmap_ref,
@@ -226,7 +293,8 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.Text("", ref=selected_ref, size=20, weight=ft.FontWeight.BOLD),
             ft.Text("", ref=streak_ref),
             ft.Text("", ref=longest_ref),
-            ft.Text("Last 28 days", weight=ft.FontWeight.BOLD),
+            ft.Text("", ref=reminder_ref, size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+            ft.Text("", ref=heatmap_label_ref, weight=ft.FontWeight.BOLD),
             ft.Row([heatmap_days], alignment=ft.MainAxisAlignment.START),
             heatmap,
         ],
@@ -234,12 +302,19 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         expand=True,
     )
 
-    def open_create_dialog(_):
-        name_field = ft.TextField(label="Name", width=260, autofocus=True)
+    def open_create_dialog(_=None, *, habit: Habit | None = None):
+        is_edit = habit is not None
+        name_field = ft.TextField(
+            label="Name",
+            width=260,
+            autofocus=True,
+            value=habit.name if habit else "",
+        )
         desc_field = ft.TextField(
             label="Description",
             width=260,
             helper_text="Optional: why this habit matters.",
+            value=habit.description if habit else "",
         )
         cadence_field = ft.Dropdown(
             label="Cadence",
@@ -247,47 +322,70 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 ft.dropdown.Option("daily", "Daily"),
                 ft.dropdown.Option("weekly", "Weekly"),
             ],
-            value="daily",
+            value=habit.cadence if habit else "daily",
             width=200,
         )
 
-        reminder_switch = ft.Switch(label="Remind me daily", value=False)
-        reminder_time = ft.TextField(label="Reminder time (HH:MM)", width=160, hint_text="08:00")
+        reminder_time = ft.TextField(
+            label="Reminder time (HH:MM)",
+            width=160,
+            hint_text="08:00",
+            value=habit.reminder_time if habit else "",
+        )
 
         def save_habit(_):
+            if not name_field.value or not name_field.value.strip():
+                name_field.error_text = "Name is required"
+                name_field.update()
+                return
+            name_field.error_text = None
+            reminder_value = _validate_reminder(reminder_time.value)
+            if reminder_time.value and not reminder_value:
+                reminder_time.error_text = "Use HH:MM format"
+                reminder_time.update()
+                return
+            reminder_time.error_text = None
             try:
-                from ...models.habit import Habit
-
-                habit = Habit(
-                    name=name_field.value or "Habit",
-                    description=desc_field.value or "",
-                    cadence=cadence_field.value or "daily",
-                    user_id=uid,
-                )
-                ctx.habit_repo.create(habit, user_id=uid)
-                dev_log(ctx.config, "Habit created", context={"name": habit.name})
-                # TODO(@habits-squad): wire reminder_switch/time to system notifications
+                if is_edit and habit:
+                    habit.name = name_field.value.strip()
+                    habit.description = desc_field.value or ""
+                    habit.cadence = cadence_field.value or "daily"
+                    habit.reminder_time = reminder_value
+                    ctx.habit_repo.update(habit, user_id=uid)
+                    dev_log(ctx.config, "Habit updated", context={"name": habit.name})
+                else:
+                    new_habit = Habit(
+                        name=name_field.value.strip(),
+                        description=desc_field.value or "",
+                        cadence=cadence_field.value or "daily",
+                        reminder_time=reminder_value,
+                        user_id=uid,
+                    )
+                    ctx.habit_repo.create(new_habit, user_id=uid)
+                    dev_log(ctx.config, "Habit created", context={"name": new_habit.name})
                 dialog.open = False
-                refresh_habit_list()
-                page.snack_bar = ft.SnackBar(content=ft.Text("Habit created"))
+                refresh_habit_list(show_archived_checkbox.value)
+                page.snack_bar = ft.SnackBar(
+                    content=ft.Text("Habit updated" if is_edit else "Habit created")
+                )
                 page.snack_bar.open = True
                 page.update()
             except Exception as exc:
-                dev_log(ctx.config, "Habit create failed", exc=exc)
-                page.snack_bar = ft.SnackBar(content=ft.Text(f"Failed to create: {exc}"))
+                dev_log(ctx.config, "Habit save failed", exc=exc)
+                page.snack_bar = ft.SnackBar(content=ft.Text(f"Failed to save: {exc}"))
                 page.snack_bar.open = True
                 page.update()
 
         dialog = ft.AlertDialog(
-            title=ft.Text("Create habit"),
+            title=ft.Text("Edit habit" if is_edit else "Create habit"),
             content=ft.Column(
-                [name_field, desc_field, cadence_field, reminder_switch, reminder_time],
+                [name_field, desc_field, cadence_field, reminder_time],
                 tight=True,
                 spacing=8,
             ),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: setattr(dialog, "open", False)),
-                ft.FilledButton("Create", on_click=save_habit),
+                ft.FilledButton("Save", on_click=save_habit),
             ],
         )
         page.dialog = dialog
@@ -310,12 +408,26 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 date.today().strftime("%A, %B %d, %Y"),
                                 color=ft.Colors.ON_SURFACE_VARIANT,
                             ),
-                            ft.FilledButton("Add habit", icon=ft.Icons.ADD, on_click=open_create_dialog),
+                            ft.FilledButton(
+                                "Add habit",
+                                icon=ft.Icons.ADD,
+                                on_click=open_create_dialog,
+                            ),
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     ),
                     ft.Container(height=8),
                     habit_list,
+                    ft.Container(height=12),
+                    ft.Row(
+                        [
+                            show_archived_checkbox,
+                            ft.Text("Archived habits", weight=ft.FontWeight.BOLD),
+                        ],
+                        alignment=ft.MainAxisAlignment.START,
+                        spacing=8,
+                    ),
+                    archived_list,
                 ],
                 expand=True,
             ),

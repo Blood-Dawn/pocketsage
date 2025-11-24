@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import math
 import re
 from datetime import datetime
@@ -43,6 +44,7 @@ def import_ledger_transactions(
         return 0
 
     created = 0
+    seen_digests: set[str] = set()
     with session_factory() as session:
         for row in parsed_rows:
             occurred_at = _parse_datetime(row.get("occurred_at"))
@@ -50,15 +52,29 @@ def import_ledger_transactions(
             if occurred_at is None or amount is None:
                 continue
 
-            external_id = row.get("external_id")
+            amount_val = float(amount)
+            memo = str(row.get("memo") or "").strip()
+
+            external_id = str(row.get("external_id") or "").strip()
+            if not external_id:
+                external_id = _row_digest(
+                    occurred_at=occurred_at,
+                    amount=amount_val,
+                    memo=memo,
+                    category=row.get("category"),
+                    account=row.get("account_name"),
+                )
             if external_id and _transaction_exists(session, str(external_id), user_id=user_id):
                 continue
+            if external_id in seen_digests:
+                continue
+            seen_digests.add(external_id)
 
             category_id = _resolve_category_id(
                 session,
                 row.get("category_id"),
                 row.get("category"),
-                amount,
+                amount_val,
                 user_id,
             )
             account_id = _resolve_account_id(
@@ -68,12 +84,11 @@ def import_ledger_transactions(
                 user_id,
             )
             currency = _sanitize_currency(row.get("currency"))
-            memo = str(row.get("memo") or "").strip()
 
             txn = Transaction(
                 user_id=user_id,
                 occurred_at=occurred_at,
-                amount=float(amount),
+                amount=amount_val,
                 memo=memo,
                 external_id=str(external_id) if external_id else None,
                 category_id=category_id,
@@ -101,6 +116,7 @@ def import_portfolio_holdings(
         raise ValueError(f"Portfolio CSV missing columns: {', '.join(sorted(missing))}")
 
     processed = 0
+    seen_digests: set[str] = set()
     with session_factory() as session:
         for _, row in frame.iterrows():
             symbol = str(row.get("symbol") or "").strip().upper()
@@ -121,6 +137,16 @@ def import_portfolio_holdings(
             currency = _sanitize_currency(row.get("currency")) or "USD"
             acquired_at = _parse_datetime(row.get("as_of"))
             market_price = _safe_float(row.get("market_price")) or 0.0
+            digest = _row_digest(
+                occurred_at=acquired_at or datetime.min,
+                amount=quantity * avg_price,
+                memo=symbol,
+                category=account_name,
+                account=row.get("account_id"),
+            )
+            if digest in seen_digests:
+                continue
+            seen_digests.add(digest)
 
             existing = _lookup_holding(session, symbol, account_id, user_id)
             if existing:
@@ -165,6 +191,22 @@ def _sanitize_currency(value: object) -> Optional[str]:
         return None
     text = str(value).strip().upper()
     return text[:3] if text else None
+
+
+def _row_digest(
+    *, occurred_at: datetime, amount: float, memo: str, category: object, account: object
+) -> str:
+    """Compute a stable hash for idempotent imports when no external_id is provided."""
+
+    parts = [
+        occurred_at.strftime("%Y-%m-%d"),
+        f"{amount:.2f}",
+        memo.strip().lower(),
+        str(category or "").strip().lower(),
+        str(account or "").strip().lower(),
+    ]
+    data = "|".join(parts).encode("utf-8")
+    return hashlib.md5(data).hexdigest()
 
 
 def _transaction_exists(session: Session, external_id: str, *, user_id: int) -> bool:

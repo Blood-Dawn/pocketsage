@@ -45,6 +45,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
     total_holdings_text = ft.Ref[ft.Text]()
     cost_basis_text = ft.Ref[ft.Text]()
     market_value_text = ft.Ref[ft.Text]()
+    gain_loss_text = ft.Ref[ft.Text]()
     account_filter = ft.Dropdown(
         label="Account filter",
         options=[ft.dropdown.Option("", "All accounts")]
@@ -168,12 +169,18 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 dialog.open = False
                 _refresh()
             except Exception as exc:
-                dev_log(ctx.config, "Holding save failed", exc=exc, context={"symbol": symbol.value})
+                dev_log(
+                    ctx.config, "Holding save failed", exc=exc, context={"symbol": symbol.value}
+                )
                 show_error_dialog(page, "Save failed", str(exc))
 
         dialog = ft.AlertDialog(
             title=ft.Text(title),
-            content=ft.Column([symbol, qty, price, market_price, account_dd], tight=True, spacing=8),
+            content=ft.Column(
+                [symbol, qty, price, market_price, account_dd],
+                tight=True,
+                spacing=8,
+            ),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: setattr(dialog, "open", False)),
                 ft.FilledButton("Save", on_click=_save),
@@ -196,15 +203,22 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     def _refresh() -> None:
         selected_account = (
-            int(account_filter.value) if account_filter.value and account_filter.value.isdigit() else None
+            int(account_filter.value)
+            if account_filter.value and account_filter.value.isdigit()
+            else None
         )
         holdings = (
             ctx.holding_repo.list_by_account(selected_account, user_id=uid)
             if selected_account
             else ctx.holding_repo.list_all(user_id=uid)
         )
-        total_cost_basis = ctx.holding_repo.get_total_cost_basis(user_id=uid)
-        total_market_value = ctx.holding_repo.get_total_market_value(user_id=uid)
+        total_cost_basis = ctx.holding_repo.get_total_cost_basis(
+            user_id=uid, account_id=selected_account
+        )
+        total_market_value = ctx.holding_repo.get_total_market_value(
+            user_id=uid, account_id=selected_account
+        )
+        total_gain_loss = total_market_value - total_cost_basis
 
         if total_holdings_text.current:
             total_holdings_text.current.value = str(len(holdings))
@@ -212,12 +226,18 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
             cost_basis_text.current.value = f"${total_cost_basis:,.2f}"
         if market_value_text.current:
             market_value_text.current.value = f"${total_market_value:,.2f}"
+        if gain_loss_text.current:
+            gain_loss_text.current.value = f"${total_gain_loss:,.2f}"
+            gain_loss_text.current.color = (
+                ft.Colors.GREEN if total_gain_loss >= 0 else ft.Colors.RED
+            )
 
         rows: list[ft.DataRow] = []
         for h in holdings:
             cost_basis = h.quantity * h.avg_price
             market_price_val = h.market_price if getattr(h, "market_price", 0.0) else h.avg_price
             market_value = h.quantity * market_price_val
+            gain_loss = market_value - cost_basis
             rows.append(
                 ft.DataRow(
                     cells=[
@@ -227,6 +247,12 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         ft.DataCell(ft.Text(f"${market_price_val:,.2f}")),
                         ft.DataCell(ft.Text(f"${cost_basis:,.2f}")),
                         ft.DataCell(ft.Text(f"${market_value:,.2f}")),
+                        ft.DataCell(
+                            ft.Text(
+                                f"${gain_loss:,.2f}",
+                                color=ft.Colors.GREEN if gain_loss >= 0 else ft.Colors.RED,
+                            )
+                        ),
                         ft.DataCell(ft.Text(_account_name(h.account_id))),
                         ft.DataCell(
                             ft.Row(
@@ -283,6 +309,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.DataColumn(ft.Text("Market Price")),
             ft.DataColumn(ft.Text("Cost Basis")),
             ft.DataColumn(ft.Text("Market Value")),
+            ft.DataColumn(ft.Text("Gain/Loss")),
             ft.DataColumn(ft.Text("Account")),
             ft.DataColumn(ft.Text("Actions")),
         ],
@@ -297,7 +324,12 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.Column(
                         [
                             ft.Text("Total Holdings", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
-                            ft.Text("", size=28, weight=ft.FontWeight.BOLD, ref=total_holdings_text),
+                            ft.Text(
+                                "",
+                                size=28,
+                                weight=ft.FontWeight.BOLD,
+                                ref=total_holdings_text,
+                            ),
                             ft.Text(
                                 "Total Cost Basis", size=14, color=ft.Colors.ON_SURFACE_VARIANT
                             ),
@@ -320,6 +352,17 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 color=ft.Colors.GREEN,
                                 ref=market_value_text,
                             ),
+                            ft.Text(
+                                "Unrealized Gain/Loss",
+                                size=14,
+                                color=ft.Colors.ON_SURFACE_VARIANT,
+                            ),
+                            ft.Text(
+                                "",
+                                size=24,
+                                weight=ft.FontWeight.BOLD,
+                                ref=gain_loss_text,
+                            ),
                         ],
                         spacing=4,
                     ),
@@ -334,7 +377,9 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     controls_row = ft.Row(
         [
-            ft.FilledButton("Add holding", icon=ft.Icons.ADD, on_click=lambda _: _open_dialog(None)),
+            ft.FilledButton(
+                "Add holding", icon=ft.Icons.ADD, on_click=lambda _: _open_dialog(None)
+            ),
             ft.TextButton(
                 "Import CSV",
                 icon=ft.Icons.UPLOAD_FILE,

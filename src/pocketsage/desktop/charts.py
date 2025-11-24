@@ -18,9 +18,11 @@ from pocketsage.models.transaction import Transaction
 from pocketsage.services.reports import build_spending_chart
 
 
-def spending_chart_png(transactions: Iterable[Transaction]) -> Path:
+def spending_chart_png(
+    transactions: Iterable[Transaction], *, category_lookup: dict[int, str] | None = None
+) -> Path:
     """Render spending donut using existing reports helper and return PNG path."""
-    fig = build_spending_chart(transactions=transactions)
+    fig = build_spending_chart(transactions=transactions, category_lookup=category_lookup)
     with NamedTemporaryFile(delete=False, suffix=".png") as tmp:
         fig.savefig(tmp.name, bbox_inches="tight")
         path = Path(tmp.name)

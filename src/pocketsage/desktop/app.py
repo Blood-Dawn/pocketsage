@@ -9,7 +9,6 @@ from .context import create_app_context
 from ..devtools import dev_log
 from .navigation import Router
 from .views.admin import build_admin_view
-from .views.auth import build_auth_view
 from .views.budgets import build_budgets_view
 from .views.dashboard import build_dashboard_view
 from .views.debts import build_debts_view
@@ -40,7 +39,8 @@ def main(page: ft.Page) -> None:
         )
     # Theme preference
     persisted_theme = ctx.settings_repo.get("theme_mode")
-    if persisted_theme and persisted_theme.value.lower() == "light":
+    saved_mode = (persisted_theme.value if persisted_theme else "").strip().lower()
+    if saved_mode == "light":
         page.theme_mode = ft.ThemeMode.LIGHT
         ctx.theme_mode = ft.ThemeMode.LIGHT
     else:
@@ -68,7 +68,6 @@ def main(page: ft.Page) -> None:
 
     # Register routes and aliases
     route_builders = {
-        "/login": build_auth_view,
         "/dashboard": build_dashboard_view,
         "/": build_dashboard_view,
         "/ledger": build_ledger_view,
@@ -94,10 +93,7 @@ def main(page: ft.Page) -> None:
 
     page.on_keyboard_event = handle_shortcuts
 
-    # TODO(@codex): Skip login and go directly to dashboard for guest mode MVP
-    #    - No authentication required; user is automatically logged in as guest
-    #    - This provides immediate access to the app without login screens
-    # Navigate to default route
+    # Login-free desktop shell: start directly on the dashboard using the guest context.
     page.go("/dashboard")
 
 

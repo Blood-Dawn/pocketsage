@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import csv
 import shutil
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
@@ -17,8 +17,10 @@ from ...services.reports import export_spending_png, export_transactions_csv
 from .. import controllers
 from ..charts import (
     cashflow_by_account_png,
+    allocation_chart_png,
     category_trend_png,
     debt_payoff_chart_png,
+    spending_chart_png,
 )
 from ..components import build_app_bar, build_main_layout, empty_state
 from ..context import AppContext
@@ -28,12 +30,119 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Build the reports/export view."""
 
     uid = ctx.require_user_id()
+    charts_row = ft.ResponsiveRow()
 
     def notify(message: str):
         page.snack_bar = ft.SnackBar(content=ft.Text(message))
         page.snack_bar.open = True
         page.update()
 
+    # Build aggregated charts for quick viewing
+    def _build_charts() -> ft.ResponsiveRow:
+        month = ctx.current_month
+        start = datetime(month.year, month.month, 1)
+        if month.month == 12:
+            end = datetime(month.year + 1, 1, 1)
+        else:
+            end = datetime(month.year, month.month + 1, 1)
+        txs_month = ctx.transaction_repo.search(
+            start_date=start, end_date=end, user_id=uid, category_id=None, account_id=None, text=None  # type: ignore[arg-type]
+        )
+        categories = {c.id: c.name for c in ctx.category_repo.list_all(user_id=uid) if c.id}
+
+        spending_png = spending_chart_png(txs_month, category_lookup=categories)
+
+        # Budget usage progress snapshot
+        budget = ctx.budget_repo.get_for_month(month.year, month.month, user_id=uid)
+        budget_rows: list[ft.Control] = []
+        if budget:
+            lines = ctx.budget_repo.get_lines_for_budget(budget.id, user_id=uid)
+            for line in lines:
+                cat_name = categories.get(line.category_id, "Category")
+                actual = sum(
+                    abs(t.amount)
+                    for t in ctx.transaction_repo.search(
+                        start_date=start, end_date=end, category_id=line.category_id, user_id=uid
+                    )
+                    if t.amount < 0
+                )
+                pct = 0 if line.planned_amount == 0 else min((actual / line.planned_amount) * 100, 999)
+                budget_rows.append(
+                    ft.Row(
+                        [
+                            ft.Text(cat_name, width=140),
+                            ft.ProgressBar(
+                                value=min(actual / (line.planned_amount or 1), 1.0),
+                                color=ft.Colors.PRIMARY if actual <= line.planned_amount else ft.Colors.ERROR,
+                                expand=True,
+                            ),
+                            ft.Text(f"{pct:.0f}%", width=50),
+                        ],
+                        spacing=8,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    )
+                )
+        else:
+            budget_rows.append(
+                ft.Text("No budget for this month", color=ft.Colors.ON_SURFACE_VARIANT)
+            )
+
+        # Habits completion snapshot (last 7 days)
+        habits = ctx.habit_repo.list_active(user_id=uid)
+        today = datetime.today().date()
+        habit_rows: list[ft.Control] = []
+        for habit in habits:
+            entries = ctx.habit_repo.get_entries_for_habit(
+                habit.id, today - timedelta(days=6), today, user_id=uid
+            )
+            completed = sum(1 for e in entries if e.value > 0)
+            pct = (completed / 7) * 100
+            habit_rows.append(
+                ft.Row(
+                    [
+                        ft.Text(habit.name, width=140),
+                        ft.ProgressBar(
+                            value=completed / 7,
+                            color=ft.Colors.GREEN if completed >= 5 else ft.Colors.AMBER,
+                            expand=True,
+                        ),
+                        ft.Text(f"{pct:.0f}%", width=50),
+                    ],
+                    spacing=8,
+                )
+            )
+        if not habit_rows:
+            habit_rows.append(ft.Text("No habits yet", color=ft.Colors.ON_SURFACE_VARIANT))
+
+        # Debt payoff chart snapshot
+        liabilities = ctx.liability_repo.list_all(user_id=uid)
+        debts = [
+            DebtAccount(
+                id=lb.id or 0,
+                balance=lb.balance,
+                apr=lb.apr,
+                minimum_payment=lb.minimum_payment,
+                statement_due_day=getattr(lb, "due_day", 1) or 1,
+            )
+            for lb in liabilities
+        ]
+        payoff_png = debt_payoff_chart_png(snowball_schedule(debts=debts, surplus=0.0)) if debts else None
+
+        # Portfolio allocation snapshot
+        holdings = ctx.holding_repo.list_all(user_id=uid) if hasattr(ctx, "holding_repo") else []
+        allocation_png = allocation_chart_png(holdings) if holdings else None
+
+        return ft.ResponsiveRow(
+            controls=[
+                _chart_card("Spending by category", spending_png),
+                _chart_card("Budget usage", None, ft.Column(budget_rows, spacing=6)),
+                _chart_card("Habit completion (7d)", None, ft.Column(habit_rows, spacing=6)),
+                _chart_card("Debt payoff projection", payoff_png),
+                _chart_card("Portfolio allocation", allocation_png),
+            ],
+            spacing=12,
+            run_spacing=12,
+        )
     def _exports_dir() -> Path:
         out = Path(ctx.config.DATA_DIR) / "exports"
         out.mkdir(parents=True, exist_ok=True)
@@ -323,6 +432,8 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 "Generate CSVs/ZIPs for archives or sharing.", color=ft.Colors.ON_SURFACE_VARIANT
             ),
             ft.Container(height=12),
+            _build_charts(),
+            ft.Container(height=16),
             cards,
             ft.Container(height=16),
             empty_state("More reports coming soon."),
@@ -355,6 +466,32 @@ def _report_card(title: str, description: str, on_click):
                         ft.Container(height=8),
                         ft.FilledTonalButton("Download", icon=ft.Icons.DOWNLOAD, on_click=on_click),
                     ]
+                ),
+            )
+        ),
+    )
+
+
+def _chart_card(title: str, image_path: Path | str | None, content: ft.Control | None = None):
+    body: ft.Control
+    if image_path:
+        body = ft.Image(src=str(image_path), height=200, fit=ft.ImageFit.CONTAIN)
+    elif content is not None:
+        body = content
+    else:
+        body = ft.Text("No data", color=ft.Colors.ON_SURFACE_VARIANT)
+
+    return ft.Container(
+        col={"sm": 12, "md": 6},
+        content=ft.Card(
+            content=ft.Container(
+                padding=12,
+                content=ft.Column(
+                    [
+                        ft.Text(title, weight=ft.FontWeight.BOLD),
+                        body,
+                    ],
+                    spacing=8,
                 ),
             )
         ),

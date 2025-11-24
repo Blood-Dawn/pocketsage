@@ -24,7 +24,6 @@ class Router:
         self.page = page
         self.context = context
         self.routes: Dict[str, ViewBuilder] = {}
-        self.auth_routes = {"/login"}
 
     def register(self, route: str, builder: ViewBuilder) -> None:
         """Register a route with its view builder."""
@@ -33,16 +32,11 @@ class Router:
     def route_change(self, e: ft.RouteChangeEvent) -> None:
         """Handle route change events."""
         route = e.route or "/"
+        if route == "/login":
+            route = "/dashboard"
 
         if route not in self.routes:
             route = "/dashboard"
-
-        if self.context.current_user is None and route not in self.auth_routes:
-            self.page.go("/login")
-            return
-        if self.context.current_user is not None and route in self.auth_routes:
-            self.page.go("/dashboard")
-            return
 
         builder = self.routes.get(route)
         if not builder:

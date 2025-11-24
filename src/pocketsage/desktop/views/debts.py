@@ -17,7 +17,7 @@ import flet as ft
 
 from ...models.liability import Liability
 from ...devtools import dev_log
-from ...services.debts import DebtAccount, avalanche_schedule, snowball_schedule
+from ...services.debts import DebtAccount, avalanche_schedule, schedule_summary, snowball_schedule
 from ...services.liabilities import build_payment_transaction
 from ..charts import debt_payoff_chart_png
 from ..components import build_app_bar, build_main_layout
@@ -37,6 +37,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
     weighted_apr_text = ft.Ref[ft.Text]()
     min_payment_text = ft.Ref[ft.Text]()
     payoff_text = ft.Ref[ft.Text]()
+    interest_text = ft.Ref[ft.Text]()
     table_ref = ft.Ref[ft.DataTable]()
     schedule_ref = ft.Ref[ft.Column]()
     payoff_chart_ref = ft.Ref[ft.Image]()
@@ -53,18 +54,22 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             for lb in liabilities
         ]
 
-    def _run_projection(liabilities: list[Liability]) -> tuple[list[dict], str | None]:
+    def _run_projection(liabilities: list[Liability]) -> tuple[list[dict], str | None, float, int]:
         debts = _to_accounts(liabilities)
+        if not debts:
+            return [], None, 0.0, 0
         if strategy_state["value"] == "avalanche":
             sched = avalanche_schedule(debts=debts, surplus=0.0)
         else:
             sched = snowball_schedule(debts=debts, surplus=0.0)
-        payoff = sched[-1]["date"] if sched else None
-        return sched, payoff
+        payoff, total_interest, months = schedule_summary(sched)
+        return sched, payoff, total_interest, months
 
-    def _update_schedule(schedule: list[dict], payoff: str | None) -> None:
+    def _update_schedule(schedule: list[dict], payoff: str | None, total_interest: float) -> None:
         if payoff_text.current:
             payoff_text.current.value = f"Projected payoff: {payoff or 'N/A'}"
+        if interest_text.current:
+            interest_text.current.value = f"Projected interest: ${total_interest:,.2f}"
         rows: list[ft.Control] = []
         for entry in schedule[:6]:
             payments = entry.get("payments", {}) if isinstance(entry, dict) else {}
@@ -157,8 +162,12 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         if table_ref.current:
             table_ref.current.rows = rows
 
-        schedule, payoff = _run_projection(liabilities)
-        _update_schedule(schedule, payoff)
+        try:
+            schedule, payoff, total_interest, _months = _run_projection(liabilities)
+            _update_schedule(schedule, payoff, total_interest)
+        except ValueError as exc:
+            show_error_dialog(page, "Payoff calculation failed", str(exc))
+        page.update()
         page.update()
 
     def _open_edit_dialog(liability: Liability | None = None) -> None:
@@ -338,6 +347,22 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         [
                             ft.Text("Min. Payment", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
                             ft.Text("", size=28, weight=ft.FontWeight.BOLD, ref=min_payment_text),
+                        ],
+                    ),
+                    padding=20,
+                ),
+                expand=True,
+            ),
+            ft.Card(
+                content=ft.Container(
+                    content=ft.Column(
+                        [
+                            ft.Text(
+                                "Projected Interest",
+                                size=14,
+                                color=ft.Colors.ON_SURFACE_VARIANT,
+                            ),
+                            ft.Text("", size=28, weight=ft.FontWeight.BOLD, ref=interest_text),
                         ],
                     ),
                     padding=20,

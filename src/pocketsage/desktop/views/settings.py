@@ -48,8 +48,9 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
         on_change=toggle_theme,
     )
 
-    # Database info
+    # Database info and encryption placeholder
     db_path = ctx.config.DATA_DIR / ctx.config.DB_FILENAME
+    encryption_enabled = bool(getattr(ctx.config, "USE_SQLCIPHER", False))
 
     # Build settings sections
     appearance_section = ft.Card(
@@ -255,6 +256,33 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         f"Export retention: {ctx.config.EXPORT_RETENTION} archives (configure in config).",
                         size=12,
                         color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                    ft.Container(height=12),
+                    ft.Text(
+                        "Encryption",
+                        size=16,
+                        weight=ft.FontWeight.BOLD,
+                    ),
+                    ft.Text(
+                        "SQLCipher toggle placeholder (restart required when enabled).",
+                        size=12,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                    ft.Row(
+                        [
+                            ft.Switch(
+                                label="Encrypt database (SQLCipher-ready)",
+                                value=encryption_enabled,
+                                disabled=True,
+                                tooltip="Planned SQLCipher support; enable via env once wired.",
+                            ),
+                            ft.Text(
+                                "Status: enabled" if encryption_enabled else "Status: disabled (default SQLite)",
+                                size=12,
+                                color=ft.Colors.ON_SURFACE_VARIANT,
+                            ),
+                        ],
+                        spacing=8,
                     ),
                 ],
             ),

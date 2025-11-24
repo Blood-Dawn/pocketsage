@@ -229,16 +229,14 @@ def pick_export_destination(
 
 
 def logout(ctx: AppContext, page: ft.Page) -> None:
-    """Clear session and return to login."""
+    """Login-free desktop shell: keep guest context and return home."""
 
-    if ctx.guest_mode:
-        try:
-            auth.purge_guest_user(ctx.session_factory)
-        except Exception:
-            pass
-    ctx.current_user = None
-    ctx.guest_mode = False
-    navigate(page, "/login")
+    try:
+        ctx.current_user = auth.ensure_guest_user(ctx.session_factory)
+        ctx.guest_mode = True
+    except Exception:
+        pass
+    navigate(page, "/dashboard")
 
 
 __all__ = [
