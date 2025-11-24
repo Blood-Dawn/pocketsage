@@ -21,6 +21,7 @@ This app is now a desktop-only, offline-first finance + habits tracker built wit
 - Packaging: `make package` or `scripts\\build_desktop.bat` (non-interactive with `--delete-build`) -> `dist/`.
 - Data dir: controlled by `POCKETSAGE_DATA_DIR` (default `instance/`); backups/exports live under `instance/exports` and `instance/backups`.
 - CSV formats: ledger imports expect `date,amount,memo,category,account,currency,transaction_id` (idempotent by external_id/hash); portfolio imports expect `symbol,shares,price,account,market_price,as_of,currency` (upsert by symbol+account).
+- Reset DB during development: close the app, then delete the SQLite files under `POCKETSAGE_DATA_DIR` (default `instance/`), e.g., `pocketsage.db` plus any `-wal`/`-shm` files. On next launch, schema is recreated; rerun demo seed if you need sample data.
 
 ## Next Up (Stretch Targets)
 1) **Advanced Budgets & Recurrence**
@@ -35,3 +36,5 @@ This app is now a desktop-only, offline-first finance + habits tracker built wit
 - Data lives under `instance/` by default. Exports/backups under `instance/exports` and `instance/backups`.
 - Tests: `python -m pytest` (perf tests under `-m performance`). Lint: `ruff check .` and `black --check .`.
 - Packaging: `make package` or `scripts\\build_desktop.bat` (non-interactive) -> `dist/`.
+- Reset DB during development: close the app, then delete the SQLite files under `POCKETSAGE_DATA_DIR` (default `instance/`), e.g., `pocketsage.db` plus any `-wal`/`-shm` files. On next launch, schema is recreated; rerun demo seed if you need sample data.
+  - PowerShell 7 example: `Remove-Item -Force -ErrorAction SilentlyContinue instance\\pocketsage.db, instance\\pocketsage.db-wal, instance\\pocketsage.db-shm`

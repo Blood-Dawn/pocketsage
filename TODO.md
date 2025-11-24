@@ -70,6 +70,49 @@
 - [x] Note SQLCipher toggle readiness and offline-only stance in docs.
 
 ## Stretch Goals (Post-MVP)
-- [ ] Advanced budgets & recurrence: per-category budgets with rollover/alerts, recurring transactions, multi-currency/accounts support, and optimistic locking/versioning prep for future sync.
-- [ ] Engagement & advisor: habit reminders/notifications, scheduled backups, and advisor insights that connect habits/budgets/spending (e.g., overspend warnings, habit impact callouts).
-- [ ] Portfolio analytics & extensibility: time-series portfolio tracking, richer analytics (returns, allocation by class), and plugin-friendly optional modules.
+- [ ] Advanced budgets & recurrence
+  - Per-category budgets with rollover rules and alert thresholds; display remaining/overrun and allow rollover toggles per line.
+  - Recurring transactions (scheduler stub) with templates for bills/income; allow skip/modify per occurrence.
+  - Multi-currency/account support with FX override inputs and per-account currency display; document money tolerance/rounding.
+  - Optimistic locking/versioning columns on key tables to prep for future sync/multi-user scenarios.
+- [ ] Engagement & advisor
+  - Habit reminders/notifications: allow per-habit reminder time, enqueue local notifications; surface missed reminders.
+  - Scheduled backups (opt-in) using job runner; retention and status UI.
+  - Advisor insights: detect overspend trends, top categories, and highlight habit impact (e.g., “no coffee” streak vs coffee spend); show actionable nudges in dashboard/reports.
+- [ ] Portfolio analytics & extensibility
+  - Time-series tracking: store periodic portfolio snapshots; render value-over-time charts and allocation history.
+  - Richer analytics: unrealized/realized return calculations, allocation by asset class/sector, simple risk concentration alerts.
+  - Plugin-friendly modules: feature flags to enable/disable optional screens; hook points for future data sources without breaking offline-first mode.
+
+## Roadmap Workstreams (from notes/ROADMAP.md)
+- **Phase 1: ORM & Data Model**
+  - Fix Holding↔Account mapping and confirm all models declare `__tablename__`.
+  - Standardize DB bootstrap (shared engine/session options) for desktop/tests; document money field tolerances and float usage.
+  - Remove or align legacy/duplicate models/wiring.
+- **Phase 2: Domain & Services Correctness**
+  - Implement budgeting `compute_variances` and `rolling_cash_flow` with unit tests.
+  - Harden debt payoff math (freed minimum rollover, tiny payments, deterministic timelines) with tests.
+  - Ensure habit streak/entry logic covers all upsert scenarios.
+  - Add cashflow/category summaries and idempotent transaction/CSV upsert path.
+- **Phase 3: Repos, Import/Export, Seeding**
+  - Harden repositories (pagination, filters, idempotent upsert) to align with tests.
+  - Build CSV import/export persistence for transactions/holdings with idempotency.
+  - Create shared fixtures/seed data for budgets/habits/debts/portfolio; make demo seed idempotent for updated schema.
+- **Phase 4: Admin & Backups**
+  - Ensure export/backup jobs succeed (zip, retention, download) with regression tests.
+  - Add restore path and safe filesystem handling under `instance/`.
+  - Wire desktop settings actions and CLI/script helpers to backup/seed/restore with clear error handling.
+- **Phase 5: Desktop Shell & Plumbing**
+  - Strengthen `AppContext` (shared session factory, error handling, theming, selectors).
+  - Add navigation polish (stateful routing, toasts/dialogs, loading states).
+  - Ensure desktop mode can bootstrap demo data consistently.
+- **Phase 6: Desktop Feature Screens**
+  - Budgets: month selector, copy previous month, CRUD, overspend highlighting, alerts.
+  - Portfolio: holdings CRUD/import/export, allocation visualization, filters.
+  - Settings/Admin: theme toggle, DB path, seed/backup/restore wired with dialogs.
+- **Phase 7: Tests, CI, Handoff**
+  - Keep test suite green; expand domain and integration coverage (desktop view smoke tests included).
+  - Ensure CI runs lint/tests on clean clone; refresh docs with desktop steps; publish changelog/handoff notes.
+
+## Run Errors
+- [ ] Flet DataTable mismatch: ledger DataRow cells count < DataColumn count (9). Investigate ledger table construction to ensure every row includes all cells (including gain/loss columns) before render. Stack trace from `run_desktop.py` -> `desktop/navigation.py` -> `flet.core.datatable.before_update`.

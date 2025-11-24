@@ -1,36 +1,32 @@
-# PocketSage Current State - 2025-11-19
+# PocketSage Current State - 2025-11-24
 
 ## Architecture Snapshot
-- Desktop-only: Flet shell (`run_desktop.py` -> `desktop/app.py`) with navigation rail and stub views (dashboard, ledger, budgets, habits, debts, portfolio, settings). Desktop owns DB bootstrap (`infra/database.py`) and wires repositories directly via `desktop/context.py`.
-- Domain protocols live in `src/pocketsage/domain/repositories/`; concrete SQLModel repositories and DB helpers live in `src/pocketsage/infra/`.
-- Models: SQLModel tables for Account, Category, Budget/BudgetLine, Transaction, Habit/HabitEntry, Liability, Holding, AppSetting. Money is stored as `float`. Only Transaction and Liability declare `__tablename__`. Holding uses `account: "Account | None"` which currently breaks mapper setup.
-- Services: CSV import/export scaffolding, debts payoff calculators, liabilities payment scheduler, simple in-memory job runner. Budgeting service (`compute_variances`, `rolling_cash_flow`) is NotImplemented; reports/watchers remain placeholders.
+- Desktop-only Flet shell (`run_desktop.py` → `desktop/app.py`) with guest-mode startup, navigation rail, and full views (dashboard, ledger, budgets, habits, debts, portfolio, reports, settings, admin).
+- Data layer: SQLModel/SQLite tables for Account, Category, Budget/BudgetLine, Transaction, Habit/HabitEntry, Liability, Holding, AppSetting. All models declare `__tablename__`; session factory reuse and DB bootstrap live in `infra/database.py` and `desktop/context.py`.
+- Services: CSV import/export, debts payoff calculators (snowball/avalanche with loop guards), admin tasks (seed/export/backup/restore with retention), job runner, reports/charts, watcher placeholder. Budgeting service still has stubs beyond UI usage.
 
-## Feature Status (complete / partial / missing)
-- **Ledger:** SQLModel repo supports CRUD and filters; desktop ledger supports basic add/delete and lists recent transactions; no filters, CSV import/export, or inline edit. No idempotent upsert path.
-- **Budgets:** CRUD models/repos exist; budgeting calculations are unimplemented. Desktop budgets view is read-only for current month (no create/edit/copy, no progress visuals).
-- **Habits:** Repo supports CRUD plus entry upsert and streak helpers, but streak logic fails tests. Desktop view shows habits and today toggle only; no heatmap, metrics, or archive/reactivate flow.
-- **Debts/Liabilities:** Repo CRUD plus summary helpers; payoff service mishandles freed minimum rollover and very small minimum payments. Desktop debts view is static list/summary with no strategy toggle, payments, or projections.
-- **Portfolio:** Holding repo exists; desktop view lists holdings and totals only (no allocations, filters, CSV import/export). Holding mapper issue prevents most DB-backed flows from starting.
-- **Admin/Settings:** Admin tasks (demo seed/export) now available via `services/admin_tasks` and desktop Settings/Reports; Settings UI exposes theme toggle and backup/import placeholders only.
+## Feature Status
+- **Ledger:** CRUD with validation, filters (date/category/type), pagination, monthly summaries, budget progress/alerts, spending chart, category CRUD/defaults, CSV import/export with idempotent external_id/hash.
+- **Budgets:** Desktop view shows month budgets with lines, progress bars, totals, copy/add/edit/delete; overall rollups present. Advanced variance/rolling calc still deferred to budgeting service stubs.
+- **Habits:** CRUD with optional reminder time, archive/reactivate, daily toggle with instant streak recalculation, 7–180 day heatmap, streak logic centralized in `services/habits`.
+- **Debts:** Liability CRUD, payment recording (optional ledger reconcile), snowball/avalanche payoff schedules with rollover fix and tiny-payment guard, projected payoff date/interest, timeline chart, strategy toggle.
+- **Portfolio:** Holding model fixed; CRUD, CSV import/export with merge/duplicate hash, gain/loss + allocation chart, account filter-aware totals.
+- **Reports/Dashboard:** Dashboard shows income/expense/net, debts, habits done today, recent txns, quick actions, cashflow/spending charts. Reports page aggregates spending/budget/habit/debt/portfolio charts and offers export bundles (PNG/CSV/ZIP).
+- **Admin/Backup:** Demo seed/reset, backup/export/restore with retention and secure dirs; confirmation/spinner UI; idempotent seeding.
+- **Settings:** Theme toggle persistence, data directory display, SQLCipher readiness placeholder toggle, backups/exports/restore wiring, shared file picker.
 
-## Tests & Known Failures
-- Command used: `.venv\\Scripts\\python -m pytest -q` (system Python lacks pytest; venv works but tests fail).
-- Major blockers:
-  - SQLModel mapper error: `InvalidRequestError` because Holding relationship annotation `"Account | None"` cannot be resolved. Cascades through repository tests, integration flows, and money representation tests.
-  - Debt payoff schedules: snowball does not roll freed minimums forward; very small minimum payments can loop (`tests/test_debt_calculations.py`).
-  - Habits: streak calculations and entry upsert expectations fail (`tests/test_habit_streaks.py`).
-  - Budgeting service still NotImplemented, contributing to integration failures.
+## Tests & Quality
+- Full pytest suite currently green (unit, integration, UI regression, performance). Performance guardrails allow ~5k-row import and pagination sweep. UI regression exercises primary dialogs/buttons headlessly.
+- Linting tools (ruff/black) configured; not auto-run here but expected to pass.
+- Money stored as float; tolerances handled in tests, but precision risk remains for future FX/multi-currency work.
 
-## How to Run (current)
-- Desktop app: `python run_desktop.py`.
-- Tests: `.venv\\Scripts\\python -m pytest` (currently red as noted).
+## Data & Ops
+- Default data root `instance/`; backups/exports under `instance/backups` and `instance/exports` with retention=5.
+- Guest mode is the only auth flow; all user FKs point to the guest user by default. SQLCipher flags are placeholders; current builds use SQLite.
+- Packaging via `make package` or `scripts\\build_desktop.bat` (non-interactive, `--delete-build`) produces `dist/` binaries.
 
-## Risks/Gaps
-- Broken ORM mapping for Holding<->Account prevents most DB-backed flows.
-- Budgeting, debt payoff correctness, and habit streak logic need proper implementations.
-- Desktop UI lacks CRUD depth, charts, CSV import/export, and admin/backup flows; depends on stable domain/services.
-- Broken ORM mapping for Holding<->Account prevents most DB-backed flows.
-- Budgeting, debt payoff correctness, and habit streak logic need proper implementations.
-- Desktop UI lacks CRUD depth, charts, CSV import/export, and admin/backup flows; depends on stable domain/services.
-- Float-based money handling carries precision risk.
+## Open Risks / Future Work
+- Budgeting service functions (`compute_variances`, `rolling_cash_flow`) still stubbed; advanced budget alerts/rollover logic beyond current UI progress bars remains.
+- Advisor/notifications and scheduled backups are not yet implemented.
+- Multi-currency/account FX handling and optimistic locking are planned stretch items.
+- Time-series portfolio tracking and richer analytics are future-phase work.
