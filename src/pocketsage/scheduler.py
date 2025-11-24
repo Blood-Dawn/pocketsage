@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
     from .context import AppContext
@@ -24,7 +24,6 @@ class BackgroundScheduler:
         """
         self.ctx = ctx
         self.scheduler = None
-        self._jobs = {}
 
     def start(self) -> None:
         """Start the background scheduler."""
@@ -79,8 +78,7 @@ class BackgroundScheduler:
     def _is_backup_enabled(self) -> bool:
         """Check if automatic backups are enabled."""
         # Check settings repository for user preference
-        setting = self.ctx.settings_repo.get("auto_backup_enabled")
-        if setting:
+        if setting := self.ctx.settings_repo.get("auto_backup_enabled"):
             return setting.value.lower() in ("true", "1", "yes")
         return False  # Default: disabled
 

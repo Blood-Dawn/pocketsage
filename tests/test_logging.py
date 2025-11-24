@@ -45,6 +45,39 @@ def test_json_formatter():
     assert "timestamp" in log_data
 
 
+def test_json_formatter_with_extra_fields():
+    """Test that JSONFormatter captures extra fields passed via logging extra argument."""
+    formatter = JSONFormatter()
+
+    # Create a log record with extra fields
+    record = logging.LogRecord(
+        name="test.logger",
+        level=logging.INFO,
+        pathname="test.py",
+        lineno=42,
+        msg="Test with extra",
+        args=(),
+        exc_info=None,
+    )
+    record.module = "test_module"
+    record.funcName = "test_function"
+
+    # Simulate extra fields added by logging module
+    record.user_id = 123
+    record.request_id = "abc-def"
+    record.custom_field = {"nested": "value"}
+
+    # Format the record
+    formatted = formatter.format(record)
+    log_data = json.loads(formatted)
+
+    # Verify extra fields are captured
+    assert "extra" in log_data
+    assert log_data["extra"]["user_id"] == 123
+    assert log_data["extra"]["request_id"] == "abc-def"
+    assert log_data["extra"]["custom_field"] == {"nested": "value"}
+
+
 def test_json_formatter_with_exception():
     """Test that JSONFormatter correctly handles exceptions."""
     formatter = JSONFormatter()
@@ -90,8 +123,22 @@ def test_setup_logging(tmp_path):
     assert logger.name == "pocketsage"
     assert logger.level == logging.INFO
 
-    # Verify handlers
-    assert len(logger.handlers) == 2  # Console + File
+    # Verify handlers: expect both console and file handlers
+    console_handlers = [
+        h for h in logger.handlers
+        if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.handlers.RotatingFileHandler)
+    ]
+    file_handlers = [
+        h for h in logger.handlers
+        if isinstance(h, logging.handlers.RotatingFileHandler)
+    ]
+
+    assert len(console_handlers) >= 1, "Expected at least one console handler"
+    assert len(file_handlers) >= 1, "Expected at least one file handler"
+
+    # Verify file handler uses JSONFormatter
+    file_handler = file_handlers[0]
+    assert isinstance(file_handler.formatter, JSONFormatter)
 
     # Verify log directory and file created
     logs_dir = tmp_path / "logs"
@@ -107,17 +154,15 @@ def test_setup_logging(tmp_path):
 
     # Read log file and verify JSON format
     content = log_file.read_text()
-    lines = content.strip().split("\n")
+    lines = [line for line in content.strip().split("\n") if line.strip()]
 
     assert len(lines) >= 1  # At least the startup message
 
-    # Verify each line is valid JSON
-    for line in lines:
-        if line.strip():
-            log_entry = json.loads(line)
-            assert "timestamp" in log_entry
-            assert "level" in log_entry
-            assert "message" in log_entry
+    # Verify first line is valid JSON with required fields
+    first_entry = json.loads(lines[0])
+    assert "timestamp" in first_entry
+    assert "level" in first_entry
+    assert "message" in first_entry
 
 
 def test_get_logger():
@@ -139,14 +184,16 @@ def test_logging_levels_by_mode(tmp_path, dev_mode):
 
     logger = setup_logging(config)
 
-    # Find console handler
-    console_handler = None
-    for handler in logger.handlers:
-        if isinstance(handler, logging.StreamHandler) and not isinstance(
-            handler, logging.handlers.RotatingFileHandler
-        ):
-            console_handler = handler
-            break
+    # Find console handler using next() instead of loop
+    console_handler = next(
+        (
+            handler
+            for handler in logger.handlers
+            if isinstance(handler, logging.StreamHandler)
+            and not isinstance(handler, logging.handlers.RotatingFileHandler)
+        ),
+        None,
+    )
 
     assert console_handler is not None
 

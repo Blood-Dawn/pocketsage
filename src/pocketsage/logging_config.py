@@ -15,10 +15,18 @@ from .config import BaseConfig
 class JSONFormatter(logging.Formatter):
     """Format log records as JSON for structured logging."""
 
+    # Standard LogRecord attributes that should not be treated as extra fields
+    _STANDARD_ATTRS = {
+        "name", "msg", "args", "created", "filename", "funcName", "levelname",
+        "levelno", "lineno", "module", "msecs", "message", "pathname", "process",
+        "processName", "relativeCreated", "thread", "threadName", "exc_info",
+        "exc_text", "stack_info", "getMessage", "stack_trace",
+    }
+
     def format(self, record: logging.LogRecord) -> str:
         """Format the log record as a JSON string."""
         log_data = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": f"{datetime.utcnow().isoformat()}Z",
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -35,9 +43,14 @@ class JSONFormatter(logging.Formatter):
                 "traceback": self.formatException(record.exc_info) if record.exc_info else None,
             }
 
-        # Add extra fields if present
-        if hasattr(record, "extra"):
-            log_data["extra"] = record.extra
+        # Add extra fields from record.__dict__ (those passed via logger.info(..., extra={...}))
+        extra_fields = {
+            key: value
+            for key, value in record.__dict__.items()
+            if key not in self._STANDARD_ATTRS
+        }
+        if extra_fields:
+            log_data["extra"] = extra_fields
 
         return json.dumps(log_data, default=str)
 

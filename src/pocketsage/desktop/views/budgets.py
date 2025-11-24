@@ -109,14 +109,12 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
         created = ctx.budget_repo.create(new_budget, user_id=uid)
         prev_lines = ctx.budget_repo.get_lines_for_budget(prev_budget.id, user_id=uid)
 
-        # Calculate rollover amounts for previous month
-        prev_start = date(prev_year, prev_month, 1)
-        prev_end = date(prev_year, prev_month, monthrange(prev_year, prev_month)[1])
-
         for line in prev_lines:
-            planned = line.planned_amount
+            # Start with previous month's planned amount as the base budget
+            base_budget = line.planned_amount
+            new_planned = base_budget
 
-            # If rollover enabled, calculate actual spend and adjust planned amount
+            # If rollover enabled, adjust for surplus/deficit from previous month
             if line.rollover_enabled:
                 # Get actual spending for this category in previous month
                 prev_txs = ctx.transaction_repo.search(
@@ -127,14 +125,17 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 )
                 actual_spent = sum(abs(t.amount) for t in prev_txs if t.amount < 0)
 
-                # Rollover logic: if underspent, increase budget; if overspent, decrease budget
-                rollover_amount = planned - actual_spent
-                planned = max(0.0, planned + rollover_amount)  # Ensure non-negative
+                # Rollover: carry forward the surplus (underspent) or deficit (overspent)
+                # This maintains the base budget AND adds the rollover amount
+                # Example: Budgeted $100, spent $80 → Next month gets $100 (base) + $20 (surplus) = $120
+                # Example: Budgeted $100, spent $120 → Next month gets $100 (base) - $20 (deficit) = $80
+                surplus_or_deficit = base_budget - actual_spent
+                new_planned = max(0.0, base_budget + surplus_or_deficit)  # Ensure non-negative
 
             clone = BudgetLine(
                 budget_id=created.id,
                 category_id=line.category_id,
-                planned_amount=round(planned, 2),
+                planned_amount=round(new_planned, 2),
                 rollover_enabled=line.rollover_enabled,
                 user_id=uid,
             )

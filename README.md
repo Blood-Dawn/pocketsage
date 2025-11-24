@@ -265,7 +265,7 @@ rm instance/pocketsage.db-wal instance/pocketsage.db-shm
 **Scheduler Not Working**
 ```bash
 # Install scheduler extra
-pip install apscheduler
+pip install -e ".[scheduler]"
 
 # Enable in Settings: "auto_backup_enabled" = true
 ```
