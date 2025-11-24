@@ -115,4 +115,4 @@
   - Ensure CI runs lint/tests on clean clone; refresh docs with desktop steps; publish changelog/handoff notes.
 
 ## Run Errors
-- [ ] Flet DataTable mismatch: ledger DataRow cells count < DataColumn count (9). Investigate ledger table construction to ensure every row includes all cells (including gain/loss columns) before render. Stack trace from `run_desktop.py` -> `desktop/navigation.py` -> `flet.core.datatable.before_update`.
+- [x] Flet DataTable mismatch: Fixed portfolio DataRow "No holdings found" row to have 9 cells matching the 9 columns (Symbol, Quantity, Avg Price, Market Price, Cost Basis, Market Value, Gain/Loss, Account, Actions).

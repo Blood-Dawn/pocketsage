@@ -288,6 +288,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         ft.DataCell(ft.Text("")),
                         ft.DataCell(ft.Text("")),
                         ft.DataCell(ft.Text("")),
+                        ft.DataCell(ft.Text("")),
                     ]
                 )
             ]
