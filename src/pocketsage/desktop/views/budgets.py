@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from calendar import monthrange
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 import flet as ft
@@ -88,8 +90,6 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
         page.update()
 
     def copy_previous_month():
-        from calendar import monthrange
-
         prev_month = today.month - 1 or 12
         prev_year = today.year - 1 if today.month == 1 else today.year
         prev_budget = ctx.budget_repo.get_for_month(prev_year, prev_month, user_id=uid)
@@ -108,11 +108,33 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
         )
         created = ctx.budget_repo.create(new_budget, user_id=uid)
         prev_lines = ctx.budget_repo.get_lines_for_budget(prev_budget.id, user_id=uid)
+
+        # Calculate rollover amounts for previous month
+        prev_start = date(prev_year, prev_month, 1)
+        prev_end = date(prev_year, prev_month, monthrange(prev_year, prev_month)[1])
+
         for line in prev_lines:
+            planned = line.planned_amount
+
+            # If rollover enabled, calculate actual spend and adjust planned amount
+            if line.rollover_enabled:
+                # Get actual spending for this category in previous month
+                prev_txs = ctx.transaction_repo.search(
+                    start_date=datetime(prev_year, prev_month, 1),
+                    end_date=datetime(prev_year, prev_month, monthrange(prev_year, prev_month)[1], 23, 59, 59),
+                    category_id=line.category_id,
+                    user_id=uid,
+                )
+                actual_spent = sum(abs(t.amount) for t in prev_txs if t.amount < 0)
+
+                # Rollover logic: if underspent, increase budget; if overspent, decrease budget
+                rollover_amount = planned - actual_spent
+                planned = max(0.0, planned + rollover_amount)  # Ensure non-negative
+
             clone = BudgetLine(
                 budget_id=created.id,
                 category_id=line.category_id,
-                planned_amount=line.planned_amount,
+                planned_amount=round(planned, 2),
                 rollover_enabled=line.rollover_enabled,
                 user_id=uid,
             )
