@@ -17,11 +17,14 @@ from typing import TYPE_CHECKING, Iterable
 import flet as ft
 
 from ...devtools import dev_log
+from ...logging_config import get_logger
 from ...models.account import Account
 from ...models.category import Category
 from ...models.transaction import Transaction
 from ...services import export_csv, ledger_service
 from .. import controllers
+
+logger = get_logger(__name__)
 from ..charts import spending_chart_png
 from ..components import build_app_bar, build_main_layout, build_progress_bar
 from ..components.dialogs import show_confirm_dialog, show_error_dialog
@@ -434,8 +437,10 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     ) -> None:
         """Validate and persist a transaction from the dialog."""
 
+        logger.info("Saving transaction", extra={"is_edit": existing is not None})
         try:
             description = (description_field.value or "").strip()
+            logger.debug(f"Description: {description}")
             if not description:
                 description_field.error_text = "Description is required"
                 description_field.update()
@@ -497,7 +502,15 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 dev_log(ctx.config, "Ledger save failed", exc=exc)
             show_error_dialog(page, "Save failed", str(exc))
 
+    def _close_dialog(dialog: ft.AlertDialog) -> None:
+        """Helper to properly close a dialog."""
+        logger.debug("Closing dialog")
+        dialog.open = False
+        page.update()
+        logger.debug("Dialog closed and page updated")
+
     def open_transaction_dialog(tx: Transaction | None = None) -> None:
+        logger.info("Opening transaction dialog", extra={"is_edit": tx is not None})
         base_categories = _ensure_baseline_categories()
         default_account = _ensure_default_account()
         is_edit = tx is not None
@@ -594,7 +607,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 spacing=10,
             ),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda _: setattr(dialog, "open", False)),
+                ft.TextButton("Cancel", on_click=lambda _: (_close_dialog(dialog))),
                 ft.FilledButton(
                     "Save",
                     on_click=lambda _: _save_transaction_payload(

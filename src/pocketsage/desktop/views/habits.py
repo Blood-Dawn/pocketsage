@@ -16,8 +16,8 @@ from typing import TYPE_CHECKING
 
 import flet as ft
 
-from ...models.habit import Habit, HabitEntry
 from ...devtools import dev_log
+from ...models.habit import Habit, HabitEntry
 from ...services.habits import reminder_placeholder
 from ..components import build_app_bar, build_main_layout
 
@@ -307,6 +307,11 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         expand=True,
     )
 
+    def _close_dialog(dialog: ft.AlertDialog) -> None:
+        """Helper to properly close a dialog."""
+        dialog.open = False
+        page.update()
+
     def open_create_dialog(_=None, *, habit: Habit | None = None):
         is_edit = habit is not None
         name_field = ft.TextField(
@@ -397,7 +402,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 spacing=8,
             ),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda _: setattr(dialog, "open", False)),
+                ft.TextButton("Cancel", on_click=lambda _: _close_dialog(dialog)),
                 ft.FilledButton("Save", on_click=save_habit),
             ],
         )

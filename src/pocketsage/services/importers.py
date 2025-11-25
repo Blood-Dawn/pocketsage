@@ -341,9 +341,7 @@ def _safe_float(value: object) -> Optional[float]:
         number = float(value)
     except (TypeError, ValueError):
         return None
-    if math.isnan(number):
-        return None
-    return number
+    return None if math.isnan(number) else number
 
 
 def _safe_int(value: object) -> Optional[int]:

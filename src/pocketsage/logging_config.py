@@ -76,8 +76,10 @@ def setup_logging(config: BaseConfig) -> logging.Logger:
 
     # Console handler (human-readable format for development)
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO if config.DEV_MODE else logging.WARNING)
+    console_handler.setLevel(logging.DEBUG if config.DEV_MODE else logging.WARNING)
     console_formatter = logging.Formatter(
+        "[%(asctime)s] %(levelname)-8s [%(name)s.%(funcName)s:%(lineno)d] %(message)s"
+        if config.DEV_MODE else
         fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
