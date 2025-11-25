@@ -23,6 +23,11 @@ This app is now a desktop-only, offline-first finance + habits tracker built wit
 - CSV formats: ledger imports expect `date,amount,memo,category,account,currency,transaction_id` (idempotent by external_id/hash); portfolio imports expect `symbol,shares,price,account,market_price,as_of,currency` (upsert by symbol+account).
 - Reset DB during development: close the app, then delete the SQLite files under `POCKETSAGE_DATA_DIR` (default `instance/`), e.g., `pocketsage.db` plus any `-wal`/`-shm` files. On next launch, schema is recreated; rerun demo seed if you need sample data.
 
+### Dependency hygiene
+- Check a package/version in your venv: `.\.venv\Scripts\python -m pip show apscheduler` (swap the name as needed). `pip list` gives the full table.
+- If you add/change dependencies in `pyproject.toml`, reinstall dev extras: `pip install -e ".[dev]"` (add `--upgrade` if an existing pin needs a bump).
+- When the venv feels stale or Pylance cannot resolve new imports, recreate it: `Remove-Item -Recurse -Force .venv; python -m venv .venv; .\.venv\Scripts\pip install -e ".[dev]"`.
+
 ## Next Up (Stretch Targets)
 1) **Advanced Budgets & Recurrence**
    - Per-category budgets with rollover rules and alerts, recurring transactions scheduling, multi-currency/account handling, and optimistic locking/versioning hooks for future sync.
@@ -43,6 +48,19 @@ This app is now a desktop-only, offline-first finance + habits tracker built wit
 - Admin mode checklist:
   - Toggle Admin mode in the app bar (User vs Admin mode is login-free).
   - Actions: Run Demo Seed, Reset Demo Data, Export, Backup/Restore (see `src/pocketsage/desktop/views/admin.py`).
-  - Guards added so `_notify/_with_spinner` no-op if page/controls aren’t attached; prevents blank/gray admin screen.
-- Quick add flow: Dashboard “Add Transaction” sets `ctx.pending_new_transaction`; ledger auto-opens the add dialog on load.
+  - Guards added so `_notify/_with_spinner` no-op if page/controls aren't attached; prevents blank/gray admin screen.
+- DB bootstrap: use `bootstrap_database()` (infra/database.py) for a consistent engine + session factory with schema init in tests or scripts; keeps expire_on_commit=False and mirrors desktop startup options.
+- Quick add flow: Dashboard "Add Transaction" sets `ctx.pending_new_transaction`; ledger auto-opens the add dialog on load.
 - Button wiring tests: `tests/test_button_actions.py` covers add/edit/delete across Ledger/Habits/Debts/Portfolio/Budgets and Admin seed/reset buttons. Re-run with `.\.venv\Scripts\python -m pytest tests/test_button_actions.py -q`.
+
+## What changed recently (per area)
+- **Foundations & shell**: Login removed; startup goes straight into a guest-bound `AppContext`. Theme preference is persisted and updates live from Settings. All FK writes now use the ensured guest/local user id.
+- **Ledger**: Register rebuilt with validated CRUD dialog; category dropdown seeds defaults and the "All" filter no longer crashes. Monthly summary + budget progress recompute after saves. Spending chart refreshes on change. CSV import/export is idempotent via `external_id`/hash and shows snackbars on success/failure.
+- **Budgets**: Monthly budgets stored with per-category lines; progress bars surface overrun; copy-previous-month flow in place. (Line creation still swallows errors—see TODO.)
+- **Habits**: CRUD plus archive/reactivate; daily toggle writes entries and recalculates streaks immediately; streak/heatmap service logic lives in `services/habits` (reminder handling is still a placeholder).
+- **Debts**: Liabilities CRUD, payment recording, and snowball/avalanche payoff calculations with rollover guard; payoff chart + projected debt-free date wired into the Debts view.
+- **Portfolio**: Holding model fixed; CRUD + CSV import/export with dedupe; allocation donut updates on data change; totals honor accounts.
+- **Admin & backup**: Demo seed/reset/export/backup/restore wired with spinners and retention; secure dirs under `instance/`. Admin snackbars and status updates no-op safely if controls aren’t attached.
+- **Reports/Dashboard**: Dashboard shows current month income/expense/net, debts, habits done today, recent txns, and quick actions; reports aggregate charts and export bundle is reusable.
+- **Data/Infra**: All models declare `__tablename__`; shared session factory; CSV imports share dedupe helper; job runner available for longer ops.
+- **QA/Tooling**: Ruff/pytest green; UI regression covers add dialogs; perf guardrails allow large (multi-thousand row) imports and pagination scans; packaging scripts are non-interactive and documented.

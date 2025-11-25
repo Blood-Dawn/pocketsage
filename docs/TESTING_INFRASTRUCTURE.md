@@ -28,6 +28,11 @@ A full pytest-based testing suite has been implemented to validate all domain lo
 
 **Helper Utilities:**
 - `assert_float_equal()` - Float comparison with tolerance (for money fields)
+- `bootstrap_database()` (infra/database.py) - shared engine + session factory helper that mirrors desktop startup for tests; uses consistent engine options and schema init.
+
+**Money tolerances:**
+- Money fields remain floats; use `assert_float_equal` in tests to avoid precision flakes (see `test_money_representation.py`).
+- Prefer converting to integer cents or Decimal in future; until then, keep tolerance at 1e-6 for sums and comparisons.
 
 ### 2. Comprehensive Test Suites ✅
 

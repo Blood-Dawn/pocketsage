@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Iterable, Protocol
+from typing import Any, Iterable, Protocol
 
 
 @dataclass(slots=True)
@@ -40,7 +40,7 @@ class AmortizationWriter(Protocol):
 
 def _calculate_schedule(*, debts: Iterable[DebtAccount], surplus: float) -> list[dict]:
     """Helper function to perform the amortization math."""
-    debts = [asdict(d) for d in debts]  # Convert to mutable dicts
+    debt_dicts: list[dict[str, Any]] = [asdict(d) for d in debts]  # Convert to mutable dicts
     payoff_schedule: list[dict] = []
     current_date = date.today().replace(day=1)
     rolled_minimums = 0.0  # freed minimum payments from debts already cleared
@@ -56,7 +56,7 @@ def _calculate_schedule(*, debts: Iterable[DebtAccount], surplus: float) -> list
     max_iterations = 600
     iterations = 0
 
-    while any(d["balance"] > 0 for d in debts):
+    while any(d["balance"] > 0 for d in debt_dicts):
         iterations += 1
         if iterations > max_iterations:
             raise ValueError("Payoff schedule did not converge; payments too low")
@@ -64,7 +64,7 @@ def _calculate_schedule(*, debts: Iterable[DebtAccount], surplus: float) -> list
         extra_pool = surplus + rolled_minimums
         row = {"date": current_date.isoformat(), "payments": {}}
 
-        for debt in debts:
+        for debt in debt_dicts:
             if debt["balance"] <= 0:
                 continue
 

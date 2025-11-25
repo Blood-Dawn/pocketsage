@@ -8,16 +8,18 @@ import math
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, ContextManager, Optional
+from typing import Any, Callable, ContextManager, Optional, cast
 
-from sqlalchemy import select
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from ..models import Account, Category, Transaction
 from ..models.portfolio import Holding
 from .import_csv import ColumnMapping, load_transactions_from_csv, normalize_frame
 
 SessionFactory = Callable[[], ContextManager[Session]]
+ACCOUNT_ID_COLUMN = cast(Any, Account.id)
+ACCOUNT_NAME_COLUMN = cast(Any, Account.name)
+HOLDING_ACCOUNT_COLUMN = cast(Any, Holding.account_id)
 
 _DEFAULT_LEDGER_MAPPING = ColumnMapping(
     amount="amount",
@@ -261,16 +263,13 @@ def _resolve_category_id(
     amount: float,
     user_id: int,
 ) -> Optional[int]:
-    if category_id_value not in (None, ""):
-        try:
-            candidate = int(category_id_value)
-            existing = session.exec(
-                select(Category).where(Category.id == candidate, Category.user_id == user_id)
-            ).first()
-            if existing:
-                return existing.id
-        except (TypeError, ValueError):
-            pass
+    category_candidate = _safe_int(category_id_value)
+    if category_candidate is not None:
+        existing = session.exec(
+            select(Category).where(Category.id == category_candidate, Category.user_id == user_id)
+        ).first()
+        if existing:
+            return existing.id
 
     label = str(category_label_value or "").strip()
     if not label:
@@ -298,24 +297,23 @@ def _resolve_account_id(
     session: Session, account_id_value: object, account_name_value: object, user_id: int
 ) -> Optional[int]:
     # Prefer explicit numeric account_id
-    if account_id_value not in (None, ""):
-        try:
-            candidate = int(account_id_value)
-            existing = session.exec(
-                select(Account).where(Account.id == candidate, Account.user_id == user_id)
-            ).first()
-            if existing:
-                return existing.id
-        except (TypeError, ValueError):
-            pass
+    account_candidate = _safe_int(account_id_value)
+    if account_candidate is not None:
+        existing = session.exec(
+            select(Account).where(
+                ACCOUNT_ID_COLUMN == account_candidate, Account.user_id == user_id
+            )
+        ).first()
+        if existing:
+            return existing.id
 
     name = str(account_name_value or "").strip()
     if not name:
         return None
 
     existing = session.exec(
-        select(Account).where(Account.name == name, Account.user_id == user_id)
-    ).scalar_one_or_none()
+        select(Account).where(ACCOUNT_NAME_COLUMN == name, Account.user_id == user_id)
+    ).first()
     if existing:
         return existing.id
 
@@ -330,10 +328,10 @@ def _lookup_holding(
 ) -> Optional[Holding]:
     statement = select(Holding).where(Holding.symbol == symbol, Holding.user_id == user_id)
     if account_id is None:
-        statement = statement.where(Holding.account_id.is_(None))
+        statement = statement.where(HOLDING_ACCOUNT_COLUMN.is_(None))
     else:
-        statement = statement.where(Holding.account_id == account_id)
-    return session.exec(statement).scalar_one_or_none()
+        statement = statement.where(HOLDING_ACCOUNT_COLUMN == account_id)
+    return session.exec(statement).first()
 
 
 def _safe_float(value: object) -> Optional[float]:
@@ -346,3 +344,12 @@ def _safe_float(value: object) -> Optional[float]:
     if math.isnan(number):
         return None
     return number
+
+
+def _safe_int(value: object) -> Optional[int]:
+    if value in (None, ""):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None

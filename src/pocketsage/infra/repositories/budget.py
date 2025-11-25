@@ -1,15 +1,17 @@
 """SQLModel implementation of Budget repository."""
-
 from __future__ import annotations
 
 from calendar import monthrange
 from datetime import date
-from typing import Callable, Optional
+from typing import Any, Callable, Optional, cast
 
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
 from ...models.budget import Budget, BudgetLine
+
+_BUDGET_LINES_LOADER = selectinload(cast(Any, Budget.lines))
+_PERIOD_START_COLUMN = cast(Any, Budget.period_start)
 
 
 class SQLModelBudgetRepository:
@@ -24,7 +26,7 @@ class SQLModelBudgetRepository:
         with self.session_factory() as session:
             statement = (
                 select(Budget)
-                .options(selectinload(Budget.lines))
+                .options(_BUDGET_LINES_LOADER)
                 .where(Budget.id == budget_id)
                 .where(Budget.user_id == user_id)
             )
@@ -38,7 +40,7 @@ class SQLModelBudgetRepository:
                 .where(Budget.user_id == user_id)
                 .where(Budget.period_start == start_date)
                 .where(Budget.period_end == end_date)
-                .options(selectinload(Budget.lines))
+                .options(_BUDGET_LINES_LOADER)
             )
             return session.exec(statement).first()
 
@@ -59,7 +61,7 @@ class SQLModelBudgetRepository:
                 .where(Budget.user_id == user_id)
                 .where(Budget.period_start == start_date)
                 .where(Budget.period_end == end_date)
-                .options(selectinload(Budget.lines))
+                .options(_BUDGET_LINES_LOADER)
             )
             return session.exec(statement).first()
 
@@ -69,9 +71,9 @@ class SQLModelBudgetRepository:
             statement = (
                 select(Budget)
                 .where(Budget.user_id == user_id)
-                .options(selectinload(Budget.lines))
-                .order_by(Budget.period_start.desc())
-            )  # type: ignore
+                .options(_BUDGET_LINES_LOADER)
+                .order_by(_PERIOD_START_COLUMN.desc())
+            )
             return list(session.exec(statement).all())
 
     def create(self, budget: Budget, *, user_id: int) -> Budget:

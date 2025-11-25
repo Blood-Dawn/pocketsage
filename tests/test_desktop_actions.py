@@ -107,6 +107,7 @@ def test_file_picker_result_triggers_ledger_import(monkeypatch: pytest.MonkeyPat
         file_picker=None,
         file_picker_mode=None,
         require_user_id=lambda: 1,
+        pending_refresh_route=None,
     )
     page = _PageSpy()
     picker = controllers.attach_file_picker(ctx, page)
@@ -121,6 +122,7 @@ def test_file_picker_result_triggers_ledger_import(monkeypatch: pytest.MonkeyPat
     assert calls["ledger"] == csv_file
     assert page.route == "/ledger"
     assert "Imported 2 transactions" in page.snack_bar.content.value  # type: ignore[attr-defined]
+    assert getattr(ctx, "pending_refresh_route", None) == "/ledger"
 
 
 def test_file_picker_result_triggers_portfolio_import(
@@ -141,6 +143,7 @@ def test_file_picker_result_triggers_portfolio_import(
         file_picker=None,
         file_picker_mode=None,
         require_user_id=lambda: 1,
+        pending_refresh_route=None,
     )
     page = _PageSpy()
     picker = controllers.attach_file_picker(ctx, page)
@@ -155,6 +158,7 @@ def test_file_picker_result_triggers_portfolio_import(
     assert calls["portfolio"] == csv_file
     assert page.route == "/portfolio"
     assert "Imported 3 holdings" in page.snack_bar.content.value  # type: ignore[attr-defined]
+    assert getattr(ctx, "pending_refresh_route", None) == "/portfolio"
 
 
 def test_run_and_reset_demo_seed_show_feedback(session_factory):

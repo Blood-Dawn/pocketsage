@@ -35,6 +35,8 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Build the portfolio holdings view."""
 
     uid = ctx.require_user_id()
+    if getattr(ctx, "pending_refresh_route", None) == "/portfolio":
+        ctx.pending_refresh_route = None
     accounts = ctx.account_repo.list_all(user_id=uid)
     if not accounts:
         default_account = ctx.account_repo.create(

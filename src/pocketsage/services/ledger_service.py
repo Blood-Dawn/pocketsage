@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Iterable, Optional
+from typing import Iterable, Optional, cast
 
 from ..infra.repositories.transaction import SQLModelTransactionRepository
 from ..models.category import Category
@@ -101,7 +101,7 @@ def compute_spending_by_category(
     for cat_id, total in totals.items():
         name = lookup.get(cat_id, "Uncategorized")
         breakdown.append({"category_id": cat_id, "name": name, "amount": total})
-    breakdown.sort(key=lambda entry: entry["amount"], reverse=True)
+    breakdown.sort(key=lambda entry: cast(float, entry.get("amount", 0.0)), reverse=True)
     return breakdown
 
 
@@ -128,7 +128,15 @@ def save_transaction(
 ) -> Transaction:
     """Centralize transaction creation/update."""
 
-    txn = existing or Transaction()
+    txn = existing or Transaction(
+        user_id=user_id,
+        occurred_at=occurred_at,
+        amount=amount,
+        memo=memo,
+        category_id=category_id,
+        account_id=account_id,
+        currency=currency or "USD",
+    )
     txn.amount = amount
     txn.memo = memo
     txn.occurred_at = occurred_at
@@ -140,4 +148,3 @@ def save_transaction(
         if existing and txn.id
         else repo.create(txn, user_id=user_id)
     )
-

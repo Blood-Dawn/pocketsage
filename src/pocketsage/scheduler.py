@@ -5,10 +5,10 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
-if TYPE_CHECKING:
-    from .context import AppContext
+if TYPE_CHECKING:  # pragma: no cover - import guard for type checkers
+    from .desktop.context import AppContext
 
 logger = logging.getLogger("pocketsage.scheduler")
 
@@ -23,13 +23,13 @@ class BackgroundScheduler:
             ctx: Application context with repositories and config
         """
         self.ctx = ctx
-        self.scheduler = None
+        self.scheduler: Any = None
 
     def start(self) -> None:
         """Start the background scheduler."""
         try:
-            from apscheduler.schedulers.background import BackgroundScheduler as APScheduler
-            from apscheduler.triggers.cron import CronTrigger
+            from apscheduler.schedulers.background import BackgroundScheduler as APScheduler  # type: ignore[import-not-found]  # noqa: I001
+            from apscheduler.triggers.cron import CronTrigger  # type: ignore[import-not-found]  # noqa: I001
         except ImportError:
             logger.warning(
                 "APScheduler not installed. Background tasks disabled. "
@@ -85,15 +85,15 @@ class BackgroundScheduler:
     def _run_backup(self) -> None:
         """Execute the backup task."""
         try:
-            from .services.admin_tasks import create_backup
+            from .services.admin_tasks import run_export
 
             logger.info("Starting scheduled backup")
             uid = self.ctx.require_user_id()
 
-            backup_path = create_backup(
+            backup_path = run_export(
                 session_factory=self.ctx.session_factory,
                 user_id=uid,
-                export_dir=Path(self.ctx.config.DATA_DIR) / "backups" / "auto",
+                output_dir=Path(self.ctx.config.DATA_DIR) / "exports" / "auto",
             )
 
             logger.info(f"Scheduled backup completed: {backup_path}")
@@ -144,15 +144,15 @@ class BackgroundScheduler:
 
         try:
             if trigger == "cron":
-                from apscheduler.triggers.cron import CronTrigger
+                from apscheduler.triggers.cron import CronTrigger  # type: ignore[import-not-found]
 
                 trigger_obj = CronTrigger(**trigger_args)
             elif trigger == "interval":
-                from apscheduler.triggers.interval import IntervalTrigger
+                from apscheduler.triggers.interval import IntervalTrigger  # type: ignore[import-not-found]  # noqa: I001
 
                 trigger_obj = IntervalTrigger(**trigger_args)
             elif trigger == "date":
-                from apscheduler.triggers.date import DateTrigger
+                from apscheduler.triggers.date import DateTrigger  # type: ignore[import-not-found]  # noqa: I001
 
                 trigger_obj = DateTrigger(**trigger_args)
             else:

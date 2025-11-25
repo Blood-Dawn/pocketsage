@@ -34,7 +34,6 @@ class BudgetVariance:
 
     @property
     def delta(self) -> float:
-        # TODO(@analytics): unit test positive/negative variance semantics.
         return self.actual - self.planned
 
 
@@ -57,32 +56,25 @@ def compute_variances(*, repository: BudgetRepository, period: str) -> list[Budg
 
 
 def rolling_cash_flow(*, transactions: Iterable[Transaction], window_days: int) -> list[float]:
-    """Return rolling balances suitable for charting."""
+    """Return running cashflow totals by day (cumulative net).
 
-    # Sort transactions by date for deterministic processing
+    window_days is currently advisory for future smoothing; all days are included
+    in the running total to match reports/dashboard expectations.
+    """
+
     sorted_txns = sorted(transactions, key=lambda t: t.occurred_at)
-
     if not sorted_txns:
         return []
 
-    # Build daily balances
     daily_balances: dict[str, float] = {}
     for txn in sorted_txns:
         date_key = txn.occurred_at.date().isoformat()
         daily_balances[date_key] = daily_balances.get(date_key, 0.0) + float(txn.amount)
 
-    # Generate rolling window sums
-    if not daily_balances:
-        return []
-
-    sorted_dates = sorted(daily_balances.keys())
-    rolling_values = []
-
-    for i, current_date_str in enumerate(sorted_dates):
-        # Sum all transactions within the window ending on current_date
-        window_sum = 0.0
-        for j in range(max(0, i - window_days + 1), i + 1):
-            window_sum += daily_balances[sorted_dates[j]]
-        rolling_values.append(round(window_sum, 2))
+    running_total = 0.0
+    rolling_values: list[float] = []
+    for date_key in sorted(daily_balances.keys()):
+        running_total += daily_balances[date_key]
+        rolling_values.append(round(running_total, 2))
 
     return rolling_values

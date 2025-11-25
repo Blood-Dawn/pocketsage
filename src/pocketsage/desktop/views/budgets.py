@@ -69,19 +69,26 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 user_id=uid,
             )
             created = ctx.budget_repo.create(budget_obj, user_id=uid)
-            if category_dd.value and amount_field.value:
-                try:
+            try:
+                if category_dd.value and amount_field.value:
+                    planned_amount = float(amount_field.value)
                     line = BudgetLine(
                         budget_id=created.id,
                         category_id=int(category_dd.value),
-                        planned_amount=float(amount_field.value),
+                        planned_amount=planned_amount,
                         rollover_enabled=False,
                         user_id=uid,
                     )
                     ctx.budget_repo.create_line(line, user_id=uid)
-                except Exception:
-                    pass
+                page.snack_bar = ft.SnackBar(content=ft.Text("Budget created"))
+                page.snack_bar.open = True
+            except Exception as exc:
+                page.snack_bar = ft.SnackBar(
+                    content=ft.Text(f"Budget saved, but first line failed: {exc}")
+                )
+                page.snack_bar.open = True
             dialog.open = False
+            page.update()
             refresh_view()
 
         dialog = ft.AlertDialog(
@@ -126,7 +133,14 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 # Get actual spending for this category in previous month
                 prev_txs = ctx.transaction_repo.search(
                     start_date=datetime(prev_year, prev_month, 1),
-                    end_date=datetime(prev_year, prev_month, monthrange(prev_year, prev_month)[1], 23, 59, 59),
+                    end_date=datetime(
+                        prev_year,
+                        prev_month,
+                        monthrange(prev_year, prev_month)[1],
+                        23,
+                        59,
+                        59,
+                    ),
                     category_id=line.category_id,
                     user_id=uid,
                 )
@@ -134,8 +148,8 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
                 # Rollover: carry forward the surplus (underspent) or deficit (overspent)
                 # This maintains the base budget AND adds the rollover amount
-                # Example: Budgeted $100, spent $80 → Next month gets $100 (base) + $20 (surplus) = $120
-                # Example: Budgeted $100, spent $120 → Next month gets $100 (base) - $20 (deficit) = $80
+                # Example: Budgeted $100, spent $80 -> Next month base $100 + $20 surplus = $120
+                # Example: Budgeted $100, spent $120 -> Next month base $100 - $20 deficit = $80
                 surplus_or_deficit = base_budget - actual_spent
                 new_planned = max(0.0, base_budget + surplus_or_deficit)  # Ensure non-negative
 
@@ -257,13 +271,17 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         dlg.open = False
                         refresh_view()
                     except Exception as exc:
-                        page.snack_bar = ft.SnackBar(content=ft.Text(f"Failed to update line: {exc}"))
+                        page.snack_bar = ft.SnackBar(
+                            content=ft.Text(f"Failed to update line: {exc}")
+                        )
                         page.snack_bar.open = True
                         page.update()
 
                 dlg = ft.AlertDialog(
                     title=ft.Text("Edit budget line"),
-                    content=ft.Column([category_dd, amount_field, rollover_switch], spacing=8, tight=True),
+                    content=ft.Column(
+                        [category_dd, amount_field, rollover_switch], spacing=8, tight=True
+                    ),
                     actions=[
                         ft.TextButton("Cancel", on_click=lambda _: setattr(dlg, "open", False)),
                         ft.FilledButton("Save", on_click=save_edit),
@@ -437,9 +455,19 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 tooltip="Next month",
                                 on_click=lambda _: _shift_month(1),
                             ),
-                            ft.FilledButton("Add line", icon=ft.Icons.ADD, on_click=lambda _: add_budget_line(budget.id) if budget else show_create_budget_dialog()),
-                            ft.TextButton("Create budget", on_click=lambda _: show_create_budget_dialog()),
-                            ft.TextButton("Copy previous month", on_click=lambda _: copy_previous_month()),
+                            ft.FilledButton(
+                                "Add line",
+                                icon=ft.Icons.ADD,
+                                on_click=lambda _: add_budget_line(budget.id)
+                                if budget
+                                else show_create_budget_dialog(),
+                            ),
+                            ft.TextButton(
+                                "Create budget", on_click=lambda _: show_create_budget_dialog()
+                            ),
+                            ft.TextButton(
+                                "Copy previous month", on_click=lambda _: copy_previous_month()
+                            ),
                         ],
                         spacing=8,
                     ),

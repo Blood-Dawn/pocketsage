@@ -114,6 +114,7 @@ def attach_file_picker(ctx: AppContext, page: ft.Page) -> ft.FilePicker:
                     if created
                     else "No new transactions imported (duplicates or invalid rows?)"
                 )
+                setattr(ctx, "pending_refresh_route", "/ledger")
                 _show_snack(page, msg)
                 navigate(page, "/ledger")
             elif mode == "portfolio":
@@ -132,6 +133,7 @@ def attach_file_picker(ctx: AppContext, page: ft.Page) -> ft.FilePicker:
                     if created
                     else "No holdings imported (empty file or invalid rows)"
                 )
+                setattr(ctx, "pending_refresh_route", "/portfolio")
                 _show_snack(page, msg)
                 navigate(page, "/portfolio")
             else:

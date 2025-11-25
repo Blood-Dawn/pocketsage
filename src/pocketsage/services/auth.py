@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Any, Callable, Optional, cast
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHash, VerificationError, VerifyMismatchError
@@ -18,6 +18,7 @@ _ALLOWED_ROLES = {"user", "admin", "guest"}
 GUEST_USERNAME = "guest"
 LOCAL_USERNAME = "local"
 LOCAL_ROLE = "admin"
+_CREATED_AT_COLUMN = cast(Any, User.created_at)
 
 
 def _is_guest_username(username: str) -> bool:
@@ -38,7 +39,9 @@ def list_users(session_factory: SessionFactory) -> list[User]:
     with session_factory() as session:
         users = list(
             session.exec(
-                select(User).where(User.username != GUEST_USERNAME).order_by(User.created_at)
+                select(User)
+                .where(User.username != GUEST_USERNAME)
+                .order_by(_CREATED_AT_COLUMN)
             ).all()
         )
         session.expunge_all()
@@ -165,7 +168,9 @@ def purge_guest_user(session_factory: SessionFactory) -> bool:
         guest_id = guest.id
 
     try:
-        admin_tasks.reset_demo_database(user_id=guest_id, session_factory=session_factory, reseed=False)
+        admin_tasks.reset_demo_database(
+            user_id=guest_id, session_factory=session_factory, reseed=False
+        )
     except Exception:
         # Best-effort cleanup; schema mismatches or missing tables should not block login.
         pass

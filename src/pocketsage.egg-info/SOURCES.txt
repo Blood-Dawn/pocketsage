@@ -75,11 +75,14 @@ src/pocketsage/services/heavy_seed.py
 src/pocketsage/services/import_csv.py
 src/pocketsage/services/importers.py
 src/pocketsage/services/jobs.py
+src/pocketsage/services/ledger_service.py
 src/pocketsage/services/liabilities.py
 src/pocketsage/services/reports.py
 src/pocketsage/services/watcher.py
+tests/test_admin_backup_restore.py
 tests/test_admin_tasks.py
 tests/test_budgeting.py
+tests/test_budgeting_service.py
 tests/test_button_actions.py
 tests/test_csv_import_comprehensive.py
 tests/test_debt_calculations.py
@@ -95,6 +98,7 @@ tests/test_import_services.py
 tests/test_integration_workflows.py
 tests/test_ledger_filters.py
 tests/test_ledger_repository.py
+tests/test_ledger_view.py
 tests/test_logging.py
 tests/test_money_representation.py
 tests/test_performance.py

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Callable, Optional
@@ -32,7 +33,7 @@ class AppContext:
     config: BaseConfig
 
     # Session factory
-    session_factory: Callable[[], Session]
+    session_factory: Callable[[], AbstractContextManager[Session]]
 
     # Repositories
     transaction_repo: SQLModelTransactionRepository

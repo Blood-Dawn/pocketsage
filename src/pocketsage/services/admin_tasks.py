@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import os
 from calendar import monthrange
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -24,7 +24,7 @@ from typing import Callable, Iterator, Optional
 from zipfile import ZipFile
 
 from sqlalchemy import func
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import OperationalError
 from sqlmodel import Session, select
 
@@ -45,7 +45,7 @@ from ..models import (
 from .export_csv import export_transactions_csv
 from .reports import export_spending_png
 
-SessionFactory = Callable[[], Iterator[Session]]
+SessionFactory = Callable[[], AbstractContextManager[Session]]
 
 _ENGINE = None
 
@@ -97,8 +97,11 @@ def _resolve_engine(session_factory: Optional[SessionFactory]) -> Engine:
         bind = session.get_bind()
         if bind is None:  # pragma: no cover - defensive guard
             raise RuntimeError("Session is not bound to an engine")
-        engine = getattr(bind, "engine", bind)
-        return engine
+        if isinstance(bind, Connection):
+            return bind.engine
+        if isinstance(bind, Engine):
+            return bind
+        raise RuntimeError(f"Unsupported bind type: {type(bind)!r}")
 
 
 def _seed_categories(session: Session, user_id: int) -> dict[str, Category]:
@@ -261,16 +264,29 @@ def _seed_transactions(
                 Transaction.external_id == spec["external_id"], Transaction.user_id == user_id
             )
         ).one_or_none()
+        category_id = categories[spec["category_slug"]].id
+        if category_id is None or account.id is None:
+            continue
         if existing is None:
-            existing = Transaction(external_id=spec["external_id"], user_id=user_id)
+            existing = Transaction(
+                user_id=user_id,
+                external_id=spec["external_id"],
+                occurred_at=spec["occurred_at"],
+                amount=spec["amount"],
+                memo=spec["memo"],
+                category_id=category_id,
+                account_id=account.id,
+                currency=account.currency,
+            )
             session.add(existing)
-        existing.occurred_at = spec["occurred_at"]
-        existing.amount = spec["amount"]
-        existing.memo = spec["memo"]
-        existing.category_id = categories[spec["category_slug"]].id
-        existing.account_id = account.id
-        existing.currency = account.currency
-        existing.user_id = user_id
+        else:
+            existing.occurred_at = spec["occurred_at"]
+            existing.amount = spec["amount"]
+            existing.memo = spec["memo"]
+            existing.category_id = category_id
+            existing.account_id = account.id
+            existing.currency = account.currency
+            existing.user_id = user_id
 
 
 def _heavy_transactions_seed(session: Session, user_id: int, accounts: dict[str, Account]) -> None:
@@ -358,15 +374,12 @@ def _heavy_transactions_seed(session: Session, user_id: int, accounts: dict[str,
         for _ in range(random.randint(0, 6)):
             roll = random.random()
             if roll < 0.15:
-                txn_type = "income"
                 category_name = random.choice(income_categories)
                 amount = round(random.uniform(200, 3000), 2)
             elif roll < 0.75:
-                txn_type = "expense"
                 category_name = random.choice(expense_categories)
                 amount = round(-random.uniform(5, 400), 2)
             else:
-                txn_type = "transfer"
                 category_name = random.choice(transfer_categories)
                 amount = round(random.uniform(50, 1500), 2)
                 if random.random() < 0.5:
@@ -436,6 +449,11 @@ def _seed_habits(session: Session, user_id: int) -> None:
             existing.cadence = spec["cadence"]
             if not existing.is_active:
                 existing.is_active = True
+
+        if existing.id is None:
+            session.flush()
+        if existing.id is None:
+            continue
 
         entries = {
             entry.occurred_on: entry
@@ -512,6 +530,10 @@ def _seed_budget(session: Session, categories: dict[str, Category], user_id: int
         session.add(budget)
         session.flush()
         existing_budget = budget
+    if existing_budget.id is None:
+        session.flush()
+    if existing_budget.id is None:
+        return
 
     coffee_category = categories.get("coffee")
     if coffee_category:

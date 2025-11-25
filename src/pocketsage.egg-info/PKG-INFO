@@ -27,6 +27,8 @@ Requires-Dist: pytest-xdist==3.6.1; extra == "dev"
 Requires-Dist: ruff==0.6.2; extra == "dev"
 Requires-Dist: pre-commit==3.8.0; extra == "dev"
 Requires-Dist: bandit[toml]==1.7.9; extra == "dev"
+Requires-Dist: apscheduler>=3.10.0; extra == "dev"
+Requires-Dist: watchdog>=3.0.0; extra == "dev"
 
 # PocketSage - Offline Desktop Finance + Habits Tracker
 

@@ -888,6 +888,8 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         scroll=ft.ScrollMode.AUTO,
     )
 
+    if getattr(ctx, "pending_refresh_route", None) == "/ledger":
+        ctx.pending_refresh_route = None
     _load_transactions()
     if getattr(ctx, "pending_new_transaction", False):
         ctx.pending_new_transaction = False

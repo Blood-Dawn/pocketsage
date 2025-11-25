@@ -43,7 +43,9 @@ def build_spending_chart(
     fig, ax = plt.subplots(figsize=(6, 4))
     if sizes:
         cmap = plt.get_cmap("tab20c")
-        colors = cmap.colors[: len(sizes)]
+        colors = getattr(cmap, "colors", None)
+        if colors:
+            colors = colors[: len(sizes)]
         wedges, _ = ax.pie(
             sizes,
             labels=labels,

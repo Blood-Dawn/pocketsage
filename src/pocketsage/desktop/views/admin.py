@@ -48,11 +48,13 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     restore_picker = ft.FilePicker()
-    if page.overlay is None:
+    if getattr(page, "overlay", None) is None:
         page.overlay = []
     page.overlay.append(restore_picker)
 
     def _notify(message: str):
+        if page is None:
+            return
         page.snack_bar = ft.SnackBar(content=ft.Text(message))
         page.snack_bar.open = True
         if status_ref.current:
@@ -69,6 +71,8 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     def _refresh_user_views():
         """Navigate to dashboard to force user-facing views to reload with new data."""
+        if page is None:
+            return
         try:
             page.go("/dashboard")
         except Exception:
@@ -76,6 +80,9 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
         page.update()
 
     def _with_spinner(task: callable, label: str):
+        if page is None:
+            task()
+            return
         spinner = ft.AlertDialog(
             modal=True,
             content=ft.Column(
@@ -221,7 +228,9 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
             content=ft.Column(
                 [
                     ft.Text("Profile", size=16, weight=ft.FontWeight.BOLD),
-                    ft.Text(f"Username: {ctx.current_user.username if ctx.current_user else 'local'}"),
+                    ft.Text(
+                        f"Username: {getattr(getattr(ctx, 'current_user', None), 'username', 'local')}"
+                    ),
                     ft.Text(f"Mode: {'Admin' if getattr(ctx, 'admin_mode', False) else 'User'}"),
                     ft.Text(f"Data directory: {ctx.config.DATA_DIR}"),
                 ],

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Iterable
 
 from ..models.liability import Liability
+from ..models.transaction import Transaction
 
 
 @dataclass(slots=True)
@@ -134,9 +135,6 @@ def build_payment_transaction(
     user_id: int,
 ) -> "Transaction":
     """Construct a ledger transaction that represents a liability payment."""
-
-    from datetime import datetime, timezone
-    from ..models.transaction import Transaction
 
     return Transaction(
         user_id=user_id,
