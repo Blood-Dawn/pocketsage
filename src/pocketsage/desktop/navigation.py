@@ -11,7 +11,6 @@ if TYPE_CHECKING:
 
 from ..devtools import dev_log
 
-
 # View builder type
 ViewBuilder = Callable[["AppContext", ft.Page], ft.View]
 
@@ -25,35 +24,43 @@ class Router:
         self.context = context
         self.routes: Dict[str, ViewBuilder] = {}
 
-    def register(self, route: str, builder: ViewBuilder) -> None:
+    def register(self, route: str, builder) -> None:
         """Register a route with its view builder."""
+        logger.debug(f"Registering route: {route}")
         self.routes[route] = builder
 
     def route_change(self, e: ft.RouteChangeEvent) -> None:
         """Handle route change events."""
         route = e.route or "/"
+        logger.info(f"Route change requested: {route}", extra={"admin_mode": getattr(self.context, "admin_mode", False)})
         if route == "/login":
             route = "/dashboard"
         if route == "/admin" and not getattr(self.context, "admin_mode", False):
+            logger.warning("Admin route blocked - admin mode not enabled")
             self.show_error("Enable Admin mode to access admin tools.")
             route = "/dashboard"
 
         if route not in self.routes:
+            logger.warning(f"Route not in registered routes: {route}, defaulting to dashboard")
             route = "/dashboard"
 
         builder = self.routes.get(route)
         if not builder:
+            logger.error(f"No builder found for route: {route}")
             self.page.go("/dashboard")
             return
 
         try:
+            logger.debug(f"Building view for route: {route}")
             view = builder(self.context, self.page)
             if self.page.views:
                 self.page.views[-1] = view
             else:
                 self.page.views.append(view)
             self.page.update()
+            logger.info(f"Successfully loaded view for route: {route}")
         except Exception as ex:
+            logger.error(f"Failed to build view for route {route}: {ex}", exc_info=True)
             dev_log(self.context.config, "Route load failed", exc=ex, context={"route": route})
             self.show_error(f"Error loading view: {ex}")
 

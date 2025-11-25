@@ -34,6 +34,11 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
     def refresh_view():
         page.go("/budgets")
 
+    def _close_dialog(dialog: ft.AlertDialog) -> None:
+        """Helper to properly close a dialog."""
+        dialog.open = False
+        page.update()
+
     def show_create_budget_dialog():
         categories = ctx.category_repo.list_all(user_id=uid)
         if not categories:
@@ -95,7 +100,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
             title=ft.Text("Create budget"),
             content=ft.Column([label_field, category_dd, amount_field], tight=True, spacing=8),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda _: setattr(dialog, "open", False)),
+                ft.TextButton("Cancel", on_click=lambda _: _close_dialog(dialog)),
                 ft.FilledButton("Create", on_click=save_budget),
             ],
         )
@@ -208,7 +213,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
             title=ft.Text("Add budget line"),
             content=ft.Column([category_dd, amount_field], spacing=8, tight=True),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda _: setattr(dlg, "open", False)),
+                ft.TextButton("Cancel", on_click=lambda _: _close_dialog(dlg)),
                 ft.FilledButton("Save", on_click=save_line),
             ],
         )
@@ -283,7 +288,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         [category_dd, amount_field, rollover_switch], spacing=8, tight=True
                     ),
                     actions=[
-                        ft.TextButton("Cancel", on_click=lambda _: setattr(dlg, "open", False)),
+                        ft.TextButton("Cancel", on_click=lambda _: _close_dialog(dlg)),
                         ft.FilledButton("Save", on_click=save_edit),
                     ],
                 )

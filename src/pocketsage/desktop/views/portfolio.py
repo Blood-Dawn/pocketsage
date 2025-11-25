@@ -19,9 +19,9 @@ from typing import TYPE_CHECKING
 
 import flet as ft
 
-from ...models.portfolio import Holding
-from ...models.account import Account
 from ...devtools import dev_log
+from ...models.account import Account
+from ...models.portfolio import Holding
 from .. import controllers
 from ..charts import allocation_chart_png
 from ..components import build_app_bar, build_main_layout
@@ -102,6 +102,11 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
             suggested_name=f"holdings_export_{stamp}.csv",
             on_path_selected=_write,
         )
+
+    def _close_dialog(dialog: ft.AlertDialog) -> None:
+        """Helper to properly close a dialog."""
+        dialog.open = False
+        page.update()
 
     def _open_dialog(existing: Holding | None = None) -> None:
         accounts_local = ctx.account_repo.list_all(user_id=uid)
@@ -185,7 +190,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 spacing=8,
             ),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda _: setattr(dialog, "open", False)),
+                ft.TextButton("Cancel", on_click=lambda _: _close_dialog(dialog)),
                 ft.FilledButton("Save", on_click=_save),
             ],
         )

@@ -16,8 +16,8 @@ from typing import TYPE_CHECKING
 
 import flet as ft
 
-from ...models.liability import Liability
 from ...devtools import dev_log
+from ...models.liability import Liability
 from ...services.debts import DebtAccount, avalanche_schedule, schedule_summary, snowball_schedule
 from ...services.liabilities import build_payment_transaction
 from ..charts import debt_payoff_chart_png
@@ -242,7 +242,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 spacing=8,
             ),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda _: setattr(dialog, "open", False)),
+                ft.TextButton("Cancel", on_click=lambda _: _close_dialog(dialog)),
                 ft.FilledButton("Save", on_click=_save),
             ],
         )
@@ -308,7 +308,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             title=ft.Text(f"Record payment for {liability.name}"),
             content=ft.Column([amount_field, account_dd, category_dd, reconcile_switch], spacing=8),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda _: setattr(payment_dialog, "open", False)),
+                ft.TextButton("Cancel", on_click=lambda _: _close_dialog(payment_dialog)),
                 ft.FilledButton("Apply", on_click=_apply),
             ],
         )
