@@ -588,8 +588,12 @@ def reset_demo_database(
         )
 
     # Validate user_id
-    if user_id is None or not isinstance(user_id, int) or user_id < 1:
-        raise ValueError(f"Invalid user_id: {user_id!r}. Must be a positive integer.")
+    if user_id is None:
+        raise ValueError("user_id cannot be None")
+    if not isinstance(user_id, int):
+        raise ValueError(f"user_id must be an integer, got {type(user_id).__name__}")
+    if user_id < 1:
+        raise ValueError(f"user_id must be a positive integer, got {user_id}")
 
     with _get_session(session_factory) as session:
         models = (
@@ -804,7 +808,9 @@ def restore_database(
         raise FileNotFoundError(f"Backup file not found: {source}")
     target = config.DATA_DIR / config.DB_FILENAME
 
-    # Safety check: require explicit confirmation when overwriting existing data
+    # Safety check: require explicit confirmation when overwriting existing data.
+    # Note: If overwrite=False and target exists, FileExistsError below prevents
+    # any data loss, so confirmation is not needed in that case.
     if overwrite and target.exists() and not confirm:
         raise ValueError(
             "Destructive operation requires explicit confirmation. "

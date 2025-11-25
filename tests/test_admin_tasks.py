@@ -141,10 +141,10 @@ def test_reset_demo_database_rejects_invalid_user_id(session_factory):
     """Safety check: reset_demo_database should reject invalid user_id."""
     factory, engine, user = session_factory
 
-    with pytest.raises(ValueError, match="Invalid user_id"):
+    with pytest.raises(ValueError, match="must be a positive integer"):
         reset_demo_database(session_factory=factory, user_id=0, confirm=True)
 
-    with pytest.raises(ValueError, match="Invalid user_id"):
+    with pytest.raises(ValueError, match="must be a positive integer"):
         reset_demo_database(session_factory=factory, user_id=-1, confirm=True)
 
 
