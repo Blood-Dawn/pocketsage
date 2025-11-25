@@ -25,48 +25,48 @@ Working backlog aligned to PocketSage requirements docs (`PocketSage-Requirement
 - [x] Guest/admin/demo behavior consistent after simplified login removal.
 
 ## 4. Habits
-- [ ] Habits page reachable via nav and shortcuts without crashes.
-- [ ] Create/edit/archive habits.
-- [ ] Toggle daily completion.
-- [ ] Recompute streaks correctly.
-- [ ] Show simple heatmap or streak visualization.
-- [ ] Surface basic habit data in Reports (later).
+- [x] Habits page reachable via nav and shortcuts without crashes.
+- [x] Create/edit/archive habits.
+- [x] Toggle daily completion.
+- [x] Recompute streaks correctly.
+- [x] Show simple heatmap or streak visualization.
+- [x] Surface basic habit data in Reports (later).
 
 ## 5. Debts / Liabilities
-- [ ] Enter liabilities (principal, APR, min payment).
-- [ ] Snowball and avalanche strategies wired to UI buttons.
-- [ ] Compute and display payoff schedule with projected debt-free date.
-- [ ] Strategy modes: aggressive / balanced / lazy alter assumptions.
-- [ ] User-friendly explanation text for strategy differences.
-- [ ] Show summary chart or table (timeline / remaining balance).
+- [x] Enter liabilities (principal, APR, min payment).
+- [x] Snowball and avalanche strategies wired to UI buttons.
+- [x] Compute and display payoff schedule with projected debt-free date.
+- [x] Strategy modes: aggressive / balanced / lazy alter assumptions.
+- [x] User-friendly explanation text for strategy differences.
+- [x] Show summary chart or table (timeline / remaining balance).
 
 ## 6. Portfolio (Demo-Focused)
-- [ ] Add holding manually or via CSV import.
-- [ ] Parse symbol, quantity, price, category/sector columns.
-- [ ] Allocation donut chart by symbol or category.
-- [ ] Export portfolio CSV with confirmation snackbar.
-- [ ] Add second chart (allocation by category or gain/loss bar).
+- [x] Add holding manually or via CSV import.
+- [x] Parse symbol, quantity, price, category/sector columns.
+- [x] Allocation donut chart by symbol or category.
+- [x] Export portfolio CSV with confirmation snackbar.
+- [x] Add second chart (allocation by category or gain/loss bar).
 
 ## 7. Reports & Analytics
-- [ ] Reports page reachable without crashes.
-- [ ] Charts visible without exporting: spending vs income, category breakdown, debt payoff summary, habit streak snippet.
-- [ ] CSV/PNG export for key reports under `instance/reports/` with confirmation path.
-- [ ] Add month filters per page (not only topbar).
+- [x] Reports page reachable without crashes.
+- [x] Charts visible without exporting: spending vs income, category breakdown, debt payoff summary, habit streak snippet.
+- [x] CSV/PNG export for key reports under `instance/reports/` with confirmation path.
+- [x] Add month filters per page (not only topbar).
 
 ## 8. Settings & Admin View
-- [ ] Dark/Light toggle stays working.
-- [ ] Admin toggle or tab clearly exposed (User vs Admin mode).
-- [ ] Admin actions wired: Run Demo Seed, Reset Demo Data, Import/Export, Backup/Restore.
-- [ ] Backup zips DB + CSV/PNGs under `instance/backups/` with timestamp snackbar.
-- [ ] Show app version and instance path for demos.
+- [x] Dark/Light toggle stays working.
+- [x] Admin toggle or tab clearly exposed (User vs Admin mode).
+- [x] Admin actions wired: Run Demo Seed, Reset Demo Data, Import/Export, Backup/Restore.
+- [x] Backup zips DB + CSV/PNGs under `instance/backups/` with timestamp snackbar.
+- [x] Show app version and instance path for demos.
 
 ## 9. Navigation, Topbar, and UX
-- [ ] Stable tab switching (no jitter, instant transitions).
-- [ ] Each page owns month filters; topbar provides shortcuts only.
-- [ ] CSV Help and Help page reachable from Settings/Reports/Portfolio/topbar.
-- [ ] Copy is concise and friendly.
+- [x] Stable tab switching (no jitter, instant transitions).
+- [x] Each page owns month filters; topbar provides shortcuts only.
+- [x] CSV Help and Help page reachable from Settings/Reports/Portfolio/topbar.
+- [x] Copy is concise and friendly.
 
 ## 10. Testing & Docs
-- [ ] Expand tests: ledger filters/add/delete (“All” category), admin seed/reset, debts calculations, habits streak logic.
-- [ ] New doc pointers for verbose pytest and ruff commands (no skips).
-- [ ] Reference this master TODO from README and keep milestones updated.
+- [x] Expand tests: ledger filters/add/delete (“All” category), admin seed/reset, debts calculations, habits streak logic.
+- [x] New doc pointers for verbose pytest and ruff commands (no skips).
+- [x] Reference this master TODO from README and keep milestones updated.

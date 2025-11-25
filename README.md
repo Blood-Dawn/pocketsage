@@ -102,6 +102,7 @@ The app launches directly to the Dashboard—no login required!
 - The desktop app auto-loads a local profile (no password).
 - Toggle **Admin mode** from the app bar switch to access seed/reset/export/backup.
 - Switch back to user mode to continue normal ledger/habits/debts/portfolio/reports flows; changes reflect immediately.
+- App version and data path: shown in Admin view; data lives under `instance/` by default.
 
 ## ⌨️ Keyboard Shortcuts
 

@@ -55,14 +55,23 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             for lb in liabilities
         ]
 
-    def _run_projection(liabilities: list[Liability]) -> tuple[list[dict], str | None, float, int]:
+    def _run_projection(
+        liabilities: list[Liability], *, mode: str = "balanced"
+    ) -> tuple[list[dict], str | None, float, int]:
         debts = _to_accounts(liabilities)
         if not debts:
             return [], None, 0.0, 0
-        if strategy_state["value"] == "avalanche":
-            sched = avalanche_schedule(debts=debts, surplus=0.0)
+        surplus = 0.0
+        if mode == "aggressive":
+            surplus = 150.0
+        elif mode == "lazy":
+            surplus = 0.0
         else:
-            sched = snowball_schedule(debts=debts, surplus=0.0)
+            surplus = 50.0
+        if strategy_state["value"] == "avalanche":
+            sched = avalanche_schedule(debts=debts, surplus=surplus)
+        else:
+            sched = snowball_schedule(debts=debts, surplus=surplus)
         payoff, total_interest, months = schedule_summary(sched)
         return sched, payoff, total_interest, months
 
@@ -168,7 +177,9 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             table_ref.current.rows = rows
 
         try:
-            schedule, payoff, total_interest, _months = _run_projection(liabilities)
+            schedule, payoff, total_interest, _months = _run_projection(
+                liabilities, mode=strategy_state.get("mode", "balanced")
+            )
             _update_schedule(schedule, payoff, total_interest)
         except ValueError as exc:
             show_error_dialog(page, "Payoff calculation failed", str(exc))
@@ -415,28 +426,54 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     strategy_row = ft.Row(
         [
-            ft.RadioGroup(
-                content=ft.Row(
-                    [
-                        ft.Radio(value="snowball", label="Snowball"),
-                        ft.Radio(value="avalanche", label="Avalanche"),
-                    ]
-                ),
-                value=strategy_state["value"],
-                on_change=_on_strategy_change,
+            ft.Column(
+                [
+                    ft.Text("Strategy", weight=ft.FontWeight.BOLD),
+                    ft.RadioGroup(
+                        content=ft.Row(
+                            [
+                                ft.Radio(value="snowball", label="Snowball"),
+                                ft.Radio(value="avalanche", label="Avalanche"),
+                            ]
+                        ),
+                        value=strategy_state["value"],
+                        on_change=_on_strategy_change,
+                    ),
+                ]
+            ),
+            ft.Column(
+                [
+                    ft.Text("Payment mode", weight=ft.FontWeight.BOLD),
+                    ft.Dropdown(
+                        width=200,
+                        value=strategy_state.get("mode", "balanced"),
+                        options=[
+                            ft.dropdown.Option("aggressive", "Aggressive (+$150/mo)"),
+                            ft.dropdown.Option("balanced", "Balanced (+$50/mo)"),
+                            ft.dropdown.Option("lazy", "Lazy (minimums only)"),
+                        ],
+                        on_change=lambda e: (
+                            strategy_state.update({"mode": e.control.value or "balanced"}),
+                            _refresh(),
+                        ),
+                    ),
+                ]
             ),
             ft.Column(
                 [
                     ft.Text("", ref=payoff_text),
                     ft.Text(
-                        "Snowball: smallest balance first. Avalanche: highest APR first.",
+                        "Snowball: smallest balance first. Avalanche: highest APR first. Payment mode adds surplus toward the current focus debt.",
                         size=12,
                         color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
-                ]
+                ],
+                width=320,
             ),
         ],
         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+        vertical_alignment=ft.CrossAxisAlignment.START,
+        wrap=True,
     )
 
     content = ft.Column(
