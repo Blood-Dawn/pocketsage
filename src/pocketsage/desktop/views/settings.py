@@ -9,10 +9,10 @@ from typing import TYPE_CHECKING
 
 import flet as ft
 
+from ...devtools import dev_log
 from ...services import importers
 from ...services.admin_tasks import backup_database, restore_database, run_export
 from ...services.watcher import start_watcher
-from ...devtools import dev_log
 from .. import controllers
 from ..components import build_app_bar, build_main_layout
 
@@ -58,7 +58,7 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
     appearance_section = ft.Card(
         content=ft.Container(
             content=ft.Column(
-                [
+                controls=[
                     ft.Text("Appearance", size=18, weight=ft.FontWeight.BOLD),
                     ft.Container(height=16),
                     theme_switch,
@@ -216,11 +216,11 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
     database_section = ft.Card(
         content=ft.Container(
             content=ft.Column(
-                [
+                controls=[
                     ft.Text("Database", size=18, weight=ft.FontWeight.BOLD),
                     ft.Container(height=16),
                     ft.Row(
-                        [
+                        controls=[
                             ft.Text("Database Path:", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
                             ft.Text(str(db_path), size=14, selectable=True),
                         ],
@@ -230,7 +230,7 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     data_dir_field,
                     ft.Container(height=8),
                     ft.Row(
-                        [
+                        controls=[
                             ft.FilledButton(
                                 "Backup Database",
                                 icon=ft.Icons.BACKUP,
@@ -271,7 +271,7 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
                     ft.Row(
-                        [
+                        controls=[
                             ft.Switch(
                                 label="Encrypt database (SQLCipher-ready)",
                                 value=encryption_enabled,
@@ -296,17 +296,17 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
     about_section = ft.Card(
         content=ft.Container(
             content=ft.Column(
-                [
+                controls=[
                     ft.Text("About", size=18, weight=ft.FontWeight.BOLD),
                     ft.Container(height=16),
                     ft.Row(
-                        [
+                        controls=[
                             ft.Icon(
                                 ft.Icons.ACCOUNT_BALANCE_WALLET, size=48, color=ft.Colors.PRIMARY
                             ),
                             ft.Container(width=16),
                             ft.Column(
-                                [
+                                controls=[
                                     ft.Text("PocketSage", size=20, weight=ft.FontWeight.BOLD),
                                     ft.Text(
                                         "Version 0.1.0", size=14, color=ft.Colors.ON_SURFACE_VARIANT
@@ -331,7 +331,7 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
     data_section = ft.Card(
         content=ft.Container(
             content=ft.Column(
-                [
+                controls=[
                     ft.Text("Data Management", size=18, weight=ft.FontWeight.BOLD),
                     ft.Container(height=16),
                     ft.Text(
@@ -341,7 +341,7 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ),
                     ft.Container(height=16),
                     ft.Row(
-                        [
+                        controls=[
                             ft.FilledButton(
                                 "Import Transactions",
                                 icon=ft.Icons.UPLOAD_FILE,
@@ -361,14 +361,14 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         spacing=8,
                     ),
                     ft.Row(
-                        [
+                        controls=[
                             ft.Text("Watched CSV/file for auto-import:", size=13),
                             ft.Text("", ref=watcher_label, size=13, color=ft.Colors.ON_SURFACE_VARIANT),
                         ],
                         spacing=8,
                     ),
                     ft.Row(
-                        [
+                        controls=[
                             ft.FilledButton(
                                 "Choose file",
                                 icon=ft.Icons.FOLDER_OPEN,
@@ -387,7 +387,7 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     # Build content
     content = ft.Column(
-        [
+        controls=[
             ft.Text("Settings", size=24, weight=ft.FontWeight.BOLD),
             ft.Container(height=16),
             appearance_section,

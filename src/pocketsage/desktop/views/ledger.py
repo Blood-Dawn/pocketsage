@@ -223,7 +223,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 pct = (amount / total_spend) * 100
                 controls.append(
                     ft.Row(
-                        [
+                        controls=[
                             ft.Text(str(item["name"]), weight=ft.FontWeight.BOLD),
                             ft.Text(f"{_format_currency(amount)} - {pct:.1f}%"),
                         ],
@@ -340,7 +340,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         ft.DataCell(ft.Text("")),
                         ft.DataCell(
                             ft.Row(
-                                [
+                                controls=[
                                     ft.IconButton(
                                         icon=ft.Icons.EDIT,
                                         tooltip="Edit",
@@ -438,10 +438,12 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         """Validate and persist a transaction from the dialog."""
 
         logger.info("Saving transaction", extra={"is_edit": existing is not None})
+        logger.info(f"Save button clicked - amount: {amount_field.value}, desc: {description_field.value}, date: {date_field.value}")
         try:
             description = (description_field.value or "").strip()
             logger.debug(f"Description: {description}")
             if not description:
+                logger.warning("Description validation failed - empty")
                 description_field.error_text = "Description is required"
                 description_field.update()
                 raise ValueError("Description required")
@@ -450,14 +452,18 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             try:
                 occurred_at = datetime.fromisoformat((date_field.value or "").strip())
                 date_field.error_text = None
-            except ValueError:
+                logger.info(f"Parsed date: {occurred_at}")
+            except ValueError as e:
+                logger.warning(f"Date parsing failed: {e}")
                 date_field.error_text = "Use YYYY-MM-DD"
                 if date_field.page:
                     date_field.update()
                 raise
 
             raw_amount = float(amount_field.value or 0)
+            logger.info(f"Raw amount: {raw_amount}")
             if raw_amount == 0:
+                logger.warning("Amount validation failed - zero")
                 amount_field.error_text = "Amount cannot be zero"
                 amount_field.update()
                 raise ValueError("Amount cannot be zero")
@@ -466,6 +472,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             if txn_type == "expense":
                 amount = -amount
             amount_field.error_text = None
+            logger.info(f"Final amount: {amount} (type: {txn_type})")
 
             category_id = ledger_service.normalize_category_value(category_dd.value)
             account_id = ledger_service.normalize_category_value(account_dd.value)
@@ -473,7 +480,8 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             if notes_field.value:
                 memo = f"{description} - {notes_field.value.strip()}"
 
-            ledger_service.save_transaction(
+            logger.info(f"Calling save_transaction - memo: {memo}, occurred_at: {occurred_at}, user_id: {uid}")
+            saved = ledger_service.save_transaction(
                 ctx.transaction_repo,
                 existing=existing,
                 amount=amount,
@@ -484,6 +492,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 currency="USD",
                 user_id=uid,
             )
+            logger.info(f"Transaction saved successfully - id: {saved.id}")
             dialog.open = False
             page.dialog = None
             _load_transactions(current_page)
@@ -495,7 +504,9 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             )
             page.snack_bar.open = True
             page.update()
+            logger.info("Dialog closed and page updated")
         except Exception as exc:
+            logger.error(f"Save transaction failed: {exc}", exc_info=True)
             if isinstance(exc, ValueError):
                 dev_log(ctx.config, "Ledger validation failed", exc=exc)
             else:
@@ -554,7 +565,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         type_group = ft.RadioGroup(
             value=("income" if tx and tx.amount >= 0 else "expense"),
             content=ft.Row(
-                [
+                controls=[
                     ft.Radio(value="income", label="Income"),
                     ft.Radio(value="expense", label="Expense"),
                     ft.Radio(value="transfer", label="Transfer"),
@@ -589,14 +600,14 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             modal=True,
             title=ft.Text("Update transaction" if is_edit else "Add transaction"),
             content=ft.Column(
-                [
+                controls=[
                     ft.Text(
                         "Keep everything local; amounts flip sign based on type.",
                         size=12,
                         color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
                     type_group,
-                    ft.Row([amount_field, date_field], spacing=10),
+                    ft.Row(controls=[amount_field, date_field], spacing=10),
                     category_dd,
                     account_dd,
                     description_field,
@@ -610,16 +621,19 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 ft.TextButton("Cancel", on_click=lambda _: (_close_dialog(dialog))),
                 ft.FilledButton(
                     "Save",
-                    on_click=lambda _: _save_transaction_payload(
-                        existing=tx,
-                        amount_field=amount_field,
-                        description_field=description_field,
-                        notes_field=notes_field,
-                        date_field=date_field,
-                        type_group=type_group,
-                        category_dd=category_dd,
-                        account_dd=account_dd,
-                        dialog=dialog,
+                    on_click=lambda e: (
+                        logger.info("SAVE BUTTON CLICKED!"),
+                        _save_transaction_payload(
+                            existing=tx,
+                            amount_field=amount_field,
+                            description_field=description_field,
+                            notes_field=notes_field,
+                            date_field=date_field,
+                            type_group=type_group,
+                            category_dd=category_dd,
+                            account_dd=account_dd,
+                            dialog=dialog,
+                        ),
                     ),
                 ),
             ],
@@ -660,7 +674,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             show_error_dialog(page, "Export failed", str(exc))
 
     filter_bar = ft.Row(
-        [
+        controls=[
             start_field,
             end_field,
             quick_range,
@@ -680,11 +694,11 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     summary_cards = ft.Row(
-        [
+        controls=[
             ft.Card(
                 content=ft.Container(
                     ft.Column(
-                        [
+                        controls=[
                             ft.Text("Income (this period)"),
                             ft.Text("", ref=income_text, size=20, weight=ft.FontWeight.BOLD),
                         ]
@@ -696,7 +710,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.Card(
                 content=ft.Container(
                     ft.Column(
-                        [
+                        controls=[
                             ft.Text("Expenses (this period)"),
                             ft.Text("", ref=expense_text, size=20, weight=ft.FontWeight.BOLD),
                         ]
@@ -708,7 +722,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.Card(
                 content=ft.Container(
                     ft.Column(
-                        [
+                        controls=[
                             ft.Text("Net (this period)"),
                             ft.Text("", ref=net_text, size=20, weight=ft.FontWeight.BOLD),
                         ]
@@ -738,7 +752,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     pagination_row = ft.Row(
-        [
+        controls=[
             ft.IconButton(
                 icon=ft.Icons.ARROW_BACK,
                 tooltip="Previous page",
@@ -755,9 +769,9 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     toolbar = ft.Row(
-        [
+        controls=[
             ft.Row(
-                [
+                controls=[
                     ft.TextButton(
                         "Import CSV",
                         on_click=lambda _: controllers.start_ledger_import(ctx, page),
@@ -768,7 +782,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 spacing=8,
             ),
             ft.Row(
-                [
+                controls=[
                     pagination_row,
                     ft.FilledButton(
                         "+ Add transaction",
@@ -786,9 +800,9 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     register_card = ft.Card(
         content=ft.Container(
             ft.Column(
-                [
+                controls=[
                     ft.Row(
-                        [
+                        controls=[
                             ft.Text("Transaction register", weight=ft.FontWeight.BOLD, size=18),
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -809,7 +823,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     spending_card = ft.Card(
         content=ft.Container(
             ft.Column(
-                [
+                controls=[
                     ft.Text("Spending breakdown (this period)", size=18, weight=ft.FontWeight.BOLD),
                     ft.Text(
                         "Expense categories only; refreshed when filters change.",
@@ -839,7 +853,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     budget_card = ft.Card(
         content=ft.Container(
             ft.Column(
-                [
+                controls=[
                     ft.Text("Budget progress (this period)", size=18, weight=ft.FontWeight.BOLD),
                     ft.Column(ref=budget_progress_ref, spacing=8),
                 ],
@@ -853,7 +867,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     recent_card = ft.Card(
         content=ft.Container(
             ft.Column(
-                [
+                controls=[
                     ft.Text("Recent categories", size=18, weight=ft.FontWeight.BOLD),
                     ft.Column(ref=recent_categories_ref, spacing=6),
                 ],
@@ -865,29 +879,29 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     insights_column = ft.Column(
-        [spending_card, budget_card, recent_card],
+        controls=[spending_card, budget_card, recent_card],
         spacing=12,
         expand=3,
         scroll=ft.ScrollMode.AUTO,
     )
 
     register_column = ft.Column(
-        [
+        controls=[
             register_card,
         ],
         expand=7,
     )
 
     main_body = ft.Row(
-        [register_column, insights_column],
+        controls=[register_column, insights_column],
         spacing=12,
         expand=True,
     )
 
     content = ft.Column(
-        [
+        controls=[
             ft.Row(
-                [ft.Text("Ledger", size=24, weight=ft.FontWeight.BOLD)],
+                controls=[ft.Text("Ledger", size=24, weight=ft.FontWeight.BOLD)],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             ),
             ft.Container(height=8),

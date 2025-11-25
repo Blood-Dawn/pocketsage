@@ -98,7 +98,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         dialog = ft.AlertDialog(
             title=ft.Text("Create budget"),
-            content=ft.Column([label_field, category_dd, amount_field], tight=True, spacing=8),
+            content=ft.Column(controls=[label_field, category_dd, amount_field], tight=True, spacing=8),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: _close_dialog(dialog)),
                 ft.FilledButton("Create", on_click=save_budget),
@@ -211,7 +211,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         dlg = ft.AlertDialog(
             title=ft.Text("Add budget line"),
-            content=ft.Column([category_dd, amount_field], spacing=8, tight=True),
+            content=ft.Column(controls=[category_dd, amount_field], spacing=8, tight=True),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: _close_dialog(dlg)),
                 ft.FilledButton("Save", on_click=save_line),
@@ -308,7 +308,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
             budget_rows.append(
                 ft.Container(
                     content=ft.Row(
-                        [
+                        controls=[
                             ft.Container(content=progress, expand=True),
                             ft.IconButton(icon=ft.Icons.EDIT, tooltip="Edit", on_click=edit_line),
                             ft.IconButton(
@@ -334,9 +334,9 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         ft.Text("Budget Summary", size=18, weight=ft.FontWeight.BOLD),
                         ft.Container(height=16),
                         ft.Row(
-                            [
+                            controls=[
                                 ft.Column(
-                                    [
+                                    controls=[
                                         ft.Text(
                                             "Total Budgeted",
                                             size=14,
@@ -350,7 +350,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                     ],
                                 ),
                                 ft.Column(
-                                    [
+                                    controls=[
                                         ft.Text(
                                             "Total Spent",
                                             size=14,
@@ -365,7 +365,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                     ],
                                 ),
                                 ft.Column(
-                                    [
+                                    controls=[
                                         ft.Text(
                                             "Remaining", size=14, color=ft.Colors.ON_SURFACE_VARIANT
                                         ),
@@ -392,11 +392,11 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
         )
 
         budget_content = ft.Column(
-            [
+            controls=[
                 summary_card,
                 ft.Container(height=16),
                 ft.Card(
-                    content=ft.Column(budget_rows, spacing=0),
+                    content=ft.Column(controls=budget_rows, spacing=0),
                     elevation=2,
                 ),
             ],
@@ -407,7 +407,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
         # No budget for this month
         budget_content = ft.Container(
             content=ft.Column(
-                [
+                controls=[
                     ft.Icon(
                         ft.Icons.ACCOUNT_BALANCE_OUTLINED,
                         size=64,
@@ -439,12 +439,12 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     # Build content
     content = ft.Column(
-        [
+        controls=[
             ft.Row(
-                [
+                controls=[
                     ft.Text("Budgets", size=24, weight=ft.FontWeight.BOLD),
                     ft.Row(
-                        [
+                        controls=[
                             ft.IconButton(
                                 icon=ft.Icons.CHEVRON_LEFT,
                                 tooltip="Previous month",

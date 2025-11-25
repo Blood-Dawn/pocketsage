@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import time
+
 import flet as ft
 
+from ..devtools import dev_log
+from ..logging_config import setup_logging
+from ..scheduler import create_scheduler
 from . import controllers
 from .context import create_app_context
-from ..devtools import dev_log
-from ..logging_config import get_logger, setup_logging
-from ..scheduler import create_scheduler
 from .navigation import Router
 from .views.admin import build_admin_view
 from .views.budgets import build_budgets_view
@@ -40,6 +42,11 @@ def main(page: ft.Page) -> None:
     def on_page_close(_):
         logger.info("Application closing, shutting down scheduler")
         scheduler.stop()
+        # Hint where the session log will land
+        from ..logging_config import session_log_path
+        slp = session_log_path()
+        if slp:
+            logger.info("Session log will be flushed", extra={"session_log": str(slp)})
 
     page.on_close = on_page_close
 
@@ -84,7 +91,10 @@ def main(page: ft.Page) -> None:
     router = Router(page, ctx)
 
     # Register routes and aliases
+    from .views.auth import build_auth_view
+
     route_builders = {
+        "/login": build_auth_view,
         "/dashboard": build_dashboard_view,
         "/": build_dashboard_view,
         "/ledger": build_ledger_view,
@@ -104,14 +114,48 @@ def main(page: ft.Page) -> None:
     page.on_route_change = router.route_change
     page.on_view_pop = router.view_pop
 
+    # Capture flet page errors into logger
+    # Throttle repeated identical Flet error events (they can spam thousands of times in <1s)
+    _last_err_msg: str | None = None
+    _last_err_ts: float = 0.0
+    _suppress_count: int = 0
+
+    def _on_error(e: ft.ControlEvent):  # pragma: no cover (UI callback)
+        nonlocal _last_err_msg, _last_err_ts, _suppress_count
+        msg = getattr(e, 'data', None) or "<no-data>"
+        now = time.time()
+        # If same message within 0.5s, suppress
+        if _last_err_msg == msg and (now - _last_err_ts) < 0.5:
+            _suppress_count += 1
+            _last_err_ts = now
+            # Log a summary every 100 suppressed repeats to retain visibility without flooding
+            if _suppress_count % 100 == 0:
+                logger.warning(
+                    "Repeated Flet errors suppressed",
+                    extra={"event": "error_suppressed", "error_message": msg, "suppressed": _suppress_count},
+                )
+            return
+        # New message or spaced out
+        if _suppress_count:
+            logger.warning(
+                "Suppression summary",
+                extra={"event": "error_suppression_summary", "error_message": _last_err_msg, "suppressed": _suppress_count},
+            )
+        _last_err_msg = msg
+        _last_err_ts = now
+        _suppress_count = 0
+        logger.error("Flet page error", extra={"event": "error", "data": msg})
+
+    page.on_error = _on_error
+
     def handle_shortcuts(e: ft.KeyboardEvent):
         """Global keyboard shortcuts for quick navigation."""
         controllers.handle_shortcut(page, e.key, e.ctrl, e.shift)
 
     page.on_keyboard_event = handle_shortcuts
 
-    # Login-free desktop shell: start directly on the dashboard using the guest context.
-    page.go("/dashboard")
+    # Start at login screen
+    page.go("/login")
 
 
 if __name__ == "__main__":

@@ -185,7 +185,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
         dialog = ft.AlertDialog(
             title=ft.Text(title),
             content=ft.Column(
-                [symbol, qty, price, market_price, account_dd],
+                controls=[symbol, qty, price, market_price, account_dd],
                 tight=True,
                 spacing=8,
             ),
@@ -335,9 +335,9 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
     summary_card = ft.Card(
         content=ft.Container(
             content=ft.Row(
-                [
+                controls=[
                     ft.Column(
-                        [
+                        controls=[
                             ft.Text("Total Holdings", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
                             ft.Text(
                                 "",
@@ -391,7 +391,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     controls_row = ft.Row(
-        [
+        controls=[
             ft.FilledButton(
                 "Add holding", icon=ft.Icons.ADD, on_click=lambda _: _open_dialog(None)
             ),
@@ -406,16 +406,16 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     content = ft.Column(
-        [
+        controls=[
             ft.Row(
-                [
+                controls=[
                     ft.Text("Portfolio", size=24, weight=ft.FontWeight.BOLD),
                     controls_row,
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             ),
             ft.Container(height=12),
-            ft.Row([account_filter, ft.TextButton("Apply filter", on_click=lambda _: _refresh())]),
+            ft.Row(controls=[account_filter, ft.TextButton("Apply filter", on_click=lambda _: _refresh())]),
             ft.Container(height=16),
             summary_card,
             ft.Container(height=16),

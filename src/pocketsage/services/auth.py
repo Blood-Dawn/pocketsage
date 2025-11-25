@@ -140,20 +140,43 @@ def ensure_guest_user(session_factory: SessionFactory) -> User:
 
 
 def ensure_local_user(session_factory: SessionFactory) -> User:
-    """Create or return the default local profile (passwordless desktop mode)."""
+    """Create or return the default local profile with password 'local123'."""
 
     with session_factory() as session:
         user = session.exec(select(User).where(User.username == LOCAL_USERNAME)).first()
         if user:
             session.expunge(user)
             return user
-        password_hash = _hasher.hash(LOCAL_USERNAME)
-        user = User(username=LOCAL_USERNAME, password_hash=password_hash, role=LOCAL_ROLE)
+        password_hash = _hasher.hash("local123")
+        user = User(username=LOCAL_USERNAME, password_hash=password_hash, role="user")
         session.add(user)
         session.flush()
         session.refresh(user)
         session.expunge(user)
         return user
+
+
+def ensure_admin_user(session_factory: SessionFactory) -> User:
+    """Create or return the default admin account with password 'admin123'."""
+
+    with session_factory() as session:
+        user = session.exec(select(User).where(User.username == "admin")).first()
+        if user:
+            session.expunge(user)
+            return user
+        password_hash = _hasher.hash("admin123")
+        user = User(username="admin", password_hash=password_hash, role="admin")
+        session.add(user)
+        session.flush()
+        session.refresh(user)
+        session.expunge(user)
+        return user
+
+
+def ensure_default_accounts(session_factory: SessionFactory) -> None:
+    """Ensure both default admin and local accounts exist."""
+    ensure_admin_user(session_factory)
+    ensure_local_user(session_factory)
 
 
 def purge_guest_user(session_factory: SessionFactory) -> bool:

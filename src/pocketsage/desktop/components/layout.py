@@ -49,19 +49,12 @@ def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
     def _go(path: str):
         controllers.navigate(page, path)
 
-    def _toggle_admin_mode(e: ft.ControlEvent):
-        ctx.admin_mode = bool(getattr(e.control, "value", False))
-        target = "/admin" if ctx.admin_mode else "/dashboard"
-        status = "Admin mode enabled" if ctx.admin_mode else "Admin mode disabled"
-        page.snack_bar = ft.SnackBar(content=ft.Text(status))
+    def _logout(_e):
+        ctx.current_user = None
+        ctx.guest_mode = False
+        page.snack_bar = ft.SnackBar(content=ft.Text("Logged out successfully"))
         page.snack_bar.open = True
-        controllers.navigate(page, target)
-
-    admin_switch = ft.Switch(
-        label="Admin mode",
-        value=bool(getattr(ctx, "admin_mode", False)),
-        on_change=_toggle_admin_mode,
-    )
+        page.go("/login")
 
     quick_actions: List[ft.Control] = [
         month_selector,
@@ -75,16 +68,21 @@ def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
             tooltip="Add habit (Ctrl+Shift+H)",
             on_click=lambda _: _go("/habits"),
         ),
-        admin_switch,
     ]
     if ctx.current_user:
-        user_chip_label = ctx.current_user.username or "Guest"
-        quick_actions.append(
+        user_role = ctx.current_user.role or "user"
+        user_chip_label = f"{ctx.current_user.username} ({user_role})"
+        quick_actions.extend([
             ft.Chip(
-                label=ft.Text(f"{user_chip_label} - Offline"),
+                label=ft.Text(user_chip_label),
                 leading=ft.Icon(ft.Icons.PERSON),
-            )
-        )
+            ),
+            ft.IconButton(
+                icon=ft.Icons.LOGOUT,
+                tooltip="Logout",
+                on_click=_logout,
+            ),
+        ])
 
     return ft.AppBar(
         leading=ft.Icon(ft.Icons.ACCOUNT_BALANCE_WALLET),
@@ -102,9 +100,9 @@ def build_navigation_rail(ctx: AppContext, page: ft.Page, current_route: str) ->
         """Keep navigation logic isolated in helpers."""
         controllers.handle_nav_selection(ctx, page, e.control.selected_index)
 
-    is_admin_mode = bool(getattr(ctx, "admin_mode", False))
-    selected_index = index_for_route(current_route, is_admin=is_admin_mode)
-    destinations = [dest for dest in NAVIGATION_DESTINATIONS if is_admin_mode or dest.route != "/admin"]
+    is_admin = ctx.current_user and ctx.current_user.role == "admin"
+    selected_index = index_for_route(current_route, is_admin=is_admin)
+    destinations = [dest for dest in NAVIGATION_DESTINATIONS if is_admin or dest.route != "/admin"]
 
     return ft.NavigationRail(
         selected_index=selected_index,

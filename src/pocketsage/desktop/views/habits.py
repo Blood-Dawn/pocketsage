@@ -181,13 +181,13 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 ft.Card(
                     content=ft.Container(
                         content=ft.Row(
-                            [
+                            controls=[
                                 ft.Switch(
                                     value=is_completed,
                                     on_change=lambda _e, hid=habit.id: _toggle_habit(hid),
                                 ),
                                 ft.Column(
-                                    [
+                                    controls=[
                                         ft.Text(habit.name, size=16, weight=ft.FontWeight.BOLD),
                                         ft.Text(
                                             habit.description or "No description",
@@ -225,7 +225,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
             rows.append(
                 ft.Container(
                     content=ft.Column(
-                        [
+                        controls=[
                             ft.Icon(
                                 ft.Icons.CHECK_CIRCLE_OUTLINE,
                                 size=64,
@@ -250,7 +250,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
             for habit in archived:
                 archived_rows.append(
                     ft.Row(
-                        [
+                        controls=[
                             ft.Text(habit.name),
                             ft.TextButton(
                                 "Reactivate",
@@ -293,14 +293,14 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
     heatmap_days.on_change = _on_heatmap_change
 
     detail_panel = ft.Column(
-        [
+        controls=[
             ft.Text("Habit detail", size=16, weight=ft.FontWeight.BOLD),
             ft.Text("", ref=selected_ref, size=20, weight=ft.FontWeight.BOLD),
             ft.Text("", ref=streak_ref),
             ft.Text("", ref=longest_ref),
             ft.Text("", ref=reminder_ref, size=12, color=ft.Colors.ON_SURFACE_VARIANT),
             ft.Text("", ref=heatmap_label_ref, weight=ft.FontWeight.BOLD),
-            ft.Row([heatmap_days], alignment=ft.MainAxisAlignment.START),
+            ft.Row(controls=[heatmap_days], alignment=ft.MainAxisAlignment.START),
             heatmap,
         ],
         spacing=8,
@@ -397,7 +397,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         dialog = ft.AlertDialog(
             title=ft.Text("Edit habit" if is_edit else "Create habit"),
             content=ft.Column(
-                [name_field, desc_field, cadence_field, reminder_time],
+                controls=[name_field, desc_field, cadence_field, reminder_time],
                 tight=True,
                 spacing=8,
             ),
@@ -416,11 +416,11 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         select_habit(active[0].id, active[0].name)
 
     content = ft.Row(
-        [
+        controls=[
             ft.Column(
-                [
+                controls=[
                     ft.Row(
-                        [
+                        controls=[
                             ft.Text("Habits", size=24, weight=ft.FontWeight.BOLD),
                             ft.Text(
                                 date.today().strftime("%A, %B %d, %Y"),
@@ -438,7 +438,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     habit_list,
                     ft.Container(height=12),
                     ft.Row(
-                        [
+                        controls=[
                             show_archived_checkbox,
                             ft.Text("Archived habits", weight=ft.FontWeight.BOLD),
                         ],

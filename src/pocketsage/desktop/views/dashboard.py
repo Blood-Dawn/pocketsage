@@ -40,11 +40,11 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
     # Get active habits
     active_habits = ctx.habit_repo.list_active(user_id=uid)
     habit_count = len(active_habits)
-    habits_done_today = sum(
-        1
+    habits_done_today = len([
+        h
         for h in active_habits
         if ctx.habit_repo.get_entry(h.id, date.today(), user_id=uid)
-    )
+    ])
 
     def _open_new_transaction():
         ctx.pending_new_transaction = True
@@ -52,7 +52,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     # Build stat cards
     stat_cards = ft.Row(
-        [
+        controls=[
             ft.Container(
                 content=build_stat_card(
                     "Net Worth",
@@ -114,7 +114,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
     # Second row of stats
     active_liabilities = len(ctx.liability_repo.list_active(user_id=uid))
     secondary_stats = ft.Row(
-        [
+        controls=[
             ft.Container(
                 content=build_stat_card(
                     "Total Debt",
@@ -208,7 +208,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     recent_txns_card = ft.Card(
         content=ft.Column(
-            [
+            controls=[
                 ft.Container(
                     content=ft.Text(
                         "Recent Transactions",
@@ -218,7 +218,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     padding=16,
                 ),
                 ft.Divider(height=1),
-                ft.Column(txn_rows, spacing=0),
+                ft.Column(controls=txn_rows, spacing=0),
             ],
             spacing=0,
         ),
@@ -229,11 +229,11 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
     quick_actions = ft.Card(
         content=ft.Container(
             content=ft.Column(
-                [
+                controls=[
                     ft.Text("Quick Actions", size=18, weight=ft.FontWeight.BOLD),
                     ft.Container(height=16),
                     ft.Row(
-                        [
+                        controls=[
                             ft.FilledButton(
                                 "Add Transaction",
                                 icon=ft.Icons.ADD,
@@ -280,7 +280,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
         controls=[
             ft.Container(
                 content=ft.Column(
-                    [
+                    controls=[
                         ft.Text("Spending by Category (This Month)", weight=ft.FontWeight.BOLD),
                         (
                             ft.Image(src=str(spending_png), height=260)
@@ -294,7 +294,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ),
             ft.Container(
                 content=ft.Column(
-                    [
+                    controls=[
                         ft.Text("Cashflow (Last 6 months)", weight=ft.FontWeight.BOLD),
                         (
                             ft.Image(src=str(cashflow_png), height=260)
@@ -374,19 +374,21 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
         controls=[
             ft.Container(
                 content=ft.Column(
-                    [
+                    controls=[
                         ft.Text("Upcoming Payments (30 days)", size=16, weight=ft.FontWeight.BOLD),
-                        ft.Column(upcoming_rows, spacing=4),
-                    ]
+                        *upcoming_rows,
+                    ],
+                    spacing=4,
                 ),
                 col={"sm": 12, "md": 6},
             ),
             ft.Container(
                 content=ft.Column(
-                    [
+                    controls=[
                         ft.Text("Today's Habits", size=16, weight=ft.FontWeight.BOLD),
-                        ft.Column(today_habit_rows, spacing=4),
-                    ]
+                        *today_habit_rows,
+                    ],
+                    spacing=4,
                 ),
                 col={"sm": 12, "md": 6},
             ),
@@ -397,7 +399,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     # Build content
     content = ft.Column(
-        [
+        controls=[
             stat_cards,
             ft.Container(height=16),
             quick_actions,

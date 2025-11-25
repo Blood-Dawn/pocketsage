@@ -10,6 +10,9 @@ if TYPE_CHECKING:
     from .context import AppContext
 
 from ..devtools import dev_log
+from ..logging_config import get_logger
+
+logger = get_logger(__name__)
 
 # View builder type
 ViewBuilder = Callable[["AppContext", ft.Page], ft.View]
@@ -32,12 +35,18 @@ class Router:
     def route_change(self, e: ft.RouteChangeEvent) -> None:
         """Handle route change events."""
         route = e.route or "/"
-        logger.info(f"Route change requested: {route}", extra={"admin_mode": getattr(self.context, "admin_mode", False)})
-        if route == "/login":
-            route = "/dashboard"
-        if route == "/admin" and not getattr(self.context, "admin_mode", False):
-            logger.warning("Admin route blocked - admin mode not enabled")
-            self.show_error("Enable Admin mode to access admin tools.")
+        is_admin = self.context.current_user and self.context.current_user.role == "admin"
+        logger.info(f"Route change requested: {route}", extra={"user": self.context.current_user.username if self.context.current_user else None, "role": self.context.current_user.role if self.context.current_user else None})
+
+        # Require login for all routes except /login
+        if route != "/login" and self.context.current_user is None:
+            logger.warning("Route blocked - user not logged in")
+            self.page.go("/login")
+            return
+
+        if route == "/admin" and not is_admin:
+            logger.warning("Admin route blocked - user does not have admin role")
+            self.show_error("Admin access required. Please log in with an admin account.")
             route = "/dashboard"
 
         if route not in self.routes:

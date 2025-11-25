@@ -36,9 +36,10 @@ logger = get_logger(__name__)
 def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Render admin dashboard with seed/reset/export/backup controls for single-user mode."""
 
-    logger.info("Building admin view", extra={"admin_mode": getattr(ctx, "admin_mode", False)})
+    is_admin = ctx.current_user and ctx.current_user.role == "admin"
+    logger.info("Building admin view", extra={"user": ctx.current_user.username if ctx.current_user else None, "is_admin": is_admin})
 
-    if not getattr(ctx, "admin_mode", False):
+    if not is_admin:
         logger.warning("Admin mode not enabled, redirecting to dashboard")
         page.snack_bar = ft.SnackBar(content=ft.Text("Enable Admin mode to access admin tools"))
         page.snack_bar.open = True
@@ -211,7 +212,7 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
         total_habits = session.exec(select(func.count(Habit.id)).where(Habit.user_id == uid)).one()
 
     metrics_row = ft.Row(
-        [
+        controls=[
             _metric_card("Accounts", total_accounts, ft.Icons.ACCOUNT_BALANCE),
             _metric_card("Transactions", total_transactions, ft.Icons.RECEIPT_LONG),
             _metric_card("Habits", total_habits, ft.Icons.CHECK_CIRCLE),
@@ -220,10 +221,10 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     actions = ft.Column(
-        [
+        controls=[
             ft.Text("Admin actions (single local profile)", size=16, weight=ft.FontWeight.BOLD),
             ft.Row(
-                [
+                controls=[
                     ft.FilledButton("Run Demo Seed", icon=ft.Icons.DOWNLOAD, on_click=seed_action),
                     ft.TextButton("Reset Demo Data", icon=ft.Icons.RESTORE, on_click=reset_action),
                 ],
@@ -231,7 +232,7 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 wrap=True,
             ),
             ft.Row(
-                [
+                controls=[
                     ft.FilledTonalButton(
                         "Export bundle", icon=ft.Icons.IOS_SHARE, on_click=export_action
                     ),
@@ -255,12 +256,12 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
         content=ft.Container(
             padding=16,
             content=ft.Column(
-                [
+                controls=[
                     ft.Text("Profile", size=16, weight=ft.FontWeight.BOLD),
                     ft.Text(
-                        f"Username: {getattr(getattr(ctx, 'current_user', None), 'username', 'local')}"
+                        f"Username: {ctx.current_user.username if ctx.current_user else 'Unknown'}"
                     ),
-                    ft.Text(f"Mode: {'Admin' if getattr(ctx, 'admin_mode', False) else 'User'}"),
+                    ft.Text(f"Role: {ctx.current_user.role if ctx.current_user else 'None'}"),
                     ft.Text(f"Data directory: {ctx.config.DATA_DIR}"),
                 ],
                 spacing=4,
@@ -272,10 +273,10 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
     actions_card = ft.Card(content=ft.Container(padding=16, content=actions), expand=True)
 
     content = ft.Column(
-        [
+        controls=[
             metrics_row,
             ft.Container(height=16),
-            ft.Row([actions_card, profile_card], spacing=12, wrap=True),
+            ft.Row(controls=[actions_card, profile_card], spacing=12, wrap=True),
         ],
         spacing=12,
         scroll=ft.ScrollMode.AUTO,
@@ -289,20 +290,25 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
 
 def _metric_card(label: str, value: int, icon: str) -> ft.Control:
+    """Build a metric card with icon and value - defensive against null icons."""
+    # Ensure icon is not None
+    icon_widget = ft.Icon(icon if icon is not None else ft.Icons.CIRCLE, color=ft.Colors.PRIMARY)
+
     return ft.Card(
         content=ft.Container(
             padding=12,
             content=ft.Row(
-                [
-                    ft.Icon(icon, color=ft.Colors.PRIMARY),
+                controls=[
+                    icon_widget,
                     ft.Column(
-                        [
+                        controls=[
                             ft.Text(label, color=ft.Colors.ON_SURFACE_VARIANT),
                             ft.Text(str(value), size=22, weight=ft.FontWeight.BOLD),
                         ],
                         spacing=2,
                     ),
-                ]
+                ],
+                spacing=8,
             ),
         ),
         elevation=1,

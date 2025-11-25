@@ -55,11 +55,9 @@ class AppContext:
     file_picker: Optional[ft.FilePicker] = None
     file_picker_mode: Optional[str] = None
     dev_mode: bool = False
-    admin_mode: bool = False
     pending_new_transaction: bool = False
 
     current_user: Optional[User] = None
-    guest_mode: bool = False
 
     # Optional watcher for auto-imports
     watcher_observer: Optional[Any] = None
@@ -69,13 +67,7 @@ class AppContext:
         """Return the current user id or raise if not set."""
 
         if self.current_user is None or self.current_user.id is None:
-            # In the login-free desktop shell, fall back to the reserved guest user so
-            # downstream operations always have a user_id for FK writes.
-            from ..services import auth
-
-            local_user = auth.ensure_local_user(self.session_factory)
-            self.current_user = local_user
-            self.guest_mode = False
+            raise ValueError("No user is currently logged in")
         return self.current_user.id  # type: ignore[return-value]
 
 
@@ -95,7 +87,8 @@ def create_app_context(config: Optional[BaseConfig] = None) -> AppContext:
     session_factory = create_session_factory(engine)
 
     from ..services import auth
-    local_user = auth.ensure_local_user(session_factory)
+    # Ensure default accounts exist
+    auth.ensure_default_accounts(session_factory)
 
     # Initialize repositories
     transaction_repo = SQLModelTransactionRepository(session_factory)
@@ -125,7 +118,5 @@ def create_app_context(config: Optional[BaseConfig] = None) -> AppContext:
         theme_mode=ft.ThemeMode.DARK,
         current_account_id=None,
         current_month=current_date.replace(day=1),
-        current_user=local_user,
-        guest_mode=False,
-        admin_mode=False,
+        current_user=None,  # Start with no user logged in
     )

@@ -133,7 +133,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         for liab in liabilities:
             monthly_interest = liab.balance * (liab.apr / 100) / 12
             action_row = ft.Row(
-                [
+                controls=[
                     ft.IconButton(
                         icon=ft.Icons.EDIT,
                         tooltip="Edit",
@@ -234,15 +234,19 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 dev_log(ctx.config, "Liability save failed", exc=exc)
                 show_error_dialog(page, "Save failed", str(exc))
 
+        def _cancel(_e):
+            dialog.open = False
+            page.update()
+
         dialog = ft.AlertDialog(
             title=ft.Text(title),
             content=ft.Column(
-                [name, balance, apr, minimum_payment, due_day],
+                controls=[name, balance, apr, minimum_payment, due_day],
                 tight=True,
                 spacing=8,
             ),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda _: _close_dialog(dialog)),
+                ft.TextButton("Cancel", on_click=_cancel),
                 ft.FilledButton("Save", on_click=_save),
             ],
         )
@@ -304,11 +308,15 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 dev_log(ctx.config, "Payment failed", exc=exc, context={"liability": liability.id})
                 show_error_dialog(page, "Payment failed", str(exc))
 
+        def _cancel_payment(_e):
+            payment_dialog.open = False
+            page.update()
+
         payment_dialog = ft.AlertDialog(
             title=ft.Text(f"Record payment for {liability.name}"),
-            content=ft.Column([amount_field, account_dd, category_dd, reconcile_switch], spacing=8),
+            content=ft.Column(controls=[amount_field, account_dd, category_dd, reconcile_switch], spacing=8),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda _: _close_dialog(payment_dialog)),
+                ft.TextButton("Cancel", on_click=_cancel_payment),
                 ft.FilledButton("Apply", on_click=_apply),
             ],
         )
@@ -416,7 +424,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     ),
-                    ft.Column([], ref=schedule_ref, spacing=6),
+                    ft.Column(controls=[], ref=schedule_ref, spacing=6),
                 ],
                 spacing=8,
             ),
@@ -431,7 +439,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.Text("Strategy", weight=ft.FontWeight.BOLD),
                     ft.RadioGroup(
                         content=ft.Row(
-                            [
+                            controls=[
                                 ft.Radio(value="snowball", label="Snowball"),
                                 ft.Radio(value="avalanche", label="Avalanche"),
                             ]
@@ -477,9 +485,9 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     content = ft.Column(
-        [
+        controls=[
             ft.Row(
-                [
+                controls=[
                     ft.Text("Debts & Liabilities", size=24, weight=ft.FontWeight.BOLD),
                     ft.FilledButton("Add liability", icon=ft.Icons.ADD, on_click=lambda _: _open_edit_dialog(None)),
                 ],
@@ -498,7 +506,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             content=ft.Container(
                                 padding=12,
                                 content=ft.Column(
-                                    [
+                                    controls=[
                                         ft.Text("Payoff chart", weight=ft.FontWeight.BOLD),
                                         ft.Image(ref=payoff_chart_ref, height=240),
                                         ft.Text(

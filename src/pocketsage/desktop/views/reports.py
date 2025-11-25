@@ -17,8 +17,8 @@ from ...services.debts import DebtAccount, avalanche_schedule, snowball_schedule
 from ...services.reports import export_spending_png, export_transactions_csv
 from .. import controllers
 from ..charts import (
-    cashflow_by_account_png,
     allocation_chart_png,
+    cashflow_by_account_png,
     category_trend_png,
     debt_payoff_chart_png,
     spending_chart_png,
@@ -70,7 +70,7 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 pct = 0 if line.planned_amount == 0 else min((actual / line.planned_amount) * 100, 999)
                 budget_rows.append(
                     ft.Row(
-                        [
+                        controls=[
                             ft.Text(cat_name, width=140),
                             ft.ProgressBar(
                                 value=min(actual / (line.planned_amount or 1), 1.0),
@@ -100,7 +100,7 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
             pct = (completed / 7) * 100
             habit_rows.append(
                 ft.Row(
-                    [
+                    controls=[
                         ft.Text(habit.name, width=140),
                         ft.ProgressBar(
                             value=completed / 7,
@@ -136,8 +136,8 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
         return ft.ResponsiveRow(
             controls=[
                 _chart_card("Spending by category", spending_png),
-                _chart_card("Budget usage", None, ft.Column(budget_rows, spacing=6)),
-                _chart_card("Habit completion (7d)", None, ft.Column(habit_rows, spacing=6)),
+                _chart_card("Budget usage", None, ft.Column(controls=budget_rows, spacing=6)),
+                _chart_card("Habit completion (7d)", None, ft.Column(controls=habit_rows, spacing=6)),
                 _chart_card("Debt payoff projection", payoff_png),
                 _chart_card("Portfolio allocation", allocation_png),
             ],
@@ -427,7 +427,7 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     content = ft.Column(
-        [
+        controls=[
             ft.Text("Reports & Exports", size=24, weight=ft.FontWeight.BOLD),
             ft.Text(
                 "Generate CSVs/ZIPs for archives or sharing.", color=ft.Colors.ON_SURFACE_VARIANT
@@ -461,7 +461,7 @@ def _report_card(title: str, description: str, on_click):
             content=ft.Container(
                 padding=16,
                 content=ft.Column(
-                    [
+                    controls=[
                         ft.Text(title, size=18, weight=ft.FontWeight.BOLD),
                         ft.Text(description, color=ft.Colors.ON_SURFACE_VARIANT, size=13),
                         ft.Container(height=8),
@@ -488,7 +488,7 @@ def _chart_card(title: str, image_path: Path | str | None, content: ft.Control |
             content=ft.Container(
                 padding=12,
                 content=ft.Column(
-                    [
+                    controls=[
                         ft.Text(title, weight=ft.FontWeight.BOLD),
                         body,
                     ],
