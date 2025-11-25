@@ -80,7 +80,7 @@ src/pocketsage/services/reports.py
 src/pocketsage/services/watcher.py
 tests/test_admin_tasks.py
 tests/test_budgeting.py
-tests/test_button_wiring.py
+tests/test_button_actions.py
 tests/test_csv_import_comprehensive.py
 tests/test_debt_calculations.py
 tests/test_debt_payoff_chart.py

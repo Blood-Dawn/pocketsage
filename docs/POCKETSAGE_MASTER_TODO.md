@@ -70,3 +70,9 @@ Working backlog aligned to PocketSage requirements docs (`PocketSage-Requirement
 - [x] Expand tests: ledger filters/add/delete (“All” category), admin seed/reset, debts calculations, habits streak logic.
 - [x] New doc pointers for verbose pytest and ruff commands (no skips).
 - [x] Reference this master TODO from README and keep milestones updated.
+
+## Follow-ups: Admin Mode UX & Button Wiring
+- [x] Admin view blank state: ensure actions card renders (see `src/pocketsage/desktop/views/admin.py`) and avoid control `.update()` calls before attaching to a page (`status_ref`/`Text.update` guards).
+- [x] Button handlers: confirm seed/reset/export/backup buttons surface feedback and refresh user-facing views; adjust `_with_spinner/_notify` to no-op updates when `page` is absent.
+- [x] Verify dashboard “Add Transaction” quick action opens ledger dialog automatically (uses `ctx.pending_new_transaction` in `ledger.build_ledger_view`).
+- [x] Re-run new button action tests (`tests/test_button_actions.py`) to validate add/edit/delete flows across Ledger/Habits/Debts/Portfolio/Budgets and Admin seed/reset wiring.

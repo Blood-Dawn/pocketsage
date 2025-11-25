@@ -38,3 +38,11 @@ This app is now a desktop-only, offline-first finance + habits tracker built wit
 - Packaging: `make package` or `scripts\\build_desktop.bat` (non-interactive) -> `dist/`.
 - Reset DB during development: close the app, then delete the SQLite files under `POCKETSAGE_DATA_DIR` (default `instance/`), e.g., `pocketsage.db` plus any `-wal`/`-shm` files. On next launch, schema is recreated; rerun demo seed if you need sample data.
   - PowerShell 7 example: `Remove-Item -Force -ErrorAction SilentlyContinue instance\\pocketsage.db, instance\\pocketsage.db-wal, instance\\pocketsage.db-shm`
+  - Full clean reset: `Remove-Item -Recurse -Force instance` to allow schema + dirs to be recreated on next launch.
+- Startup debugging: run `python run_desktop.py` from a terminal to see errors; check `instance/logs/*.log` for startup issues if the UI spinner hangs.
+- Admin mode checklist:
+  - Toggle Admin mode in the app bar (User vs Admin mode is login-free).
+  - Actions: Run Demo Seed, Reset Demo Data, Export, Backup/Restore (see `src/pocketsage/desktop/views/admin.py`).
+  - Guards added so `_notify/_with_spinner` no-op if page/controls aren’t attached; prevents blank/gray admin screen.
+- Quick add flow: Dashboard “Add Transaction” sets `ctx.pending_new_transaction`; ledger auto-opens the add dialog on load.
+- Button wiring tests: `tests/test_button_actions.py` covers add/edit/delete across Ledger/Habits/Debts/Portfolio/Budgets and Admin seed/reset buttons. Re-run with `.\.venv\Scripts\python -m pytest tests/test_button_actions.py -q`.

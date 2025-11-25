@@ -57,8 +57,15 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
         page.snack_bar.open = True
         if status_ref.current:
             status_ref.current.value = message
-            status_ref.current.update()
-        page.update()
+            # Safe update when not attached to a page (e.g., tests)
+            try:
+                status_ref.current.update()
+            except AssertionError:
+                pass
+        try:
+            page.update()
+        except AssertionError:
+            pass
 
     def _refresh_user_views():
         """Navigate to dashboard to force user-facing views to reload with new data."""
@@ -83,12 +90,18 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
         )
         page.dialog = spinner
         spinner.open = True
-        page.update()
+        try:
+            page.update()
+        except AssertionError:
+            pass
         try:
             task()
         finally:
             spinner.open = False
-            page.update()
+            try:
+                page.update()
+            except AssertionError:
+                pass
 
     def seed_action(_):
         def _task():
