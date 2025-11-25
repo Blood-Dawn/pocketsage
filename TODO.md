@@ -105,7 +105,7 @@
   - Ensure CI runs lint/tests on clean clone; refresh docs with desktop steps; publish changelog/handoff notes.
 
 
-## Previously observed placeholders / incomplete wiring (Dec 2025)
+## Previously observed placeholders / incomplete wiring
 - [ ] Admin view guard currently redirects away when `admin_mode` is false, leaving a gray/blank page; add a deterministic admin toggle and fallback content instead of redirect-only flow (src/pocketsage/desktop/views/admin.py).
 - [ ] Ledger/portfolio CSV imports surface snackbars but do not force a live data reload; hook import completion to refresh registers/insights and surface mapping errors clearly (src/pocketsage/desktop/controllers.py start_ledger_import/start_portfolio_import).
 - [ ] Budget creation silently swallows line-add errors (`pass` in save_budget) leaving users without feedback; add validation/snackbars for failed line creation (src/pocketsage/desktop/views/budgets.py).
