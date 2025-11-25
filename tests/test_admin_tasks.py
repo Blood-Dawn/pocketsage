@@ -11,9 +11,12 @@ from pocketsage.models import Transaction
 from pocketsage.services import auth
 from pocketsage.services.admin_tasks import (
     EXPORT_RETENTION,
+    SeedMetrics,
+    SeedProfile,
     reset_demo_database,
     run_demo_seed,
     run_export,
+    run_seed,
 )
 from sqlmodel import delete, select
 
@@ -146,8 +149,85 @@ def test_guest_purge_isolation(session_factory):
     # Purge guest and ensure main user data unaffected
     assert auth.purge_guest_user(session_factory=factory)
     with session_scope(engine) as session:
-        user_memos = {tx.memo for tx in session.exec(select(Transaction).where(Transaction.user_id == user.id))}
+        user_memos = {
+            tx.memo
+            for tx in session.exec(select(Transaction).where(Transaction.user_id == user.id))
+        }
         guest_memos = list(session.exec(select(Transaction).where(Transaction.user_id == guest.id)))
 
     assert "Guest Tx" not in user_memos
     assert guest_memos == []
+
+
+def test_run_seed_light_profile_returns_metrics(session_factory):
+    """Test that run_seed with LIGHT profile returns SeedMetrics with timing."""
+    factory, engine, user = session_factory
+
+    metrics = run_seed(session_factory=factory, user_id=user.id, profile=SeedProfile.LIGHT)
+
+    assert isinstance(metrics, SeedMetrics)
+    assert metrics.profile == SeedProfile.LIGHT
+    assert metrics.summary.transactions >= 6
+    assert metrics.summary.categories >= 6
+    assert metrics.summary.accounts >= 2
+    assert metrics.duration_seconds > 0
+    assert metrics.transactions_per_second > 0
+
+
+def test_run_seed_defaults_to_light_profile(session_factory):
+    """Test that run_seed defaults to LIGHT profile when not specified."""
+    factory, engine, user = session_factory
+
+    metrics = run_seed(session_factory=factory, user_id=user.id)
+
+    assert metrics.profile == SeedProfile.LIGHT
+    assert metrics.summary.transactions >= 6
+
+
+@pytest.mark.performance
+def test_run_seed_heavy_profile_returns_metrics(session_factory):
+    """Test that run_seed with HEAVY profile seeds many transactions with timing."""
+    factory, engine, user = session_factory
+
+    metrics = run_seed(session_factory=factory, user_id=user.id, profile=SeedProfile.HEAVY)
+
+    assert isinstance(metrics, SeedMetrics)
+    assert metrics.profile == SeedProfile.HEAVY
+    # Heavy seed generates ~10 years of data (thousands of transactions)
+    assert metrics.summary.transactions >= 1000
+    assert metrics.duration_seconds > 0
+    assert metrics.transactions_per_second > 0
+
+
+def test_seed_metrics_transactions_per_second_calculation():
+    """Test that SeedMetrics calculates transactions_per_second correctly."""
+    from pocketsage.services.admin_tasks import SeedSummary
+
+    summary = SeedSummary(
+        transactions=1000,
+        categories=10,
+        accounts=2,
+        habits=3,
+        liabilities=2,
+        budgets=1,
+    )
+    metrics = SeedMetrics(profile=SeedProfile.LIGHT, summary=summary, duration_seconds=2.0)
+
+    assert metrics.transactions_per_second == 500.0
+
+
+def test_seed_metrics_zero_duration_returns_zero_throughput():
+    """Test that SeedMetrics handles zero duration gracefully."""
+    from pocketsage.services.admin_tasks import SeedSummary
+
+    summary = SeedSummary(
+        transactions=100,
+        categories=5,
+        accounts=2,
+        habits=1,
+        liabilities=0,
+        budgets=1,
+    )
+    metrics = SeedMetrics(profile=SeedProfile.LIGHT, summary=summary, duration_seconds=0.0)
+
+    assert metrics.transactions_per_second == 0.0

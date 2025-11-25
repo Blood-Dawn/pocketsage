@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING, Optional
 
 import flet as ft
 
-from ..services import admin_tasks, auth, importers
 from ..devtools import dev_log
+from ..services import admin_tasks, auth, importers
 from .navigation_helpers import handle_navigation_selection, resolve_shortcut_route
 
 if TYPE_CHECKING:
@@ -40,7 +40,9 @@ def navigate(page: ft.Page, route: str) -> None:
 def handle_nav_selection(ctx: AppContext, page: ft.Page, selected_index: int) -> None:
     """Delegate navigation rail selection to the helpers and update."""
 
-    handle_navigation_selection(page, selected_index, is_admin=bool(getattr(ctx, "admin_mode", False)))
+    handle_navigation_selection(
+        page, selected_index, is_admin=bool(getattr(ctx, "admin_mode", False))
+    )
     page.update()
 
 
@@ -55,20 +57,21 @@ def handle_shortcut(page: ft.Page, key: str, ctrl: bool, shift: bool) -> bool:
 
 
 def run_demo_seed(ctx: AppContext, page: ft.Page) -> None:
-    """Seed demo data and surface a friendly summary."""
+    """Seed demo data and surface a friendly summary with performance metrics."""
 
-    try:
-        from ..services.heavy_seed import run_heavy_seed
+    from ..services.admin_tasks import SeedProfile, run_seed
 
-        summary = run_heavy_seed(
-            session_factory=ctx.session_factory, user_id=ctx.require_user_id()
-        )
-        _show_snack(page, f"Demo data ready (heavy {summary.transactions} transactions)")
-    except Exception:
-        summary = admin_tasks.run_demo_seed(
-            session_factory=ctx.session_factory, user_id=ctx.require_user_id()
-        )
-        _show_snack(page, f"Demo data ready ({summary.transactions} transactions)")
+    metrics = run_seed(
+        session_factory=ctx.session_factory,
+        user_id=ctx.require_user_id(),
+        profile=SeedProfile.HEAVY,
+        force=True,
+    )
+    _show_snack(
+        page,
+        f"Demo data ready ({metrics.profile.value} profile, "
+        f"{metrics.summary.transactions} transactions in {metrics.duration_seconds:.2f}s)",
+    )
 
 
 def reset_demo_data(ctx: AppContext, page: ft.Page) -> None:
@@ -88,7 +91,9 @@ def attach_file_picker(ctx: AppContext, page: ft.Page) -> ft.FilePicker:
         mode = ctx.file_picker_mode
         ctx.file_picker_mode = None
         if not selected or not selected.path:
-            dev_log(_ctx_config(ctx), "File picker dismissed or missing path", context={"mode": mode})
+            dev_log(
+                _ctx_config(ctx), "File picker dismissed or missing path", context={"mode": mode}
+            )
             return
 
         csv_path = Path(selected.path)

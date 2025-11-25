@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from calendar import monthrange
 from datetime import datetime
 from types import SimpleNamespace
@@ -8,11 +7,10 @@ from typing import Callable
 
 import flet as ft
 import pytest
-
 from pocketsage.desktop.context import create_app_context
 from pocketsage.desktop.views import admin, budgets, debts, habits, ledger, portfolio
 from pocketsage.desktop.views.dashboard import build_dashboard_view as create_dashboard_view
-from pocketsage.models import Account, Budget, Category, Liability, Transaction
+from pocketsage.models import Account, Budget, Category, Transaction
 
 
 class DummyPage:
@@ -77,30 +75,43 @@ def _click(control: ft.Control):
 def test_ledger_add_transaction_button_creates_record(monkeypatch: pytest.MonkeyPatch, tmp_path):
     ctx, page = _init_ctx(monkeypatch, tmp_path)
     category = ctx.category_repo.create(
-        Category(name="Groceries", slug="groceries", category_type="expense", user_id=ctx.require_user_id()),
+        Category(
+            name="Groceries",
+            slug="groceries",
+            category_type="expense",
+            user_id=ctx.require_user_id(),
+        ),
         user_id=ctx.require_user_id(),
     )
     account = ctx.account_repo.create(
-        Account(name="Checking", currency="USD", user_id=ctx.require_user_id()), user_id=ctx.require_user_id()
+        Account(name="Checking", currency="USD", user_id=ctx.require_user_id()),
+        user_id=ctx.require_user_id(),
     )
 
     view = ledger.build_ledger_view(ctx, page)
     add_btn = _find_control(
         view,
-        lambda c: isinstance(c, ft.FilledButton)
-        and "Add transaction" in getattr(c, "text", ""),
+        lambda c: isinstance(c, ft.FilledButton) and "Add transaction" in getattr(c, "text", ""),
     )
     assert add_btn is not None
 
     _click(add_btn)
     dialog = page.dialog
-    amount_field = _find_control(dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Amount")
+    amount_field = _find_control(
+        dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Amount"
+    )
     memo_field = _find_control(
         dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Description"
     )
-    date_field = _find_control(dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Date")
-    category_dd = _find_control(dialog, lambda c: isinstance(c, ft.Dropdown) and getattr(c, "label", "") == "Category")
-    account_dd = _find_control(dialog, lambda c: isinstance(c, ft.Dropdown) and getattr(c, "label", "") == "Account")
+    date_field = _find_control(
+        dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Date"
+    )
+    category_dd = _find_control(
+        dialog, lambda c: isinstance(c, ft.Dropdown) and getattr(c, "label", "") == "Category"
+    )
+    account_dd = _find_control(
+        dialog, lambda c: isinstance(c, ft.Dropdown) and getattr(c, "label", "") == "Account"
+    )
     amount_field.value = "25.50"
     memo_field.value = "Test purchase"
     date_field.value = "2025-01-02"
@@ -118,11 +129,14 @@ def test_ledger_add_transaction_button_creates_record(monkeypatch: pytest.Monkey
 def test_ledger_edit_transaction_button_updates_record(monkeypatch: pytest.MonkeyPatch, tmp_path):
     ctx, page = _init_ctx(monkeypatch, tmp_path)
     cat = ctx.category_repo.create(
-        Category(name="General", slug="general", category_type="expense", user_id=ctx.require_user_id()),
+        Category(
+            name="General", slug="general", category_type="expense", user_id=ctx.require_user_id()
+        ),
         user_id=ctx.require_user_id(),
     )
     acct = ctx.account_repo.create(
-        Account(name="Checking", currency="USD", user_id=ctx.require_user_id()), user_id=ctx.require_user_id()
+        Account(name="Checking", currency="USD", user_id=ctx.require_user_id()),
+        user_id=ctx.require_user_id(),
     )
     existing = ctx.transaction_repo.create(
         Transaction(
@@ -158,11 +172,14 @@ def test_ledger_edit_transaction_button_updates_record(monkeypatch: pytest.Monke
 def test_ledger_delete_transaction_button_removes_record(monkeypatch: pytest.MonkeyPatch, tmp_path):
     ctx, page = _init_ctx(monkeypatch, tmp_path)
     cat = ctx.category_repo.create(
-        Category(name="General", slug="general", category_type="expense", user_id=ctx.require_user_id()),
+        Category(
+            name="General", slug="general", category_type="expense", user_id=ctx.require_user_id()
+        ),
         user_id=ctx.require_user_id(),
     )
     acct = ctx.account_repo.create(
-        Account(name="Checking", currency="USD", user_id=ctx.require_user_id()), user_id=ctx.require_user_id()
+        Account(name="Checking", currency="USD", user_id=ctx.require_user_id()),
+        user_id=ctx.require_user_id(),
     )
     txn = ctx.transaction_repo.create(
         Transaction(
@@ -204,7 +221,9 @@ def test_habits_add_button_creates_habit(monkeypatch: pytest.MonkeyPatch, tmp_pa
     name_field.value = "Meditate"
     save_btn = dialog.actions[1]
     _click(save_btn)
-    assert any(h.name == "Meditate" for h in ctx.habit_repo.list_active(user_id=ctx.require_user_id()))
+    assert any(
+        h.name == "Meditate" for h in ctx.habit_repo.list_active(user_id=ctx.require_user_id())
+    )
 
 
 def test_liabilities_add_button_creates_record(monkeypatch: pytest.MonkeyPatch, tmp_path):
@@ -224,13 +243,16 @@ def test_liabilities_add_button_creates_record(monkeypatch: pytest.MonkeyPatch, 
     due_day.value = "12"
     save_btn = dialog.actions[1]
     _click(save_btn)
-    assert any(li.name == "Card" for li in ctx.liability_repo.list_all(user_id=ctx.require_user_id()))
+    assert any(
+        li.name == "Card" for li in ctx.liability_repo.list_all(user_id=ctx.require_user_id())
+    )
 
 
 def test_portfolio_add_button_creates_record(monkeypatch: pytest.MonkeyPatch, tmp_path):
     ctx, page = _init_ctx(monkeypatch, tmp_path)
     account = ctx.account_repo.create(
-        Account(name="Brokerage", currency="USD", user_id=ctx.require_user_id()), user_id=ctx.require_user_id()
+        Account(name="Brokerage", currency="USD", user_id=ctx.require_user_id()),
+        user_id=ctx.require_user_id(),
     )
     view = portfolio.build_portfolio_view(ctx, page)
     add_btn = _find_control(
@@ -239,13 +261,23 @@ def test_portfolio_add_button_creates_record(monkeypatch: pytest.MonkeyPatch, tm
     assert add_btn is not None
     _click(add_btn)
     dialog = page.dialog
-    symbol = _find_control(dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Symbol")
-    qty = _find_control(dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Quantity")
-    price = _find_control(dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Average price")
-    market_price = _find_control(
-        dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Market price (optional)"
+    symbol = _find_control(
+        dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Symbol"
     )
-    account_dd = _find_control(dialog, lambda c: isinstance(c, ft.Dropdown) and getattr(c, "label", "") == "Account")
+    qty = _find_control(
+        dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Quantity"
+    )
+    price = _find_control(
+        dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Average price"
+    )
+    market_price = _find_control(
+        dialog,
+        lambda c: isinstance(c, ft.TextField)
+        and getattr(c, "label", "") == "Market price (optional)",
+    )
+    account_dd = _find_control(
+        dialog, lambda c: isinstance(c, ft.Dropdown) and getattr(c, "label", "") == "Account"
+    )
     symbol.value = "AAPL"
     qty.value = "2"
     price.value = "100"
@@ -261,11 +293,15 @@ def test_budget_add_line_button_creates_record(monkeypatch: pytest.MonkeyPatch, 
     start = ctx.current_month
     end = start.replace(day=monthrange(start.year, start.month)[1])
     budget = ctx.budget_repo.create(
-        Budget(period_start=start, period_end=end, label="Test budget", user_id=ctx.require_user_id()),
+        Budget(
+            period_start=start, period_end=end, label="Test budget", user_id=ctx.require_user_id()
+        ),
         user_id=ctx.require_user_id(),
     )
     category = ctx.category_repo.create(
-        Category(name="Dining", slug="dining", category_type="expense", user_id=ctx.require_user_id()),
+        Category(
+            name="Dining", slug="dining", category_type="expense", user_id=ctx.require_user_id()
+        ),
         user_id=ctx.require_user_id(),
     )
 
@@ -294,10 +330,18 @@ def test_admin_seed_button_invokes_seed(monkeypatch: pytest.MonkeyPatch, tmp_pat
 
     def fake_seed(**kwargs):
         calls["seed"] = True
-        return SimpleNamespace(transactions=1, categories=1, accounts=1, habits=1, liabilities=1, budgets=1)
+        summary = SimpleNamespace(
+            transactions=1, categories=1, accounts=1, habits=1, liabilities=1, budgets=1
+        )
+        # Return SeedMetrics-like object with profile, summary, and duration_seconds
+        return SimpleNamespace(
+            profile="light",
+            summary=summary,
+            duration_seconds=0.1,
+            transactions_per_second=10.0,
+        )
 
-    monkeypatch.setattr(admin, "run_heavy_seed", fake_seed)
-    monkeypatch.setattr(admin, "run_demo_seed", fake_seed)
+    monkeypatch.setattr(admin, "run_seed", fake_seed)
     view = admin.build_admin_view(ctx, page)
     seed_btn = _find_control(
         view, lambda c: isinstance(c, ft.FilledButton) and getattr(c, "text", "") == "Run Demo Seed"
@@ -315,7 +359,9 @@ def test_admin_reset_button_invokes_reset(monkeypatch: pytest.MonkeyPatch, tmp_p
 
     def fake_reset(**kwargs):
         calls["reset"] = True
-        return SimpleNamespace(transactions=0, categories=0, accounts=0, habits=0, liabilities=0, budgets=0)
+        return SimpleNamespace(
+            transactions=0, categories=0, accounts=0, habits=0, liabilities=0, budgets=0
+        )
 
     monkeypatch.setattr(admin, "reset_demo_database", fake_reset)
     view = admin.build_admin_view(ctx, page)
@@ -331,7 +377,8 @@ def test_dashboard_quick_add_opens_ledger_dialog(monkeypatch: pytest.MonkeyPatch
     ctx, page = _init_ctx(monkeypatch, tmp_path)
     dash_view = create_dashboard_view(ctx, page)
     add_btn = _find_control(
-        dash_view, lambda c: isinstance(c, ft.FilledButton) and getattr(c, "text", "") == "Add Transaction"
+        dash_view,
+        lambda c: isinstance(c, ft.FilledButton) and getattr(c, "text", "") == "Add Transaction",
     )
     assert add_btn is not None
     _click(add_btn)

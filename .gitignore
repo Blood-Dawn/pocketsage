@@ -10,3 +10,4 @@ build/
 !PocketSage.spec
 *.db
 .env
+src/pocketsage.egg-info/

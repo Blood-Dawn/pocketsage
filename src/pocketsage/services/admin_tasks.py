@@ -1,5 +1,5 @@
 """Admin utilities for the desktop app (demo seed, exports, retention)."""
-# TODO(@pocketsage-admin): Support light vs heavy seed profiles and measure seed performance.
+
 # TODO(@pocketsage-admin): Add safety checks before destructive reset operations.
 
 # TODO(@codex): Admin service functions for data management
@@ -14,10 +14,12 @@
 from __future__ import annotations
 
 import os
+import time
 from calendar import monthrange
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
+from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Callable, Iterator, Optional
@@ -50,6 +52,13 @@ SessionFactory = Callable[[], AbstractContextManager[Session]]
 _ENGINE = None
 
 
+class SeedProfile(str, Enum):
+    """Seed profile determines the volume of demo data generated."""
+
+    LIGHT = "light"
+    HEAVY = "heavy"
+
+
 @dataclass(frozen=True)
 class SeedSummary:
     """Aggregate counts returned after demo seeding."""
@@ -60,6 +69,22 @@ class SeedSummary:
     habits: int
     liabilities: int
     budgets: int
+
+
+@dataclass(frozen=True)
+class SeedMetrics:
+    """Performance metrics and summary for a seed operation."""
+
+    profile: SeedProfile
+    summary: SeedSummary
+    duration_seconds: float
+
+    @property
+    def transactions_per_second(self) -> float:
+        """Calculate throughput of transaction seeding."""
+        if self.duration_seconds <= 0:
+            return 0.0
+        return self.summary.transactions / self.duration_seconds
 
 
 def _get_engine():
@@ -594,7 +619,7 @@ def run_demo_seed(
 
     with _get_session(session_factory) as session:
         if not force:
-            # Skip heavy re-seeding when data already present for this user.
+            # Skip re-seeding when data already present for this user.
             existing_tx = session.exec(
                 select(Transaction.id).where(Transaction.user_id == user_id)
             ).first()
@@ -607,6 +632,55 @@ def run_demo_seed(
         _seed_habits(session, user_id=user_id)
         _seed_liabilities(session, user_id=user_id)
         _seed_budget(session, categories, user_id=user_id)
+        session.flush()
+        return _build_seed_summary(session, user_id=user_id)
+
+
+def run_seed(
+    session_factory: Optional[SessionFactory] = None,
+    *,
+    user_id: int,
+    profile: SeedProfile = SeedProfile.LIGHT,
+    force: bool = False,
+) -> SeedMetrics:
+    """Seed demo data with the specified profile and return performance metrics.
+
+    Args:
+        session_factory: Optional factory for database sessions.
+        user_id: The user ID to seed data for.
+        profile: Either SeedProfile.LIGHT (minimal demo data) or
+                 SeedProfile.HEAVY (10 years of randomized transactions).
+        force: When True, reseed even if data exists for the user.
+
+    Returns:
+        SeedMetrics containing the seed summary and performance measurements.
+    """
+    start_time = time.perf_counter()
+
+    if profile == SeedProfile.HEAVY:
+        summary = _run_heavy_seed_internal(session_factory, user_id=user_id)
+    else:
+        summary = run_demo_seed(session_factory, user_id=user_id, force=force)
+
+    elapsed = time.perf_counter() - start_time
+
+    return SeedMetrics(profile=profile, summary=summary, duration_seconds=elapsed)
+
+
+def _run_heavy_seed_internal(
+    session_factory: Optional[SessionFactory] = None, *, user_id: int
+) -> SeedSummary:
+    """Reset transactions and seed a randomized heavy dataset (internal helper)."""
+
+    with _get_session(session_factory) as session:
+        # ensure base categories/accounts
+        _seed_categories(session, user_id)
+        accounts = _seed_accounts(session, user_id)
+        # clear prior transactions for this user only
+        for tx in session.exec(select(Transaction).where(Transaction.user_id == user_id)).all():
+            session.delete(tx)
+        session.flush()
+        _heavy_transactions_seed(session, user_id, accounts)
         session.flush()
         return _build_seed_summary(session, user_id=user_id)
 
@@ -722,9 +796,7 @@ def run_export(
         return zip_path
 
 
-def backup_database(
-    output_dir: Path | None = None, config: Optional[BaseConfig] = None
-) -> Path:
+def backup_database(output_dir: Path | None = None, config: Optional[BaseConfig] = None) -> Path:
     """Copy the current database file (all users) to a backup location."""
 
     config = config or BaseConfig()
@@ -766,8 +838,12 @@ def restore_database(
 __all__ = [
     "reset_demo_database",
     "run_demo_seed",
+    "run_seed",
     "run_export",
     "EXPORT_RETENTION",
     "backup_database",
     "restore_database",
+    "SeedProfile",
+    "SeedSummary",
+    "SeedMetrics",
 ]

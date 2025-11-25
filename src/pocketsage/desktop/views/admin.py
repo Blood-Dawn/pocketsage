@@ -17,13 +17,13 @@ from sqlalchemy import func, select
 
 from ...models import Account, Habit, Transaction
 from ...services.admin_tasks import (
+    SeedProfile,
     backup_database,
     reset_demo_database,
     restore_database,
-    run_demo_seed,
     run_export,
+    run_seed,
 )
-from ...services.heavy_seed import run_heavy_seed
 from ..components import build_app_bar, build_main_layout
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -41,6 +41,15 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     uid = ctx.require_user_id()
     status_ref = ft.Ref[ft.Text]()
+    seed_profile_dropdown = ft.Dropdown(
+        label="Seed Profile",
+        value=SeedProfile.LIGHT.value,
+        options=[
+            ft.dropdown.Option(SeedProfile.LIGHT.value, "Light (minimal demo data)"),
+            ft.dropdown.Option(SeedProfile.HEAVY.value, "Heavy (10 years of transactions)"),
+        ],
+        width=250,
+    )
     retention_text = ft.Text(
         f"Export retention: {ctx.config.EXPORT_RETENTION} archives; stored under {ctx.config.DATA_DIR / 'exports'}",
         size=12,
@@ -112,12 +121,17 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     def seed_action(_):
         def _task():
-            try:
-                summary = run_heavy_seed(session_factory=ctx.session_factory, user_id=uid)
-                _notify(f"Seeded heavy demo data ({summary.transactions} transactions)")
-            except Exception:
-                summary = run_demo_seed(session_factory=ctx.session_factory, user_id=uid)
-                _notify(f"Seeded demo data ({summary.transactions} transactions)")
+            profile = SeedProfile(seed_profile_dropdown.value)
+            metrics = run_seed(
+                session_factory=ctx.session_factory,
+                user_id=uid,
+                profile=profile,
+                force=True,
+            )
+            _notify(
+                f"Seeded {profile.value} profile: {metrics.summary.transactions} transactions "
+                f"in {metrics.duration_seconds:.2f}s ({metrics.transactions_per_second:.0f} tx/s)"
+            )
             _refresh_user_views()
 
         _with_spinner(_task, "Seeding demo data...")
@@ -195,11 +209,13 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.Text("Admin actions (single local profile)", size=16, weight=ft.FontWeight.BOLD),
             ft.Row(
                 [
+                    seed_profile_dropdown,
                     ft.FilledButton("Run Demo Seed", icon=ft.Icons.DOWNLOAD, on_click=seed_action),
                     ft.TextButton("Reset Demo Data", icon=ft.Icons.RESTORE, on_click=reset_action),
                 ],
                 spacing=8,
                 wrap=True,
+                vertical_alignment=ft.CrossAxisAlignment.END,
             ),
             ft.Row(
                 [
