@@ -11,7 +11,6 @@ import pytest
 from pocketsage.desktop.context import create_app_context
 from pocketsage.desktop.views import ledger
 from pocketsage.models import Account, Category, Transaction
-from pocketsage.desktop import controllers
 
 
 class _PageStub:
@@ -97,7 +96,7 @@ def test_category_filter_all_value_does_not_crash(monkeypatch: pytest.MonkeyPatc
     )
 
     assert category_dd is not None and apply_btn is not None
-    category_dd.value = "All"
+    category_dd.value = "all"
 
     # Should not raise when applying filters with a non-numeric category value
     apply_btn.on_click(None)
@@ -124,15 +123,6 @@ def test_export_csv_writes_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
         user_id=ctx.require_user_id(),
     )
 
-    captured: dict[str, Path] = {}
-
-    def fake_pick_export_destination(ctx_arg, page_arg, suggested_name: str, on_path_selected):
-        captured["suggested"] = suggested_name
-        target = tmp_path / suggested_name
-        on_path_selected(target)
-
-    monkeypatch.setattr(controllers, "pick_export_destination", fake_pick_export_destination)
-
     view = ledger.build_ledger_view(ctx, page)
     export_btn = _find_control(
         view, lambda c: isinstance(c, ft.TextButton) and getattr(c, "text", "") == "Export CSV"
@@ -141,7 +131,8 @@ def test_export_csv_writes_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
 
     export_btn.on_click(None)
 
-    out_path = tmp_path / captured["suggested"]
-    assert out_path.exists()
-    content = out_path.read_text(encoding="utf-8")
+    export_dir = ctx.config.DATA_DIR / "exports"
+    files = list(export_dir.glob("ledger_export_*.csv"))
+    assert files, "No export file created"
+    content = files[0].read_text(encoding="utf-8")
     assert "Paycheck" in content

@@ -86,14 +86,18 @@ def test_ledger_add_transaction_button_creates_record(monkeypatch: pytest.Monkey
 
     view = ledger.build_ledger_view(ctx, page)
     add_btn = _find_control(
-        view, lambda c: isinstance(c, ft.FilledButton) and getattr(c, "text", "") == "Add transaction"
+        view,
+        lambda c: isinstance(c, ft.FilledButton)
+        and "Add transaction" in getattr(c, "text", ""),
     )
     assert add_btn is not None
 
     _click(add_btn)
     dialog = page.dialog
     amount_field = _find_control(dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Amount")
-    memo_field = _find_control(dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Memo")
+    memo_field = _find_control(
+        dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Description"
+    )
     date_field = _find_control(dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Date")
     category_dd = _find_control(dialog, lambda c: isinstance(c, ft.Dropdown) and getattr(c, "label", "") == "Category")
     account_dd = _find_control(dialog, lambda c: isinstance(c, ft.Dropdown) and getattr(c, "label", "") == "Account")
@@ -140,7 +144,9 @@ def test_ledger_edit_transaction_button_updates_record(monkeypatch: pytest.Monke
     assert edit_btn is not None
     _click(edit_btn)
     dialog = page.dialog
-    memo_field = _find_control(dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Memo")
+    memo_field = _find_control(
+        dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Description"
+    )
     memo_field.value = "Updated"
     save_btn = dialog.actions[1]
     _click(save_btn)

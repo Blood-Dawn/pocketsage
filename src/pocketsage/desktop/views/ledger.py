@@ -1,15 +1,18 @@
-"""Ledger view implementation with guest-mode CRUD, filters, and budget snapshot."""
-# TODO(@pocketsage-ledger): Ensure Add/Edit/Delete transaction buttons call services and refresh both table and charts.
-# TODO(@pocketsage-ledger): Harden filters (especially 'All' category) and add regression tests.
+"""Ledger view with desktop-focused register layout and refreshed workflows."""
+# TODO(@codex-max, ledger-ui): implement three-tier layout (filters, summary cards, two-column).
+# TODO(@codex-max, ledger-ui): replace old table layout with register-style table + actions column.
+# TODO(@codex-max, ledger-flow): implement Add/Edit transaction dialog + validation + refresh hooks.
+# TODO(@codex-max, ledger-flow): centralize transaction creation/update in a helper/service.
+# TODO(@codex-max, ledger-bugs): fix category filter 'All' ValueError and make filters robust.
+# TODO(@codex-max, ledger-io): wire Import/Export/CSV Help buttons with proper feedback.
+# TODO(@codex-max, ledger-charts): refresh spending chart and budget progress after data changes.
 
 from __future__ import annotations
 
 import math
-import re
 from calendar import monthrange
-from datetime import datetime
-from pathlib import Path
-from typing import TYPE_CHECKING
+from datetime import date, datetime, timedelta
+from typing import TYPE_CHECKING, Iterable
 
 import flet as ft
 
@@ -17,7 +20,7 @@ from ...devtools import dev_log
 from ...models.account import Account
 from ...models.category import Category
 from ...models.transaction import Transaction
-from ...services.export_csv import export_transactions_csv
+from ...services import export_csv, ledger_service
 from .. import controllers
 from ..charts import spending_chart_png
 from ..components import build_app_bar, build_main_layout, build_progress_bar
@@ -27,117 +30,311 @@ if TYPE_CHECKING:
     from ..context import AppContext
 
 
-_SLUG_PATTERN = re.compile(r"[^a-z0-9]+")
+def _format_currency(amount: float) -> str:
+    return f"${amount:,.2f}"
 
 
-def _slugify(label: str) -> str:
-    cleaned = _SLUG_PATTERN.sub("-", (label or "").strip().lower())
-    cleaned = cleaned.strip("-")
-    return cleaned or "uncategorized"
+def _month_bounds(target: date) -> tuple[date, date]:
+    """Return the first/last day of the month for the given date."""
+
+    first = target.replace(day=1)
+    last = target.replace(day=monthrange(target.year, target.month)[1])
+    return first, last
 
 
 def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
-    """Build the ledger view with filters, pagination, category management, and budget snapshot."""
+    """Build the ledger page with filters, register, and insights."""
 
     uid = ctx.require_user_id()
     per_page = 25
     current_page = 1
+    cached_transactions: list[Transaction] = []
     total_pages = 1
-    filtered: list[Transaction] = []
 
-    start_field = ft.TextField(label="Start date", hint_text="YYYY-MM-DD", width=140)
-    end_field = ft.TextField(label="End date", hint_text="YYYY-MM-DD", width=140)
+    start_default, end_default = _month_bounds(ctx.current_month)
+
+    start_field = ft.TextField(
+        label="Start date",
+        hint_text="YYYY-MM-DD",
+        width=160,
+        value="",
+    )
+    end_field = ft.TextField(
+        label="End date",
+        hint_text="YYYY-MM-DD",
+        width=160,
+        value="",
+    )
+    quick_range = ft.Dropdown(
+        label="Quick range",
+        options=[
+            ft.dropdown.Option("this_month", "This month"),
+            ft.dropdown.Option("last_month", "Last month"),
+            ft.dropdown.Option("ytd", "Year-to-date"),
+            ft.dropdown.Option("all_time", "All time"),
+        ],
+        width=150,
+        value="all_time",
+    )
+    category_field = ft.Dropdown(label="Category", width=220, value="all")
     type_field = ft.Dropdown(
         label="Type",
         options=[
-            ft.dropdown.Option("all", "All"),
+            ft.dropdown.Option("all", "All types"),
             ft.dropdown.Option("income", "Income"),
             ft.dropdown.Option("expense", "Expense"),
         ],
-        value="all",
         width=140,
+        value="all",
     )
-    category_field = ft.Dropdown(label="Category", value="", width=200)
-    search_field = ft.TextField(label="Search", hint_text="memo contains...", width=200)
+    search_field = ft.TextField(
+        label="Search",
+        hint_text="Description, payee, notes",
+        width=220,
+    )
 
     table_ref = ft.Ref[ft.DataTable]()
+    page_label = ft.Ref[ft.Text]()
     income_text = ft.Ref[ft.Text]()
     expense_text = ft.Ref[ft.Text]()
     net_text = ft.Ref[ft.Text]()
-    page_label = ft.Ref[ft.Text]()
-    budget_progress_ref = ft.Ref[ft.Column]()
-    category_list_ref = ft.Ref[ft.Column]()
     spending_image_ref = ft.Ref[ft.Image]()
+    spending_empty_ref = ft.Ref[ft.Text]()
+    budget_progress_ref = ft.Ref[ft.Column]()
+    recent_categories_ref = ft.Ref[ft.Column]()
 
-    editing_category_id: int | None = None
+    def _ensure_default_account() -> Account:
+        accounts = ctx.account_repo.list_all(user_id=uid)
+        if accounts:
+            return accounts[0]
+        return ctx.account_repo.create(
+            Account(name="Cash", currency="USD", user_id=uid), user_id=uid
+        )
 
-    def _refresh_category_filter(selected: str = "") -> list[Category]:
-        current_categories = ctx.category_repo.list_all(user_id=uid)
-        category_field.options = [ft.dropdown.Option("", "All")] + [
-            ft.dropdown.Option(str(c.id), c.name) for c in current_categories
-        ]
-        category_field.value = selected
-        if category_field.page:
-            category_field.update()
-        return current_categories
-
-    def _ensure_default_categories():
+    def _ensure_baseline_categories() -> list[Category]:
+        categories = ctx.category_repo.list_all(user_id=uid)
+        if categories:
+            return categories
         defaults = [
-            ("Income", "income"),
             ("Salary", "income"),
             ("Bonus", "income"),
             ("Groceries", "expense"),
             ("Dining Out", "expense"),
-            ("Transport", "expense"),
-            ("Utilities", "expense"),
             ("Rent/Mortgage", "expense"),
-            ("Entertainment", "expense"),
-            ("Health", "expense"),
+            ("Utilities", "expense"),
+            ("Transport", "expense"),
         ]
-        for name, ctype in defaults:
-            slug = _slugify(name)
-            if ctx.category_repo.get_by_slug(slug, user_id=uid):
-                continue
-            ctx.category_repo.create(
-                Category(name=name, slug=slug, category_type=ctype, user_id=uid),
+        for name, cat_type in defaults:
+            ctx.category_repo.upsert_by_slug(
+                Category(
+                    name=name,
+                    slug=name.lower().replace(" ", "-"),
+                    category_type=cat_type,
+                    user_id=uid,
+                ),
                 user_id=uid,
             )
+        return ctx.category_repo.list_all(user_id=uid)
 
-    _ensure_default_categories()
-    _refresh_category_filter("")
+    def _hydrate_category_filter(selected: str | None = None) -> list[Category]:
+        cats = _ensure_baseline_categories()
+        incomes = [c for c in cats if c.category_type == "income"]
+        expenses = [c for c in cats if c.category_type == "expense"]
+        options: list[ft.dropdown.Option] = [ft.dropdown.Option("all", "All categories")]
+        options += [ft.dropdown.Option(str(c.id), f"Income - {c.name}") for c in incomes if c.id]
+        options += [
+            ft.dropdown.Option(str(c.id), f"Expense - {c.name}") for c in expenses if c.id
+        ]
+        category_field.options = options
+        category_field.value = selected or category_field.value or "all"
+        if category_field.page:
+            category_field.update()
+        return cats
 
-    def parse_date(raw: str):
+    _hydrate_category_filter()
+
+    def _parse_date(field: ft.TextField) -> datetime | None:
+        raw = (field.value or "").strip()
         if not raw:
+            field.error_text = None
             return None
         try:
-            return datetime.fromisoformat(raw)
+            parsed = datetime.fromisoformat(raw)
+            field.error_text = None
+            return parsed
         except ValueError:
-            return None
+            field.error_text = "Use YYYY-MM-DD"
+            if field.page:
+                field.update()
+            raise
 
-    def update_table():
-        nonlocal current_page, total_pages
-        start_idx = (current_page - 1) * per_page
-        subset = filtered[start_idx : start_idx + per_page]
+    def _set_quick_range(value: str):
+        today = date.today()
+        start: date | None = None
+        end: date | None = None
+        if value == "this_month":
+            start, end = _month_bounds(today)
+        elif value == "last_month":
+            first_this, _ = _month_bounds(today)
+            last_month_end = first_this - timedelta(days=1)
+            start, end = _month_bounds(last_month_end)
+        elif value == "ytd":
+            start = date(today.year, 1, 1)
+            end = today
+        elif value == "all_time":
+            start = None
+            end = None
+        if start:
+            start_field.value = start.isoformat()
+        else:
+            start_field.value = ""
+        if end:
+            end_field.value = end.isoformat()
+        else:
+            end_field.value = ""
+        if quick_range.page:
+            quick_range.update()
+        page.update()
+
+    quick_range.on_change = lambda _: _set_quick_range(quick_range.value or "this_month")
+
+    def _render_summary(totals: dict[str, float]) -> None:
+        if income_text.current:
+            income_text.current.value = _format_currency(totals["income"])
+        if expense_text.current:
+            expense_text.current.value = _format_currency(totals["expenses"])
+        if net_text.current:
+            net_text.current.value = _format_currency(totals["net"])
+
+    def _render_recent_categories(breakdown: list[dict[str, object]]) -> None:
+        container = recent_categories_ref.current
+        if not container:
+            return
+        if not breakdown:
+            container.controls = [ft.Text("No expense categories yet.")]
+        else:
+            controls: list[ft.Control] = []
+            total_spend = sum(float(item["amount"]) for item in breakdown) or 1.0
+            for item in ledger_service.top_categories(breakdown, limit=5):
+                amount = float(item["amount"])
+                pct = (amount / total_spend) * 100
+                controls.append(
+                    ft.Row(
+                        [
+                            ft.Text(str(item["name"]), weight=ft.FontWeight.BOLD),
+                            ft.Text(f"{_format_currency(amount)} - {pct:.1f}%"),
+                        ],
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    )
+                )
+            container.controls = controls
+        if container.page:
+            container.update()
+
+    def _render_spending_chart(transactions: Iterable[Transaction]) -> None:
+        expenses = [t for t in transactions if t.amount < 0]
+        image = spending_image_ref.current
+        empty_state = spending_empty_ref.current
+        if not image or not empty_state:
+            return
+        if not expenses:
+            image.visible = False
+            empty_state.visible = True
+            if image.page:
+                image.update()
+            if empty_state.page:
+                empty_state.update()
+            return
+        try:
+            categories = ctx.category_repo.list_all(user_id=uid)
+            lookup = {c.id: c.name for c in categories if c.id is not None}
+            path = spending_chart_png(expenses, category_lookup=lookup)
+            image.src = path.as_posix()
+            image.visible = True
+            empty_state.visible = False
+            if image.page:
+                image.update()
+            if empty_state.page:
+                empty_state.update()
+        except Exception as exc:  # pragma: no cover - user-facing guard
+            dev_log(ctx.config, "Spending chart refresh failed", exc=exc)
+            image.visible = False
+            empty_state.visible = True
+            page.snack_bar = ft.SnackBar(
+                content=ft.Text("Saved, but spending chart failed to render"),
+                show_close_icon=True,
+            )
+            page.snack_bar.open = True
+            page.update()
+
+    def _render_budget_progress(
+        transactions: list[Transaction], start_date: datetime | None
+    ) -> None:
+        container = budget_progress_ref.current
+        if not container:
+            return
+        target_date = start_date.date() if start_date else ctx.current_month
+        month_start, _ = _month_bounds(target_date)
+        budget = ctx.budget_repo.get_for_month(
+            month_start.year, month_start.month, user_id=uid
+        )
+        controls: list[ft.Control] = []
+        if not budget:
+            controls.append(
+                ft.Text("No budget set for this month", color=ft.Colors.ON_SURFACE_VARIANT)
+            )
+        else:
+            lines = ctx.budget_repo.get_lines_for_budget(budget.id, user_id=uid)
+            overall_planned = sum(line_item.planned_amount for line_item in lines)
+            total_spent = 0.0
+            for line in lines:
+                actual = sum(
+                    abs(t.amount)
+                    for t in transactions
+                    if t.amount < 0 and t.category_id == line.category_id
+                )
+                total_spent += actual
+                category = ctx.category_repo.get_by_id(line.category_id, user_id=uid)
+                controls.append(
+                    build_progress_bar(
+                        current=actual,
+                        maximum=line.planned_amount or 0.01,
+                        label=category.name if category else "Uncategorized",
+                    )
+                )
+            if overall_planned > 0:
+                controls.insert(
+                    0,
+                    build_progress_bar(
+                        current=total_spent, maximum=overall_planned, label="Overall budget"
+                    ),
+                )
+        container.controls = controls
+        if container.page:
+            container.update()
+
+    def _render_table(transactions: list[Transaction]) -> None:
+        table = table_ref.current
+        if not table:
+            return
         rows: list[ft.DataRow] = []
-        for tx in subset:
-            cat_name = ""
-            if tx.category_id:
-                cat = ctx.category_repo.get_by_id(tx.category_id, user_id=uid)
-                cat_name = cat.name if cat else ""
+        for tx in transactions:
+            category = (
+                ctx.category_repo.get_by_id(tx.category_id, user_id=uid)
+                if tx.category_id
+                else None
+            )
+            type_label = "Income" if tx.amount >= 0 else "Expense"
+            amount_color = ft.Colors.GREEN if tx.amount >= 0 else ft.Colors.RED
             rows.append(
                 ft.DataRow(
                     cells=[
                         ft.DataCell(ft.Text(tx.occurred_at.strftime("%Y-%m-%d"))),
-                        ft.DataCell(ft.Text(tx.memo)),
-                        ft.DataCell(ft.Text(cat_name)),
-                        ft.DataCell(ft.Text("Income" if tx.amount >= 0 else "Expense")),
-                        ft.DataCell(
-                            ft.Text(
-                                f"${tx.amount:,.2f}",
-                                color=ft.Colors.GREEN if tx.amount >= 0 else ft.Colors.RED,
-                            )
-                        ),
-                        ft.DataCell(ft.Text(tx.currency)),
+                        ft.DataCell(ft.Text(tx.memo or "")),
+                        ft.DataCell(ft.Text(category.name if category else "Uncategorized")),
+                        ft.DataCell(ft.Text(type_label)),
+                        ft.DataCell(ft.Text(_format_currency(tx.amount), color=amount_color)),
+                        ft.DataCell(ft.Text("")),
                         ft.DataCell(
                             ft.Row(
                                 [
@@ -148,8 +345,8 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                     ),
                                     ft.IconButton(
                                         icon=ft.Icons.DELETE_OUTLINE,
-                                        tooltip="Delete",
                                         icon_color=ft.Colors.RED,
+                                        tooltip="Delete",
                                         on_click=lambda _, tx_id=tx.id: delete_transaction(tx_id),
                                     ),
                                 ]
@@ -158,427 +355,315 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ]
                 )
             )
-        table = table_ref.current
-        if table:
-            if rows:
-                table.rows = rows
-            else:
-                table.rows = [
-                    ft.DataRow(
-                        cells=[ft.DataCell(ft.Text("No transactions found")) for _ in range(7)]
-                    )
-                ]
-        page_label.current.value = f"Page {current_page} / {total_pages}"
-        page.update()
+        if not rows:
+            rows = [
+                ft.DataRow(
+                    cells=[ft.DataCell(ft.Text("No transactions in this period."))]
+                    + [ft.DataCell(ft.Text("")) for _ in range(6)],
+                )
+            ]
+        table.rows = rows
+        if table.page:
+            table.update()
 
-    def refresh_month_summary():
-        month_start = ctx.current_month.replace(day=1)
-        summary = ctx.transaction_repo.get_monthly_summary(
-            month_start.year, month_start.month, user_id=uid
-        )
-        if income_text.current:
-            income_text.current.value = f"${summary['income']:,.2f}"
-        if expense_text.current:
-            expense_text.current.value = f"${summary['expenses']:,.2f}"
-        if net_text.current:
-            net_text.current.value = f"${summary['net']:,.2f}"
-        page.update()
-
-    def refresh_budget_progress():
-        month_start = ctx.current_month.replace(day=1)
-        last_day = monthrange(month_start.year, month_start.month)[1]
-        month_end = month_start.replace(day=last_day)
-        budget = ctx.budget_repo.get_for_month(month_start.year, month_start.month, user_id=uid)
-        container = budget_progress_ref.current
-        if not container:
-            return
-        rows: list[ft.Control] = []
-        if not budget:
-            rows.append(ft.Text("No budget set for this month", color=ft.Colors.ON_SURFACE_VARIANT))
-        else:
-            lines = ctx.budget_repo.get_lines_for_budget(budget.id, user_id=uid)
-            total_planned = sum(line.planned_amount for line in lines)
-            total_spent = 0.0
-            rows.append(
-                ft.Text(
-                    f"{month_start.strftime('%B %Y')} budget progress",
-                    weight=ft.FontWeight.BOLD,
-                )
-            )
-            for line in lines:
-                category = ctx.category_repo.get_by_id(line.category_id, user_id=uid)
-                txs = ctx.transaction_repo.search(
-                    start_date=month_start,
-                    end_date=month_end,
-                    category_id=line.category_id,
-                    user_id=uid,
-                )
-                actual = sum(abs(t.amount) for t in txs if t.amount < 0)
-                total_spent += actual
-                rows.append(
-                    build_progress_bar(
-                        current=actual,
-                        maximum=line.planned_amount or 0.01,
-                        label=category.name if category else "Uncategorized",
-                    )
-                )
-            if total_planned > 0:
-                rows.insert(
-                    1,
-                    build_progress_bar(
-                        current=total_spent,
-                        maximum=total_planned,
-                        label="Overall budget",
-                    ),
-                )
-        container.controls = rows
-        if getattr(container, "page", None):
-            container.update()
-
-    def refresh_spending_chart():
-        """Render a spending chart for the current month."""
+    def _load_transactions(page_index: int = 1) -> None:
+        nonlocal current_page, cached_transactions, total_pages
         try:
-            month_start = ctx.current_month.replace(day=1)
-            last_day = monthrange(month_start.year, month_start.month)[1]
-            month_end = month_start.replace(day=last_day)
-            txs = ctx.transaction_repo.search(
-                start_date=month_start,
-                end_date=month_end,
+            start_dt = _parse_date(start_field)
+            end_dt = _parse_date(end_field)
+        except ValueError:
+            page.snack_bar = ft.SnackBar(
+                content=ft.Text("Use YYYY-MM-DD for dates"), show_close_icon=True
+            )
+            page.snack_bar.open = True
+            page.update()
+            return
+
+        filters = ledger_service.LedgerFilters(
+            user_id=uid,
+            start_date=start_dt,
+            end_date=end_dt,
+            category_id=ledger_service.normalize_category_value(category_field.value),
+            text=(search_field.value or "").strip() or None,
+            txn_type=type_field.value or "all",
+        )
+        txs = ledger_service.filtered_transactions(ctx.transaction_repo, filters)
+        cached_transactions = txs
+        total_pages = max(1, math.ceil(len(txs) / per_page))
+        current_page = max(1, min(page_index, total_pages))
+        page_slice, _ = ledger_service.paginate_transactions(
+            txs, ledger_service.Pagination(page=current_page, per_page=per_page)
+        )
+        _render_table(page_slice)
+        _render_summary(ledger_service.compute_summary(txs))
+        breakdown = ledger_service.compute_spending_by_category(
+            txs, ctx.category_repo.list_all(user_id=uid)
+        )
+        _render_spending_chart(txs)
+        _render_budget_progress(txs, start_dt)
+        _render_recent_categories(breakdown)
+        if page_label.current:
+            page_label.current.value = f"Page {current_page} / {total_pages}"
+            if getattr(page_label.current, "page", None):
+                page_label.current.update()
+        page.update()
+
+    def _reset_filters(_=None) -> None:
+        start_field.value = start_default.isoformat()
+        end_field.value = end_default.isoformat()
+        quick_range.value = "this_month"
+        category_field.value = "all"
+        type_field.value = "all"
+        search_field.value = ""
+        _load_transactions(1)
+
+    def _paginate(delta: int) -> None:
+        _load_transactions(current_page + delta)
+
+    def _save_transaction_payload(
+        *,
+        existing: Transaction | None,
+        amount_field: ft.TextField,
+        description_field: ft.TextField,
+        notes_field: ft.TextField,
+        date_field: ft.TextField,
+        type_group: ft.RadioGroup,
+        category_dd: ft.Dropdown,
+        account_dd: ft.Dropdown,
+        dialog: ft.AlertDialog,
+    ) -> None:
+        """Validate and persist a transaction from the dialog."""
+
+        try:
+            description = (description_field.value or "").strip()
+            if not description:
+                description_field.error_text = "Description is required"
+                description_field.update()
+                raise ValueError("Description required")
+            description_field.error_text = None
+
+            try:
+                occurred_at = datetime.fromisoformat((date_field.value or "").strip())
+                date_field.error_text = None
+            except ValueError:
+                date_field.error_text = "Use YYYY-MM-DD"
+                if date_field.page:
+                    date_field.update()
+                raise
+
+            raw_amount = float(amount_field.value or 0)
+            if raw_amount == 0:
+                amount_field.error_text = "Amount cannot be zero"
+                amount_field.update()
+                raise ValueError("Amount cannot be zero")
+            txn_type = type_group.value or "expense"
+            amount = abs(raw_amount)
+            if txn_type == "expense":
+                amount = -amount
+            amount_field.error_text = None
+
+            category_id = ledger_service.normalize_category_value(category_dd.value)
+            account_id = ledger_service.normalize_category_value(account_dd.value)
+            memo = description
+            if notes_field.value:
+                memo = f"{description} - {notes_field.value.strip()}"
+
+            ledger_service.save_transaction(
+                ctx.transaction_repo,
+                existing=existing,
+                amount=amount,
+                memo=memo,
+                occurred_at=occurred_at,
+                category_id=category_id,
+                account_id=account_id,
+                currency="USD",
                 user_id=uid,
             )
-            categories = ctx.category_repo.list_all(user_id=uid)
-            cat_lookup = {c.id: c.name for c in categories if c.id is not None}
-            path = spending_chart_png(txs, category_lookup=cat_lookup)
-            if spending_image_ref.current:
-                spending_image_ref.current.src = path.as_posix()
-                spending_image_ref.current.visible = True
-                if getattr(spending_image_ref.current, "page", None):
-                    spending_image_ref.current.update()
-        except Exception as exc:
-            dev_log(ctx.config, "Spending chart refresh failed", exc=exc)
-            if spending_image_ref.current:
-                spending_image_ref.current.visible = False
+            dialog.open = False
+            page.dialog = None
+            _load_transactions(current_page)
             page.snack_bar = ft.SnackBar(
-                content=ft.Text("Saved, but spending chart failed to render"),
+                content=ft.Text(
+                    "Transaction updated" if existing else "Transaction saved"
+                ),
                 show_close_icon=True,
             )
             page.snack_bar.open = True
+            page.update()
+        except Exception as exc:
+            if isinstance(exc, ValueError):
+                dev_log(ctx.config, "Ledger validation failed", exc=exc)
+            else:
+                dev_log(ctx.config, "Ledger save failed", exc=exc)
+            show_error_dialog(page, "Save failed", str(exc))
 
-    def apply_filters(page_index: int = 1):
-        nonlocal filtered, current_page, total_pages
-        start_dt = parse_date(start_field.value or "")
-        end_dt = parse_date(end_field.value or "")
-        raw_category = (category_field.value or "").strip()
-        if raw_category.lower() == "all" or raw_category == "":
-            category_id = None
-        else:
-            try:
-                category_id = int(raw_category)
-            except ValueError:
-                dev_log(ctx.config, "Ignoring non-numeric category filter", context={"value": raw_category})
-                category_id = None
-        txs = ctx.transaction_repo.search(
-            start_date=start_dt,
-            end_date=end_dt,
-            category_id=category_id,
-            text=(search_field.value or "").strip() or None,
-            user_id=uid,
-        )
-        t_filter = type_field.value
-        if t_filter == "income":
-            txs = [t for t in txs if t.amount >= 0]
-        elif t_filter == "expense":
-            txs = [t for t in txs if t.amount < 0]
-
-        txs = sorted(txs, key=lambda t: t.occurred_at, reverse=True)
-        filtered = txs
-        total_pages = max(1, math.ceil(len(txs) / per_page))
-        current_page = max(1, min(page_index, total_pages))
-        update_table()
-        refresh_month_summary()
-        refresh_budget_progress()
-        refresh_spending_chart()
-
-    def reset_filters(_):
-        start_field.value = ""
-        end_field.value = ""
-        category_field.value = ""
-        search_field.value = ""
-        type_field.value = "all"
-        apply_filters(1)
-
-    def paginate(delta: int):
-        target = current_page + delta
-        target = max(1, min(target, total_pages))
-        apply_filters(target)
-
-    def _ensure_default_account():
-        accounts = ctx.account_repo.list_all(user_id=uid)
-        if accounts:
-            return accounts
-        default_account = ctx.account_repo.create(
-            Account(name="Cash", currency="USD", user_id=uid), user_id=uid
-        )
-        return [default_account]
-
-    def open_transaction_dialog(tx: Transaction | None = None):
-        categories = ctx.category_repo.list_all(user_id=uid)
-        if not categories:
-            default_cat = ctx.category_repo.create(
-                Category(
-                    name="General",
-                    slug="general",
-                    category_type="expense",
-                    user_id=uid,
-                ),
-                user_id=uid,
-            )
-            categories = [default_cat]
-
-        accounts = _ensure_default_account()
-
+    def open_transaction_dialog(tx: Transaction | None = None) -> None:
+        base_categories = _ensure_baseline_categories()
+        default_account = _ensure_default_account()
         is_edit = tx is not None
-        amount = ft.TextField(
-            label="Amount",
-            width=200,
-            helper_text="Positive for income, negative for expenses.",
-            value=str(abs(tx.amount)) if tx else "",
-        )
-        memo = ft.TextField(
-            label="Memo",
-            expand=True,
-            helper_text="What was this transaction for?",
+
+        def _options_for_type(target_type: str) -> list[ft.dropdown.Option]:
+            filtered = [
+                c
+                for c in base_categories
+                if target_type == "income" and c.category_type == "income"
+            ] + [
+                c
+                for c in base_categories
+                if target_type == "expense" and c.category_type == "expense"
+            ]
+            # Transfers can select any category or none
+            if target_type == "transfer":
+                filtered = base_categories
+            options = [ft.dropdown.Option("all", "No category")]
+            options += [ft.dropdown.Option(str(c.id), c.name) for c in filtered if c.id]
+            return options
+
+        description_field = ft.TextField(
+            label="Description",
             value=tx.memo if tx else "",
+            expand=True,
+        )
+        notes_field = ft.TextField(label="Notes (optional)", value="", expand=True)
+        amount_field = ft.TextField(
+            label="Amount",
+            value=str(abs(tx.amount)) if tx else "",
+            helper_text="Positive for income; expense will flip the sign automatically.",
+            width=220,
         )
         date_field = ft.TextField(
             label="Date",
-            value=(
-                tx.occurred_at.strftime("%Y-%m-%d")
-                if tx
-                else datetime.now().strftime("%Y-%m-%d")
-            ),
-            width=200,
+            value=tx.occurred_at.strftime("%Y-%m-%d")
+            if tx
+            else datetime.now().strftime("%Y-%m-%d"),
+            width=220,
         )
-        type_toggle = ft.RadioGroup(
-            value="income" if tx and tx.amount >= 0 else "expense",
+        type_group = ft.RadioGroup(
+            value=("income" if tx and tx.amount >= 0 else "expense"),
             content=ft.Row(
                 [
                     ft.Radio(value="income", label="Income"),
                     ft.Radio(value="expense", label="Expense"),
+                    ft.Radio(value="transfer", label="Transfer"),
                 ],
                 spacing=12,
             ),
         )
         category_dd = ft.Dropdown(
             label="Category",
-            options=[ft.dropdown.Option(str(c.id), c.name) for c in categories],
-            width=220,
-            value=str(tx.category_id) if tx and tx.category_id else None,
+            options=_options_for_type(type_group.value or "expense"),
+            value=str(tx.category_id) if tx and tx.category_id else "all",
+            width=240,
         )
         account_dd = ft.Dropdown(
             label="Account",
-            options=[ft.dropdown.Option(str(a.id), a.name) for a in accounts],
-            width=200,
-            value=str(tx.account_id) if tx and tx.account_id else None,
+            options=[
+                ft.dropdown.Option(str(a.id), a.name)
+                for a in ctx.account_repo.list_all(user_id=uid)
+            ],
+            value=str(tx.account_id) if tx and tx.account_id else str(default_account.id),
+            width=240,
         )
 
-        def _set_error(control: ft.TextField, message: str | None):
-            control.error_text = message
-            if getattr(control, "page", None):
-                control.update()
+        def _on_type_change(_):
+            category_dd.options = _options_for_type(type_group.value or "expense")
+            if category_dd.page:
+                category_dd.update()
 
-        def save_txn(_):
-            warning_msg: str | None = None
-            try:
-                _set_error(amount, None)
-                _set_error(memo, None)
-                _set_error(date_field, None)
-                occurred_at = datetime.fromisoformat((date_field.value or "").strip())
-                amt_val = float(amount.value or 0)
-                if type_toggle.value == "expense" and amt_val > 0:
-                    amt_val = -amt_val
-                if type_toggle.value == "income" and amt_val < 0:
-                    amt_val = abs(amt_val)
-                if amt_val == 0:
-                    _set_error(amount, "Amount cannot be zero")
-                    raise ValueError("Amount cannot be zero")
-                if not memo.value:
-                    _set_error(memo, "Description is required")
-                    raise ValueError("Memo is required")
-                cat_id_val = int(category_dd.value) if category_dd.value else None
-                # Budget overrun check for expenses
-                if amt_val < 0:
-                    month_start = ctx.current_month.replace(day=1)
-                    last_day = monthrange(month_start.year, month_start.month)[1]
-                    month_end = month_start.replace(day=last_day)
-                    budget = ctx.budget_repo.get_for_month(
-                        month_start.year, month_start.month, user_id=uid
-                    )
-                    delta = abs(amt_val)
-                    if is_edit and tx and tx.amount < 0:
-                        delta = max(0.0, abs(amt_val) - abs(tx.amount))
-                    if budget and delta > 0:
-                        lines = ctx.budget_repo.get_lines_for_budget(budget.id, user_id=uid)
-                        line = next((l for l in lines if l.category_id == cat_id_val), None)
-                        if line:
-                            txs = ctx.transaction_repo.search(
-                                start_date=month_start,
-                                end_date=month_end,
-                                category_id=line.category_id,
-                                user_id=uid,
-                            )
-                            actual = sum(
-                                abs(t.amount)
-                                for t in txs
-                                if t.amount < 0 and (not is_edit or not tx or t.id != tx.id)
-                            )
-                            projected = actual + delta
-                            if projected > line.planned_amount:
-                                over_by = projected - line.planned_amount
-                                category_name = next(
-                                    (c.name for c in categories if c.id == cat_id_val),
-                                    "Category",
-                                )
-                                warning_msg = (
-                                    f"{category_name} budget exceeded by ${over_by:,.2f}"
-                                )
-                        elif lines:
-                            total_planned = sum(l.planned_amount for l in lines)
-                            txs = ctx.transaction_repo.search(
-                                start_date=month_start,
-                                end_date=month_end,
-                                user_id=uid,
-                            )
-                            actual_total = sum(
-                                abs(t.amount)
-                                for t in txs
-                                if t.amount < 0 and (not is_edit or not tx or t.id != tx.id)
-                            )
-                            projected_total = actual_total + delta
-                            if projected_total > total_planned:
-                                warning_msg = f"Overall budget exceeded by ${projected_total - total_planned:,.2f}"
-            except ValueError as exc:
-                dev_log(ctx.config, "Ledger validation failed", exc=exc)
-                show_error_dialog(page, "Validation failed", str(exc))
-                return
-            except Exception as exc:
-                dev_log(ctx.config, "Ledger parse failed", exc=exc)
-                show_error_dialog(page, "Invalid input", str(exc))
-                return
+        type_group.on_change = _on_type_change
 
-            try:
-                if is_edit and tx:
-                    tx.amount = amt_val
-                    tx.memo = memo.value or ""
-                    tx.occurred_at = occurred_at
-                    tx.category_id = int(category_dd.value) if category_dd.value else None
-                    tx.account_id = int(account_dd.value) if account_dd.value else None
-                    tx.currency = tx.currency or "USD"
-                    ctx.transaction_repo.update(tx, user_id=uid)
-                else:
-                    txn = Transaction(
-                        amount=amt_val,
-                        memo=memo.value or "",
-                        occurred_at=occurred_at,
-                        category_id=int(category_dd.value) if category_dd.value else None,
-                        account_id=int(account_dd.value) if account_dd.value else None,
-                        currency="USD",
-                    )
-                    ctx.transaction_repo.create(txn, user_id=uid)
-                dlg.open = False
-                apply_filters(current_page)
-                msg = (
-                    f"Transaction {'updated' if is_edit else 'saved'} "
-                    f"({ 'income' if amt_val >= 0 else 'expense'} ${abs(amt_val):,.2f})"
-                )
-                if warning_msg:
-                    msg = f"{msg} — {warning_msg}"
-                page.snack_bar = ft.SnackBar(content=ft.Text(msg))
-                page.snack_bar.open = True
-                page.update()
-            except Exception as exc:
-                dev_log(ctx.config, "Ledger save failed", exc=exc)
-                show_error_dialog(page, "Save failed", str(exc))
-
-        dlg = ft.AlertDialog(
-            title=ft.Text("Edit transaction" if is_edit else "Add transaction"),
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Update transaction" if is_edit else "Add transaction"),
             content=ft.Column(
                 [
                     ft.Text(
-                        "Expenses will be saved as negatives; switch to Income for inflows.",
+                        "Keep everything local; amounts flip sign based on type.",
                         size=12,
                         color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
-                    amount,
-                    type_toggle,
-                    memo,
-                    date_field,
+                    type_group,
+                    ft.Row([amount_field, date_field], spacing=10),
                     category_dd,
                     account_dd,
+                    description_field,
+                    notes_field,
                 ],
                 tight=True,
-                spacing=8,
+                width=520,
+                spacing=10,
             ),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda _: setattr(dlg, "open", False)),
-                ft.FilledButton("Save", on_click=save_txn),
+                ft.TextButton("Cancel", on_click=lambda _: setattr(dialog, "open", False)),
+                ft.FilledButton(
+                    "Save",
+                    on_click=lambda _: _save_transaction_payload(
+                        existing=tx,
+                        amount_field=amount_field,
+                        description_field=description_field,
+                        notes_field=notes_field,
+                        date_field=date_field,
+                        type_group=type_group,
+                        category_dd=category_dd,
+                        account_dd=account_dd,
+                        dialog=dialog,
+                    ),
+                ),
             ],
         )
-        page.dialog = dlg
-        dlg.open = True
+        page.dialog = dialog
+        dialog.open = True
         page.update()
 
-    def delete_transaction(txn_id: int | None):
+    def delete_transaction(txn_id: int | None) -> None:
         if txn_id is None:
             return
 
-        def confirm():
+        def _confirm():
             try:
                 ctx.transaction_repo.delete(txn_id, user_id=uid)
                 dev_log(ctx.config, "Transaction deleted", context={"id": txn_id})
-                apply_filters(current_page)
+                _load_transactions(current_page)
             except Exception as exc:
                 dev_log(ctx.config, "Delete failed", exc=exc, context={"id": txn_id})
                 show_error_dialog(page, "Delete failed", str(exc))
 
-        show_confirm_dialog(page, "Delete transaction", "Are you sure?", confirm)
+        show_confirm_dialog(page, "Delete transaction", "Are you sure?", _confirm)
 
-    def _write_export(path: Path):
+    def _export_csv(_=None) -> None:
+        stamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        export_dir = ctx.config.DATA_DIR / "exports"
+        output_path = export_dir / f"ledger_export_{stamp}.csv"
         try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            export_transactions_csv(transactions=filtered, output_path=path)
+            export_csv.export_transactions_csv(
+                transactions=cached_transactions, output_path=output_path
+            )
             page.snack_bar = ft.SnackBar(
-                content=ft.Text(f"Exported to {path}"), show_close_icon=True
+                content=ft.Text(f"Exported to {output_path}"), show_close_icon=True
             )
             page.snack_bar.open = True
             page.update()
-        except Exception as exc:
+        except Exception as exc:  # pragma: no cover - user-facing guard
             show_error_dialog(page, "Export failed", str(exc))
-
-    def export_csv(_):
-        stamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        suggested = f"ledger_export_{stamp}.csv"
-        dev_log(ctx.config, "Starting ledger export", context={"suggested": suggested})
-        controllers.pick_export_destination(
-            ctx,
-            page,
-            suggested_name=suggested,
-            on_path_selected=_write_export,
-        )
 
     filter_bar = ft.Row(
         [
             start_field,
             end_field,
-            type_field,
+            quick_range,
             category_field,
+            type_field,
             search_field,
-            ft.FilledButton("Apply", icon=ft.Icons.FILTER_ALT, on_click=lambda _: apply_filters(1)),
-            ft.TextButton("Reset", on_click=reset_filters),
+            ft.FilledButton(
+                "Apply",
+                icon=ft.Icons.FILTER_ALT,
+                on_click=lambda _: _load_transactions(1),
+            ),
+            ft.TextButton("Reset", on_click=_reset_filters),
         ],
-        run_spacing=8,
-        spacing=8,
         wrap=True,
+        spacing=8,
+        run_spacing=8,
     )
 
     summary_cards = ft.Row(
@@ -587,7 +672,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 content=ft.Container(
                     ft.Column(
                         [
-                            ft.Text("Income (this month)"),
+                            ft.Text("Income (this period)"),
                             ft.Text("", ref=income_text, size=20, weight=ft.FontWeight.BOLD),
                         ]
                     ),
@@ -599,7 +684,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 content=ft.Container(
                     ft.Column(
                         [
-                            ft.Text("Expenses (this month)"),
+                            ft.Text("Expenses (this period)"),
                             ft.Text("", ref=expense_text, size=20, weight=ft.FontWeight.BOLD),
                         ]
                     ),
@@ -611,7 +696,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 content=ft.Container(
                     ft.Column(
                         [
-                            ft.Text("Net (this month)"),
+                            ft.Text("Net (this period)"),
                             ft.Text("", ref=net_text, size=20, weight=ft.FontWeight.BOLD),
                         ]
                     ),
@@ -623,25 +708,6 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         spacing=12,
     )
 
-    spending_chart_section = ft.Card(
-        content=ft.Container(
-            content=ft.Column(
-                [
-                    ft.Text("Spending breakdown (this month)", size=18, weight=ft.FontWeight.BOLD),
-                    ft.Text(
-                        "Expenses by category (colorblind-friendly palette).",
-                        size=12,
-                        color=ft.Colors.ON_SURFACE_VARIANT,
-                    ),
-                    ft.Image(ref=spending_image_ref, height=280, fit=ft.ImageFit.CONTAIN),
-                ],
-                spacing=8,
-            ),
-            padding=16,
-        ),
-        elevation=2,
-    )
-
     table = ft.DataTable(
         ref=table_ref,
         columns=[
@@ -650,217 +716,183 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.DataColumn(ft.Text("Category")),
             ft.DataColumn(ft.Text("Type")),
             ft.DataColumn(ft.Text("Amount")),
-            ft.DataColumn(ft.Text("Currency")),
+            ft.DataColumn(ft.Text("Balance")),
             ft.DataColumn(ft.Text("Actions")),
         ],
         rows=[],
         expand=True,
+        heading_row_height=36,
     )
 
-    pagination = ft.Row(
+    pagination_row = ft.Row(
         [
-            ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda _: paginate(-1)),
+            ft.IconButton(
+                icon=ft.Icons.ARROW_BACK,
+                tooltip="Previous page",
+                on_click=lambda _: _paginate(-1),
+            ),
             ft.Text("", ref=page_label),
-            ft.IconButton(icon=ft.Icons.ARROW_FORWARD, on_click=lambda _: paginate(1)),
-            ft.FilledButton(
-                "Add transaction",
-                icon=ft.Icons.ADD,
-                on_click=lambda _: open_transaction_dialog(None),
+            ft.IconButton(
+                icon=ft.Icons.ARROW_FORWARD,
+                tooltip="Next page",
+                on_click=lambda _: _paginate(1),
             ),
-            ft.TextButton(
-                "Import CSV", on_click=lambda _: controllers.start_ledger_import(ctx, page)
+        ],
+        spacing=4,
+    )
+
+    toolbar = ft.Row(
+        [
+            ft.Row(
+                [
+                    ft.TextButton(
+                        "Import CSV",
+                        on_click=lambda _: controllers.start_ledger_import(ctx, page),
+                    ),
+                    ft.TextButton("Export CSV", on_click=_export_csv),
+                    ft.TextButton("CSV Help", on_click=lambda _: controllers.go_to_help(page)),
+                ],
+                spacing=8,
             ),
-            ft.TextButton("Export CSV", on_click=export_csv),
-            ft.TextButton("CSV Help", on_click=lambda _: controllers.go_to_help(page)),
+            ft.Row(
+                [
+                    pagination_row,
+                    ft.FilledButton(
+                        "+ Add transaction",
+                        icon=ft.Icons.ADD,
+                        on_click=lambda _: open_transaction_dialog(None),
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.END,
+                spacing=12,
+            ),
         ],
         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
     )
 
-    category_name_field = ft.TextField(label="Category name", width=220)
-    category_type_field = ft.Dropdown(
-        label="Type",
-        options=[
-            ft.dropdown.Option("expense", "Expense"),
-            ft.dropdown.Option("income", "Income"),
-        ],
-        value="expense",
-        width=160,
-    )
-
-    def _reset_category_form():
-        nonlocal editing_category_id
-        editing_category_id = None
-        category_name_field.value = ""
-        category_type_field.value = "expense"
-        category_name_field.error_text = None
-        category_name_field.update()
-        category_type_field.update()
-
-    def _start_edit_category(cat: Category):
-        nonlocal editing_category_id
-        editing_category_id = cat.id
-        category_name_field.value = cat.name
-        category_type_field.value = cat.category_type
-        category_name_field.update()
-        category_type_field.update()
-
-    def _render_category_list():
-        container = category_list_ref.current
-        if not container:
-            return
-        cats = ctx.category_repo.list_all(user_id=uid)
-        items: list[ft.Control] = []
-        for cat in cats:
-            items.append(
-                ft.Row(
-                    [
-                        ft.Text(cat.name, weight=ft.FontWeight.BOLD),
-                        ft.Chip(label=ft.Text(cat.category_type.capitalize())),
-                        ft.IconButton(
-                            icon=ft.Icons.EDIT,
-                            tooltip="Edit",
-                            on_click=lambda _, c=cat: _start_edit_category(c),
-                        ),
-                        ft.IconButton(
-                            icon=ft.Icons.DELETE_OUTLINE,
-                            icon_color=ft.Colors.RED,
-                            tooltip="Delete",
-                            on_click=lambda _, cid=cat.id: _delete_category(cid),
-                        ),
-                    ],
-                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                )
-            )
-        if not items:
-            items.append(ft.Text("No categories yet. Add one to get started."))
-        container.controls = items
-        if getattr(container, "page", None):
-            container.update()
-        _refresh_category_filter(category_field.value or "")
-
-    def _save_category(_):
-        name = (category_name_field.value or "").strip()
-        if not name:
-            category_name_field.error_text = "Name is required"
-            category_name_field.update()
-            return
-        category_name_field.error_text = None
-        slug = _slugify(name)
-        try:
-            if editing_category_id:
-                existing = ctx.category_repo.get_by_id(editing_category_id, user_id=uid)
-                if not existing:
-                    raise ValueError("Category not found")
-                existing.name = name
-                existing.slug = slug
-                existing.category_type = category_type_field.value or "expense"
-                ctx.category_repo.update(existing, user_id=uid)
-            else:
-                ctx.category_repo.upsert_by_slug(
-                    Category(
-                        name=name,
-                        slug=slug,
-                        category_type=category_type_field.value or "expense",
-                        user_id=uid,
-                    ),
-                    user_id=uid,
-                )
-            _reset_category_form()
-            _render_category_list()
-            apply_filters(current_page)
-        except Exception as exc:
-            show_error_dialog(page, "Category save failed", str(exc))
-
-    def _delete_category(cat_id: int | None):
-        if not cat_id:
-            return
-
-        def _confirm_delete():
-            try:
-                ctx.category_repo.delete(cat_id, user_id=uid)
-                _render_category_list()
-                apply_filters(current_page)
-            except Exception as exc:
-                show_error_dialog(page, "Delete failed", str(exc))
-
-        show_confirm_dialog(page, "Delete category", "Remove this category?", _confirm_delete)
-
-    category_section = ft.Card(
+    register_card = ft.Card(
         content=ft.Container(
-            content=ft.Column(
+            ft.Column(
                 [
-                    ft.Text("Categories", size=18, weight=ft.FontWeight.BOLD),
-                    ft.Row([category_name_field, category_type_field], spacing=12),
                     ft.Row(
                         [
-                            ft.FilledButton(
-                                "Save category",
-                                icon=ft.Icons.SAVE,
-                                on_click=_save_category,
-                            ),
-                            ft.TextButton("Cancel", on_click=lambda _: _reset_category_form()),
+                            ft.Text("Transaction register", weight=ft.FontWeight.BOLD, size=18),
                         ],
-                        spacing=8,
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     ),
                     ft.Divider(),
-                    ft.Column(ref=category_list_ref, spacing=6),
+                    ft.Container(table, expand=True),
+                    toolbar,
                 ],
-                spacing=10,
+                expand=True,
+                spacing=12,
             ),
-            padding=16,
+            padding=12,
+        ),
+        expand=True,
+        elevation=2,
+    )
+
+    spending_card = ft.Card(
+        content=ft.Container(
+            ft.Column(
+                [
+                    ft.Text("Spending breakdown (this period)", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Text(
+                        "Expense categories only; refreshed when filters change.",
+                        size=12,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                    ft.Image(
+                        ref=spending_image_ref,
+                        height=220,
+                        fit=ft.ImageFit.CONTAIN,
+                        visible=False,
+                    ),
+                    ft.Text(
+                        "No expense data for this period",
+                        ref=spending_empty_ref,
+                        visible=True,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                ],
+                spacing=8,
+            ),
+            padding=12,
         ),
         elevation=2,
     )
 
-    budget_section = ft.Card(
+    budget_card = ft.Card(
         content=ft.Container(
-            content=ft.Column(
+            ft.Column(
                 [
-                    ft.Text("Budget progress", size=18, weight=ft.FontWeight.BOLD),
-                    ft.Column(ref=budget_progress_ref, spacing=10),
+                    ft.Text("Budget progress (this period)", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Column(ref=budget_progress_ref, spacing=8),
                 ],
-                spacing=10,
+                spacing=8,
             ),
-            padding=16,
+            padding=12,
         ),
         elevation=2,
+    )
+
+    recent_card = ft.Card(
+        content=ft.Container(
+            ft.Column(
+                [
+                    ft.Text("Recent categories", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Column(ref=recent_categories_ref, spacing=6),
+                ],
+                spacing=8,
+            ),
+            padding=12,
+        ),
+        elevation=2,
+    )
+
+    insights_column = ft.Column(
+        [spending_card, budget_card, recent_card],
+        spacing=12,
+        expand=3,
+        scroll=ft.ScrollMode.AUTO,
+    )
+
+    register_column = ft.Column(
+        [
+            register_card,
+        ],
+        expand=7,
+    )
+
+    main_body = ft.Row(
+        [register_column, insights_column],
+        spacing=12,
+        expand=True,
     )
 
     content = ft.Column(
         [
             ft.Row(
-                [
-                    ft.Text("Ledger", size=24, weight=ft.FontWeight.BOLD),
-                ],
+                [ft.Text("Ledger", size=24, weight=ft.FontWeight.BOLD)],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             ),
-            ft.Container(height=12),
+            ft.Container(height=8),
             filter_bar,
-            ft.Container(height=12),
+            ft.Container(height=8),
             summary_cards,
             ft.Container(height=12),
-            spending_chart_section,
-            ft.Container(height=12),
-            budget_section,
-            ft.Container(height=12),
-            category_section,
-            ft.Container(height=12),
-            ft.Card(content=ft.Container(content=table, padding=12), expand=True),
-            pagination,
+            main_body,
         ],
         expand=True,
         scroll=ft.ScrollMode.AUTO,
     )
 
-    _render_category_list()
-    refresh_month_summary()
-    refresh_budget_progress()
-    apply_filters()
+    _load_transactions()
     if getattr(ctx, "pending_new_transaction", False):
         ctx.pending_new_transaction = False
         open_transaction_dialog(None)
 
     app_bar = build_app_bar(ctx, "Ledger", page)
     main_layout = build_main_layout(ctx, page, "/ledger", content)
-
     return ft.View(route="/ledger", appbar=app_bar, controls=main_layout, padding=0)

@@ -98,7 +98,7 @@ def test_primary_dialog_buttons_clickable(builder, button_text):
     view = builder(ctx, page)  # type: ignore[arg-type]
     target = _find_control(
         view,
-        lambda c: isinstance(c, ft.FilledButton) and getattr(c, "text", "") == button_text,
+        lambda c: isinstance(c, ft.FilledButton) and button_text in getattr(c, "text", ""),
     )
     assert target is not None, f"{button_text} not found"
     # Should not raise when triggering the handler

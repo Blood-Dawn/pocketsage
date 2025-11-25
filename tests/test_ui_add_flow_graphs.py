@@ -128,13 +128,15 @@ def test_add_flows_populate_charts(monkeypatch: pytest.MonkeyPatch, tmp_path) ->
     # Ledger: add expense and ensure spending chart renders
     ledger_view = ledger.build_ledger_view(ctx, page)
     add_tx_btn = _find_control(
-        ledger_view, lambda c: isinstance(c, ft.FilledButton) and getattr(c, "text", "") == "Add transaction"
+        ledger_view,
+        lambda c: isinstance(c, ft.FilledButton)
+        and "Add transaction" in getattr(c, "text", ""),
     )
     assert add_tx_btn is not None
     _click(add_tx_btn)
     dlg = page.dialog
     _set_text_field(dlg, "Amount", "-45.12")
-    _set_text_field(dlg, "Memo", "Groceries run")
+    _set_text_field(dlg, "Description", "Groceries run")
     _set_text_field(dlg, "Date", date.today().isoformat())
     _set_dropdown(dlg, "Category", str(category.id))
     _set_dropdown(dlg, "Account", str(account.id))
