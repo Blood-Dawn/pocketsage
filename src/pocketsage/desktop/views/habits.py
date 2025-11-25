@@ -94,12 +94,15 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         remainder = len(cells) % 7
         if remainder:
             for _ in range(7 - remainder):
-                cells.append(ft.Container(width=18, height=18, bgcolor=ft.Colors.SURFACE_DIM))
-        heatmap_ref.current.controls = cells
-        heatmap_ref.current.update()
+                cells.append(ft.Container(width=18, height=18, bgcolor=ft.Colors.GREY_300))
+        if heatmap_ref.current:
+            heatmap_ref.current.controls = cells
+            if getattr(heatmap_ref.current, "page", None):
+                heatmap_ref.current.update()
         if heatmap_label_ref.current:
             heatmap_label_ref.current.value = f"Last {window} days"
-            heatmap_label_ref.current.update()
+            if getattr(heatmap_label_ref.current, "page", None):
+                heatmap_label_ref.current.update()
 
     def select_habit(hid: int, name: str):
         nonlocal selected_habit
@@ -114,7 +117,8 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         habit_obj = ctx.habit_repo.get_by_id(hid, user_id=uid)
         if reminder_ref.current and habit_obj:
             reminder_ref.current.value = reminder_placeholder(habit_obj)
-            reminder_ref.current.update()
+            if getattr(reminder_ref.current, "page", None):
+                reminder_ref.current.update()
         render_heatmap(hid)
         page.update()
 
@@ -345,6 +349,8 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 reminder_time.update()
                 return
             reminder_time.error_text = None
+            selected_id: int | None = None
+            selected_name: str | None = None
             try:
                 if is_edit and habit:
                     habit.name = name_field.value.strip()
@@ -353,6 +359,8 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     habit.reminder_time = reminder_value
                     ctx.habit_repo.update(habit, user_id=uid)
                     dev_log(ctx.config, "Habit updated", context={"name": habit.name})
+                    selected_id = habit.id
+                    selected_name = habit.name
                 else:
                     new_habit = Habit(
                         name=name_field.value.strip(),
@@ -361,10 +369,14 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         reminder_time=reminder_value,
                         user_id=uid,
                     )
-                    ctx.habit_repo.create(new_habit, user_id=uid)
+                    created = ctx.habit_repo.create(new_habit, user_id=uid)
+                    selected_id = created.id
+                    selected_name = created.name
                     dev_log(ctx.config, "Habit created", context={"name": new_habit.name})
                 dialog.open = False
                 refresh_habit_list(show_archived_checkbox.value)
+                if selected_id and selected_name:
+                    select_habit(selected_id, selected_name)
                 page.snack_bar = ft.SnackBar(
                     content=ft.Text("Habit updated" if is_edit else "Habit created")
                 )

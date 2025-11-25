@@ -297,8 +297,14 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
             table_ref.current.rows = rows
 
         if chart_ref.current:
-            chart_ref.current.visible = bool(holdings)
-            chart_ref.current.src = str(allocation_chart_png(holdings)) if holdings else ""
+            try:
+                chart_ref.current.visible = bool(holdings)
+                chart_ref.current.src = (
+                    str(allocation_chart_png(holdings)) if holdings else ""
+                )
+            except Exception as exc:
+                dev_log(ctx.config, "Allocation chart render failed", exc=exc)
+                chart_ref.current.visible = False
         page.update()
 
     table = ft.DataTable(

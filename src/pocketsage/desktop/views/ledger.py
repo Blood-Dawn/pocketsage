@@ -235,21 +235,32 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     def refresh_spending_chart():
         """Render a spending chart for the current month."""
-        month_start = ctx.current_month.replace(day=1)
-        last_day = monthrange(month_start.year, month_start.month)[1]
-        month_end = month_start.replace(day=last_day)
-        txs = ctx.transaction_repo.search(
-            start_date=month_start,
-            end_date=month_end,
-            user_id=uid,
-        )
-        categories = ctx.category_repo.list_all(user_id=uid)
-        cat_lookup = {c.id: c.name for c in categories if c.id is not None}
-        path = spending_chart_png(txs, category_lookup=cat_lookup)
-        if spending_image_ref.current:
-            spending_image_ref.current.src = path.as_posix()
-            if getattr(spending_image_ref.current, "page", None):
-                spending_image_ref.current.update()
+        try:
+            month_start = ctx.current_month.replace(day=1)
+            last_day = monthrange(month_start.year, month_start.month)[1]
+            month_end = month_start.replace(day=last_day)
+            txs = ctx.transaction_repo.search(
+                start_date=month_start,
+                end_date=month_end,
+                user_id=uid,
+            )
+            categories = ctx.category_repo.list_all(user_id=uid)
+            cat_lookup = {c.id: c.name for c in categories if c.id is not None}
+            path = spending_chart_png(txs, category_lookup=cat_lookup)
+            if spending_image_ref.current:
+                spending_image_ref.current.src = path.as_posix()
+                spending_image_ref.current.visible = True
+                if getattr(spending_image_ref.current, "page", None):
+                    spending_image_ref.current.update()
+        except Exception as exc:
+            dev_log(ctx.config, "Spending chart refresh failed", exc=exc)
+            if spending_image_ref.current:
+                spending_image_ref.current.visible = False
+            page.snack_bar = ft.SnackBar(
+                content=ft.Text("Saved, but spending chart failed to render"),
+                show_close_icon=True,
+            )
+            page.snack_bar.open = True
 
     def apply_filters(page_index: int = 1):
         nonlocal filtered, current_page, total_pages

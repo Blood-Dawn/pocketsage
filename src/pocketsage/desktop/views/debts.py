@@ -98,9 +98,13 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 ]
 
         if payoff_chart_ref.current is not None:
-            chart_path = debt_payoff_chart_png(schedule) if schedule else None
-            payoff_chart_ref.current.src = str(chart_path) if chart_path else ""
-            payoff_chart_ref.current.visible = bool(chart_path)
+            try:
+                chart_path = debt_payoff_chart_png(schedule) if schedule else None
+                payoff_chart_ref.current.src = str(chart_path) if chart_path else ""
+                payoff_chart_ref.current.visible = bool(chart_path)
+            except Exception as exc:
+                dev_log(ctx.config, "Payoff chart render failed", exc=exc)
+                payoff_chart_ref.current.visible = False
 
     def _refresh() -> None:
         liabilities = ctx.liability_repo.list_all(user_id=uid)
