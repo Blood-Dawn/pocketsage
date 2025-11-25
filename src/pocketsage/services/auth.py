@@ -169,7 +169,7 @@ def purge_guest_user(session_factory: SessionFactory) -> bool:
 
     try:
         admin_tasks.reset_demo_database(
-            user_id=guest_id, session_factory=session_factory, reseed=False
+            user_id=guest_id, session_factory=session_factory, reseed=False, confirm=True
         )
     except Exception:
         # Best-effort cleanup; schema mismatches or missing tables should not block login.

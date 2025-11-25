@@ -1,6 +1,6 @@
 """Admin utilities for the desktop app (demo seed, exports, retention)."""
 # TODO(@pocketsage-admin): Support light vs heavy seed profiles and measure seed performance.
-# TODO(@pocketsage-admin): Add safety checks before destructive reset operations.
+# Safety checks for destructive operations are enforced via the `confirm` parameter.
 
 # TODO(@codex): Admin service functions for data management
 #    - Demo data seeding (run_demo_seed) - creates sample data (DONE)
@@ -557,11 +557,40 @@ def _seed_budget(session: Session, categories: dict[str, Category], user_id: int
 
 
 def reset_demo_database(
-    user_id: int, session_factory: Optional[SessionFactory] = None, reseed: bool = True
+    user_id: int,
+    session_factory: Optional[SessionFactory] = None,
+    reseed: bool = True,
+    *,
+    confirm: bool = False,
 ) -> SeedSummary:
-    """Reset demo data for a specific user."""
+    """Reset demo data for a specific user.
 
-    # Guard against accidental cross-user resets
+    This operation deletes all user data and optionally re-seeds demo data.
+
+    Args:
+        user_id: The ID of the user whose data to reset.
+        session_factory: Optional session factory for database access.
+        reseed: Whether to re-seed demo data after clearing.
+        confirm: Safety flag that must be True to proceed.
+            Prevents accidental data loss from programmatic calls.
+
+    Raises:
+        ValueError: If confirm is False or user_id is invalid.
+
+    Returns:
+        SeedSummary with counts of items in the database after the operation.
+    """
+    # Safety check: require explicit confirmation for destructive operations
+    if not confirm:
+        raise ValueError(
+            "Destructive operation requires explicit confirmation. "
+            "Pass confirm=True to proceed with resetting user data."
+        )
+
+    # Validate user_id
+    if user_id is None or not isinstance(user_id, int) or user_id < 1:
+        raise ValueError(f"Invalid user_id: {user_id!r}. Must be a positive integer.")
+
     with _get_session(session_factory) as session:
         models = (
             Transaction,
@@ -744,15 +773,44 @@ def backup_database(
 
 
 def restore_database(
-    backup_file: Path, *, config: Optional[BaseConfig] = None, overwrite: bool = True
+    backup_file: Path,
+    *,
+    config: Optional[BaseConfig] = None,
+    overwrite: bool = True,
+    confirm: bool = False,
 ) -> Path:
-    """Restore the database from a provided backup file."""
+    """Restore the database from a provided backup file.
 
+    This operation replaces the current database with the backup file.
+
+    Args:
+        backup_file: Path to the backup database file.
+        config: Optional configuration object.
+        overwrite: Whether to overwrite an existing database.
+        confirm: Safety flag that must be True when overwriting existing data.
+            Prevents accidental data loss.
+
+    Raises:
+        ValueError: If confirm is False when overwriting existing database.
+        FileNotFoundError: If backup file doesn't exist.
+        FileExistsError: If target exists and overwrite is False.
+
+    Returns:
+        Path to the restored database.
+    """
     config = config or BaseConfig()
     source = backup_file if isinstance(backup_file, Path) else Path(backup_file)
     if not source.exists():
         raise FileNotFoundError(f"Backup file not found: {source}")
     target = config.DATA_DIR / config.DB_FILENAME
+
+    # Safety check: require explicit confirmation when overwriting existing data
+    if overwrite and target.exists() and not confirm:
+        raise ValueError(
+            "Destructive operation requires explicit confirmation. "
+            "Pass confirm=True to proceed with overwriting the existing database."
+        )
+
     if not overwrite and target.exists():
         raise FileExistsError(f"Target database already exists at {target}")
 

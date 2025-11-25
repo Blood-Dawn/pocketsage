@@ -95,7 +95,7 @@ def test_reset_demo_database_restores_seed(session_factory):
     with session_scope(engine) as session:
         session.exec(delete(Transaction))
 
-    reset_demo_database(session_factory=factory, user_id=user.id)
+    reset_demo_database(session_factory=factory, user_id=user.id, confirm=True)
 
     with session_scope(engine) as session:
         count = len(session.exec(select(Transaction)).all())
@@ -117,13 +117,35 @@ def test_reset_demo_database_drops_custom_rows(session_factory):
             )
         )
 
-    summary = reset_demo_database(session_factory=factory, user_id=user.id)
+    summary = reset_demo_database(session_factory=factory, user_id=user.id, confirm=True)
 
     with session_scope(engine) as session:
         memos = {tx.memo for tx in session.exec(select(Transaction)).all()}
 
     assert "Custom Row" not in memos
     assert summary.transactions == len(memos)
+
+
+def test_reset_demo_database_requires_confirm(session_factory):
+    """Safety check: reset_demo_database should require confirm=True."""
+    factory, engine, user = session_factory
+
+    run_demo_seed(session_factory=factory, user_id=user.id)
+
+    # Calling without confirm=True should raise ValueError
+    with pytest.raises(ValueError, match="explicit confirmation"):
+        reset_demo_database(session_factory=factory, user_id=user.id)
+
+
+def test_reset_demo_database_rejects_invalid_user_id(session_factory):
+    """Safety check: reset_demo_database should reject invalid user_id."""
+    factory, engine, user = session_factory
+
+    with pytest.raises(ValueError, match="Invalid user_id"):
+        reset_demo_database(session_factory=factory, user_id=0, confirm=True)
+
+    with pytest.raises(ValueError, match="Invalid user_id"):
+        reset_demo_database(session_factory=factory, user_id=-1, confirm=True)
 
 
 def test_guest_purge_isolation(session_factory):

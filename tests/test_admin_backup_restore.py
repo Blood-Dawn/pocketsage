@@ -5,7 +5,6 @@ from types import SimpleNamespace
 
 import flet as ft
 import pytest
-
 from pocketsage.config import BaseConfig
 from pocketsage.desktop.views import admin
 from pocketsage.infra.database import create_db_engine, init_database, session_scope
@@ -75,5 +74,29 @@ def test_backup_and_restore_round_trip(tmp_path: Path, monkeypatch: pytest.Monke
     backup_path = admin_tasks.backup_database(backup_dir, config=config)
     assert backup_path.exists()
 
-    restored_db = admin_tasks.restore_database(backup_path, config=config)
+    restored_db = admin_tasks.restore_database(backup_path, config=config, confirm=True)
     assert restored_db.exists()
+
+
+def test_restore_database_requires_confirm(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Safety check: restore_database should require confirm=True when overwriting."""
+    data_dir = tmp_path / "instance"
+    monkeypatch.setenv("POCKETSAGE_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("POCKETSAGE_DATABASE_URL", f"sqlite:///{data_dir/'pocketsage.db'}")
+    config = BaseConfig()
+    engine = create_db_engine(config)
+    init_database(engine)
+
+    def factory():
+        return session_scope(engine)
+
+    user = auth.ensure_local_user(factory)
+
+    admin_tasks.run_demo_seed(session_factory=factory, user_id=user.id)
+
+    backup_dir = data_dir / "backups"
+    backup_path = admin_tasks.backup_database(backup_dir, config=config)
+
+    # Calling without confirm=True should raise ValueError when overwriting
+    with pytest.raises(ValueError, match="explicit confirmation"):
+        admin_tasks.restore_database(backup_path, config=config)

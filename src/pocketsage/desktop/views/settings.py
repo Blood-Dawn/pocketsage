@@ -105,7 +105,7 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
         if not selected or not selected.path:
             return
         try:
-            target = restore_database(Path(selected.path), config=ctx.config)
+            target = restore_database(Path(selected.path), config=ctx.config, confirm=True)
             _notify(f"Database restored to {target}; restart app to reload.")
         except Exception as exc:
             dev_log(ctx.config, "Restore failed", exc=exc, context={"path": selected.path})

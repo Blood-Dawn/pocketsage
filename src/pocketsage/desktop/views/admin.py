@@ -124,7 +124,9 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     def reset_action(_):
         def _task():
-            summary = reset_demo_database(user_id=uid, session_factory=ctx.session_factory)
+            summary = reset_demo_database(
+                user_id=uid, session_factory=ctx.session_factory, confirm=True
+            )
             _notify(f"Reset demo data ({summary.transactions} transactions)")
             _refresh_user_views()
 
@@ -164,7 +166,7 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
             return
 
         def _task():
-            target = restore_database(Path(selected.path), config=ctx.config)
+            target = restore_database(Path(selected.path), config=ctx.config, confirm=True)
             _notify(f"Database restored to {target}; restart app to reload.")
             _refresh_user_views()
 

@@ -75,7 +75,7 @@ def reset_demo_data(ctx: AppContext, page: ft.Page) -> None:
     """Reset demo data to a known state (drop + reseed)."""
 
     summary = admin_tasks.reset_demo_database(
-        user_id=ctx.require_user_id(), session_factory=ctx.session_factory
+        user_id=ctx.require_user_id(), session_factory=ctx.session_factory, confirm=True
     )
     _show_snack(page, f"Demo data reset ({summary.transactions} transactions)")
 
