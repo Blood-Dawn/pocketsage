@@ -1,4 +1,5 @@
 """Domain-level CSV import helpers for ledger and portfolio data."""
+# TODO(@pocketsage-ledger): Guarantee idempotent import by external_id and write tests.
 
 from __future__ import annotations
 

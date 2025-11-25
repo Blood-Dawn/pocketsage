@@ -1,4 +1,5 @@
 """Debts view implementation."""
+# TODO(@pocketsage-debts): Integrate strategy modes (aggressive/balanced/lazy) into projections.
 
 # TODO(@codex): Debts MVP features to implement/enhance:
 #    - Liability CRUD (add/edit/delete debts) (DONE)

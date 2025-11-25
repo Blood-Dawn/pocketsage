@@ -1,4 +1,6 @@
 """Settings view implementation."""
+# TODO(@pocketsage-admin): Surface seed/reset progress and final row counts to the user.
+# TODO(@pocketsage-settings): Expose instance path and backup status in the UI.
 
 from __future__ import annotations
 

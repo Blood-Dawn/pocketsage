@@ -1,4 +1,5 @@
 """Authentication and user management services."""
+# TODO(@pocketsage-auth): Reintroduce real multi-user auth in a future phase if needed.
 
 from __future__ import annotations
 
@@ -15,6 +16,8 @@ SessionFactory = Callable[[], Session]
 _hasher = PasswordHasher()
 _ALLOWED_ROLES = {"user", "admin", "guest"}
 GUEST_USERNAME = "guest"
+LOCAL_USERNAME = "local"
+LOCAL_ROLE = "admin"
 
 
 def _is_guest_username(username: str) -> bool:
@@ -131,6 +134,23 @@ def ensure_guest_user(session_factory: SessionFactory) -> User:
         session.refresh(guest)
         session.expunge(guest)
         return guest
+
+
+def ensure_local_user(session_factory: SessionFactory) -> User:
+    """Create or return the default local profile (passwordless desktop mode)."""
+
+    with session_factory() as session:
+        user = session.exec(select(User).where(User.username == LOCAL_USERNAME)).first()
+        if user:
+            session.expunge(user)
+            return user
+        password_hash = _hasher.hash(LOCAL_USERNAME)
+        user = User(username=LOCAL_USERNAME, password_hash=password_hash, role=LOCAL_ROLE)
+        session.add(user)
+        session.flush()
+        session.refresh(user)
+        session.expunge(user)
+        return user
 
 
 def purge_guest_user(session_factory: SessionFactory) -> bool:

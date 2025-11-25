@@ -1,4 +1,6 @@
 """Admin utilities for the desktop app (demo seed, exports, retention)."""
+# TODO(@pocketsage-admin): Support light vs heavy seed profiles and measure seed performance.
+# TODO(@pocketsage-admin): Add safety checks before destructive reset operations.
 
 # TODO(@codex): Admin service functions for data management
 #    - Demo data seeding (run_demo_seed) - creates sample data (DONE)

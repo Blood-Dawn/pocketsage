@@ -40,8 +40,7 @@ def navigate(page: ft.Page, route: str) -> None:
 def handle_nav_selection(ctx: AppContext, page: ft.Page, selected_index: int) -> None:
     """Delegate navigation rail selection to the helpers and update."""
 
-    is_admin = ctx.current_user is not None and ctx.current_user.role == "admin"
-    handle_navigation_selection(page, selected_index, is_admin=is_admin)
+    handle_navigation_selection(page, selected_index, is_admin=bool(getattr(ctx, "admin_mode", False)))
     page.update()
 
 
@@ -232,8 +231,9 @@ def logout(ctx: AppContext, page: ft.Page) -> None:
     """Login-free desktop shell: keep guest context and return home."""
 
     try:
-        ctx.current_user = auth.ensure_guest_user(ctx.session_factory)
-        ctx.guest_mode = True
+        ctx.current_user = auth.ensure_local_user(ctx.session_factory)
+        ctx.guest_mode = False
+        ctx.admin_mode = False
     except Exception:
         pass
     navigate(page, "/dashboard")

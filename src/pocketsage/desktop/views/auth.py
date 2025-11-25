@@ -17,8 +17,9 @@ def build_auth_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     if ctx.current_user is None:
         try:
-            ctx.current_user = auth.ensure_guest_user(ctx.session_factory)
-            ctx.guest_mode = True
+            ctx.current_user = auth.ensure_local_user(ctx.session_factory)
+            ctx.guest_mode = False
+            ctx.admin_mode = False
         except Exception:
             pass
 

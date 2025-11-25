@@ -17,5 +17,8 @@ ruff==0.6.2
 pre-commit==3.8.0
 bandit[toml]==1.7.9
 
+[scheduler]
+apscheduler>=3.10.0
+
 [watcher]
 watchdog>=3.0.0

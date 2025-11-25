@@ -1,4 +1,5 @@
 """Habits view implementation."""
+# TODO(@pocketsage-habits): Enhance visualizations (heatmaps, weekly summaries) and tie into Reports.
 
 # TODO(@codex): Habits MVP features to implement/enhance:
 #    - Habit CRUD (create/edit/archive habits) (DONE - basic create/archive)

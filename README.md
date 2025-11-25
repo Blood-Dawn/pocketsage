@@ -93,6 +93,16 @@ The app launches directly to the Dashboard—no login required!
 3. **Create a Budget**: Navigate to Budgets → "Create new budget" → Set amounts per category
 4. **Track a Habit**: Press `Ctrl+Shift+H` or go to Habits → "Add habit" → Toggle daily completion
 
+## Roadmap & Sprint TODO
+- Master backlog: see `docs/POCKETSAGE_MASTER_TODO.md` for the current overhaul plan.
+- Run locally via `python run_desktop.py` from the repo root (no login required).
+- Exports/backups live under `instance/exports/` and `instance/backups/`; Settings/Admin buttons trigger them.
+
+### User/Admin Modes
+- The desktop app auto-loads a local profile (no password).
+- Toggle **Admin mode** from the app bar switch to access seed/reset/export/backup.
+- Switch back to user mode to continue normal ledger/habits/debts/portfolio/reports flows; changes reflect immediately.
+
 ## ⌨️ Keyboard Shortcuts
 
 | Shortcut | Action |

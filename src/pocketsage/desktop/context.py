@@ -54,6 +54,8 @@ class AppContext:
     file_picker: Optional[ft.FilePicker] = None
     file_picker_mode: Optional[str] = None
     dev_mode: bool = False
+    admin_mode: bool = False
+    pending_new_transaction: bool = False
 
     current_user: Optional[User] = None
     guest_mode: bool = False
@@ -70,9 +72,9 @@ class AppContext:
             # downstream operations always have a user_id for FK writes.
             from ..services import auth
 
-            guest = auth.ensure_guest_user(self.session_factory)
-            self.current_user = guest
-            self.guest_mode = True
+            local_user = auth.ensure_local_user(self.session_factory)
+            self.current_user = local_user
+            self.guest_mode = False
         return self.current_user.id  # type: ignore[return-value]
 
 
@@ -92,7 +94,7 @@ def create_app_context(config: Optional[BaseConfig] = None) -> AppContext:
     session_factory = create_session_factory(engine)
 
     from ..services import auth
-    guest_user = auth.ensure_guest_user(session_factory)
+    local_user = auth.ensure_local_user(session_factory)
 
     # Initialize repositories
     transaction_repo = SQLModelTransactionRepository(session_factory)
@@ -122,6 +124,7 @@ def create_app_context(config: Optional[BaseConfig] = None) -> AppContext:
         theme_mode=ft.ThemeMode.DARK,
         current_account_id=None,
         current_month=current_date.replace(day=1),
-        current_user=guest_user,
-        guest_mode=True,
+        current_user=local_user,
+        guest_mode=False,
+        admin_mode=False,
     )

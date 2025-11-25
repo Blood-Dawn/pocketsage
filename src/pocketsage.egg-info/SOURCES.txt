@@ -3,6 +3,8 @@ pyproject.toml
 src/pocketsage/__init__.py
 src/pocketsage/config.py
 src/pocketsage/devtools.py
+src/pocketsage/logging_config.py
+src/pocketsage/scheduler.py
 src/pocketsage.egg-info/PKG-INFO
 src/pocketsage.egg-info/SOURCES.txt
 src/pocketsage.egg-info/dependency_links.txt
@@ -91,8 +93,12 @@ tests/test_habit_streaks.py
 tests/test_holding_repo_resilience.py
 tests/test_import_services.py
 tests/test_integration_workflows.py
+tests/test_ledger_filters.py
 tests/test_ledger_repository.py
+tests/test_logging.py
 tests/test_money_representation.py
 tests/test_performance.py
 tests/test_repositories.py
+tests/test_ui_add_flow_graphs.py
 tests/test_ui_regression.py
+tests/test_view_reachability.py

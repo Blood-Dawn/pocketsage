@@ -20,20 +20,26 @@ This test suite is designed to verify all domain logic **without requiring the U
 .\.venv\Scripts\Activate.ps1
 ```
 
-### Run All Tests
+### Run All Tests (verbose, no skips)
 
-```bash
-# From project root
-python -m pytest -vv
+```powershell
+.\.venv\Scripts\python -m pytest -vv
+```
 
+```powershell
 # With coverage report
-python -m pytest --cov=src/pocketsage --cov-report=term-missing
+.\.venv\Scripts\python -m pytest --cov=src/pocketsage --cov-report=term-missing
+```
 
+```powershell
 # Parallel execution (faster)
 pytest -n auto
+```
 
-# Verbose output
-pytest -v
+### Lint (ruff)
+
+```powershell
+.\.venv\Scripts\python -m ruff check src tests
 ```
 
 ### Run Specific Test Modules
@@ -64,6 +70,8 @@ pytest tests/test_repositories.py tests/test_*_repository.py
 # All integration tests
 pytest -m integration
 ```
+
+> Note: Default expectation is to run the full suite without `-m` skips; keep `-vv` runs and ruff checks clean.
 
 ## Test Structure
 

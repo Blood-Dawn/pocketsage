@@ -1,4 +1,5 @@
 """Portfolio view implementation."""
+# TODO(@pocketsage-portfolio): Add sector/asset-class breakdown and time-series portfolio value.
 
 # TODO(@codex): Portfolio MVP features (optional module):
 #    - CSV import for holdings (parse symbol, quantity, prices) (DONE)

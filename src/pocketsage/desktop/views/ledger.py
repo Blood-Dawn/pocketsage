@@ -1,4 +1,6 @@
 """Ledger view implementation with guest-mode CRUD, filters, and budget snapshot."""
+# TODO(@pocketsage-ledger): Ensure Add/Edit/Delete transaction buttons call services and refresh both table and charts.
+# TODO(@pocketsage-ledger): Harden filters (especially 'All' category) and add regression tests.
 
 from __future__ import annotations
 
@@ -267,10 +269,14 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         start_dt = parse_date(start_field.value or "")
         end_dt = parse_date(end_field.value or "")
         raw_category = (category_field.value or "").strip()
-        try:
-            category_id = int(raw_category) if raw_category else None
-        except ValueError:
+        if raw_category.lower() == "all" or raw_category == "":
             category_id = None
+        else:
+            try:
+                category_id = int(raw_category)
+            except ValueError:
+                dev_log(ctx.config, "Ignoring non-numeric category filter", context={"value": raw_category})
+                category_id = None
         txs = ctx.transaction_repo.search(
             start_date=start_dt,
             end_date=end_dt,
@@ -850,6 +856,9 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     refresh_month_summary()
     refresh_budget_progress()
     apply_filters()
+    if getattr(ctx, "pending_new_transaction", False):
+        ctx.pending_new_transaction = False
+        open_transaction_dialog(None)
 
     app_bar = build_app_bar(ctx, "Ledger", page)
     main_layout = build_main_layout(ctx, page, "/ledger", content)

@@ -24,6 +24,13 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
     today = ctx.current_month
     budget = ctx.budget_repo.get_for_month(today.year, today.month, user_id=uid)
 
+    def _shift_month(delta: int):
+        current = ctx.current_month
+        next_month = (current.month - 1 + delta) % 12 + 1
+        next_year = current.year + ((current.month - 1 + delta) // 12)
+        ctx.current_month = date(next_year, next_month, 1)
+        page.go("/budgets")
+
     def refresh_view():
         page.go("/budgets")
 
@@ -415,10 +422,20 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.Text("Budgets", size=24, weight=ft.FontWeight.BOLD),
                     ft.Row(
                         [
+                            ft.IconButton(
+                                icon=ft.Icons.CHEVRON_LEFT,
+                                tooltip="Previous month",
+                                on_click=lambda _: _shift_month(-1),
+                            ),
                             ft.Text(
                                 f"{today.strftime('%B %Y')}",
                                 size=18,
                                 color=ft.Colors.ON_SURFACE_VARIANT,
+                            ),
+                            ft.IconButton(
+                                icon=ft.Icons.CHEVRON_RIGHT,
+                                tooltip="Next month",
+                                on_click=lambda _: _shift_month(1),
                             ),
                             ft.FilledButton("Add line", icon=ft.Icons.ADD, on_click=lambda _: add_budget_line(budget.id) if budget else show_create_budget_dialog()),
                             ft.TextButton("Create budget", on_click=lambda _: show_create_budget_dialog()),

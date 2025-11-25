@@ -1,5 +1,15 @@
 # PocketSage Demo Runbook (WIP)
 
+## Quick 5-Min CEN4010 Demo
+1. Launch: `python run_desktop.py` (local profile auto-loads).
+2. Toggle **Admin mode** in the top bar → Run Demo Seed → confirm snackbar.
+3. Ledger: add a transaction, filter by category, export CSV (note path in snackbar).
+4. Habits: add habit, toggle completion once.
+5. Debts: open projections (snowball/avalanche) for seeded liabilities.
+6. Portfolio: view allocation chart; import CSV if desired.
+7. Reports: open spending/debt summaries; trigger a Download.
+8. Settings/Admin: Backup database; confirm path shown.
+
 ## Preconditions
 - Python 3.11 installed
 - `pip install -e ".[dev]"`

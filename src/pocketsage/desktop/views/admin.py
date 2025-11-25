@@ -1,4 +1,4 @@
-"""Admin view for user management, metrics, and seeding."""
+"""Admin view for single-user desktop admin tools (seed/reset/export/backup)."""
 
 # TODO(@codex): Admin tools for data management (seeding, backup, restore)
 #    - Demo data seed button (DONE - run_demo_seed and run_heavy_seed)
@@ -9,13 +9,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import flet as ft
 from sqlalchemy import func, select
 
-from ...models import Account, Habit, Transaction, User
-from ...services import auth
+from ...models import Account, Habit, Transaction
 from ...services.admin_tasks import (
     backup_database,
     reset_demo_database,
@@ -31,57 +31,28 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
-    """Render admin dashboard with user controls."""
+    """Render admin dashboard with seed/reset/export/backup controls for single-user mode."""
 
-    # TODO(@codex): Allow guest users to access admin features in login-free MVP
-    #    - In single-user mode, all admin features should be accessible
-    #    - When multi-user is re-enabled, restore admin role check
-    #    - For now, only block if no user is set at all
-    if ctx.current_user is None:
-        page.snack_bar = ft.SnackBar(content=ft.Text("No user context available"))
+    if not getattr(ctx, "admin_mode", False):
+        page.snack_bar = ft.SnackBar(content=ft.Text("Enable Admin mode to access admin tools"))
         page.snack_bar.open = True
         page.go("/dashboard")
         return ft.View(route="/admin", controls=[], padding=0)
 
-    # Allow both admin and guest users (for MVP)
-    if not ctx.guest_mode and ctx.current_user.role not in ("admin", "guest"):
-        page.snack_bar = ft.SnackBar(content=ft.Text("Admin access required"))
-        page.snack_bar.open = True
-        page.go("/dashboard")
-        return ft.View(route="/admin", controls=[], padding=0)
-
+    uid = ctx.require_user_id()
     status_ref = ft.Ref[ft.Text]()
-    users = auth.list_users(ctx.session_factory)
-    selected_user_id = ft.Ref[ft.Dropdown]()
     retention_text = ft.Text(
         f"Export retention: {ctx.config.EXPORT_RETENTION} archives; stored under {ctx.config.DATA_DIR / 'exports'}",
         size=12,
         color=ft.Colors.ON_SURFACE_VARIANT,
     )
 
-    def _selected_id() -> int | None:
-        raw = selected_user_id.current.value if selected_user_id.current else None
-        try:
-            return int(raw)
-        except (TypeError, ValueError):
-            return None
+    restore_picker = ft.FilePicker()
+    if page.overlay is None:
+        page.overlay = []
+    page.overlay.append(restore_picker)
 
-    def refresh_users():
-        nonlocal users
-        users = auth.list_users(ctx.session_factory)
-        if selected_user_id.current:
-            selected_user_id.current.options = [
-                ft.dropdown.Option(str(u.id), text=f"{u.username} ({u.role})") for u in users
-            ]
-            if ctx.current_user and ctx.current_user.id:
-                selected_user_id.current.value = str(ctx.current_user.id)
-        if status_ref.current:
-            status_ref.current.value = ""
-        page.update()
-
-    busy = {"value": False}
-
-    def _show_message(message: str):
+    def _notify(message: str):
         page.snack_bar = ft.SnackBar(content=ft.Text(message))
         page.snack_bar.open = True
         if status_ref.current:
@@ -89,12 +60,15 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
             status_ref.current.update()
         page.update()
 
-    def _with_spinner(task: callable, label: str):
-        """Show a modal spinner while running a long task."""
-
-        if busy["value"]:
+    def _refresh_user_views():
+        """Navigate to dashboard to force user-facing views to reload with new data."""
+        try:
+            page.go("/dashboard")
+        except Exception:
             return
-        busy["value"] = True
+        page.update()
+
+    def _with_spinner(task: callable, label: str):
         spinner = ft.AlertDialog(
             modal=True,
             content=ft.Column(
@@ -115,116 +89,49 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
         finally:
             spinner.open = False
             page.update()
-            busy["value"] = False
 
-    def create_user_action(_):
-        username = create_username.value.strip()
-        if not username or not create_password.value:
-            _show_message("Username and password required")
-            return
-        if create_password.value != create_confirm.value:
-            _show_message("Passwords do not match")
-            return
-        try:
-            user = auth.create_user(
-                username=username,
-                password=create_password.value,
-                role=create_role.value,
-                session_factory=ctx.session_factory,
-            )
-        except Exception as exc:  # pragma: no cover
-            _show_message(str(exc))
-            return
-        refresh_users()
-        _show_message(f"User {user.username} created")
-
-    def set_role_action(role: str):
-        user_id = _selected_id()
-        if user_id is None:
-            _show_message("Select a user first")
-            return
-        auth.set_role(user_id=user_id, role=role, session_factory=ctx.session_factory)
-        refresh_users()
-        _show_message(f"Role updated to {role}")
-
-    def delete_user_action(_):
-        user_id = _selected_id()
-        if user_id is None:
-            _show_message("Select a user first")
-            return
-        if ctx.current_user and ctx.current_user.id == user_id:
-            _show_message("Cannot delete the active user")
-            return
-        with ctx.session_factory() as session:
-            target = session.get(User, user_id)
-            if target:
-                # Remove data for the user then delete user row
-                try:
-                    from ...services.admin_tasks import reset_demo_database
-
-                    reset_demo_database(user_id=user_id, session_factory=ctx.session_factory)
-                except Exception:
-                    pass
-                session.delete(target)
-                session.commit()
-        refresh_users()
-        _show_message("User deleted")
-
-    def reset_password_action(_):
-        user_id = _selected_id()
-        if user_id is None:
-            _show_message("Select a user first")
-            return
-        password_field = ft.TextField(
-            label="New password",
-            password=True,
-            can_reveal_password=True,
-            autofocus=True,
-        )
-
-        def _apply(_):
-            try:
-                auth.reset_password(
-                    user_id=user_id, password=password_field.value, session_factory=ctx.session_factory
-                )
-            except Exception as exc:
-                _show_message(str(exc))
-                dialog.open = False
-                return
-            dialog.open = False
-            _show_message("Password reset")
-
-        dialog = ft.AlertDialog(
-            title=ft.Text("Reset password"),
-            content=password_field,
-            actions=[
-                ft.TextButton("Cancel", on_click=lambda _: setattr(dialog, "open", False)),
-                ft.FilledButton("Reset", on_click=_apply),
-            ],
-        )
-        page.dialog = dialog
-        dialog.open = True
-        page.update()
-
-    def export_all_users(_):
+    def seed_action(_):
         def _task():
             try:
-                exports_dir = ctx.config.DATA_DIR / "exports"
-                path = run_export(
-                    exports_dir,
-                    session_factory=ctx.session_factory,
-                    user_id=None,
-                    retention=ctx.config.EXPORT_RETENTION,
-                )
-                _show_message(f"All-user export ready: {path}")
-            except Exception as exc:  # pragma: no cover - user facing
-                _show_message(f"Export failed: {exc}")
+                summary = run_heavy_seed(session_factory=ctx.session_factory, user_id=uid)
+                _notify(f"Seeded heavy demo data ({summary.transactions} transactions)")
+            except Exception:
+                summary = run_demo_seed(session_factory=ctx.session_factory, user_id=uid)
+                _notify(f"Seeded demo data ({summary.transactions} transactions)")
+            _refresh_user_views()
 
-        _with_spinner(_task, "Exporting all users...")
+        _with_spinner(_task, "Seeding demo data...")
 
-    restore_picker = ft.FilePicker()
+    def reset_action(_):
+        def _task():
+            summary = reset_demo_database(user_id=uid, session_factory=ctx.session_factory)
+            _notify(f"Reset demo data ({summary.transactions} transactions)")
+            _refresh_user_views()
 
-    def restore_from_backup(_):
+        _with_spinner(_task, "Resetting demo data...")
+
+    def export_action(_):
+        def _task():
+            exports_dir = ctx.config.DATA_DIR / "exports"
+            path = run_export(
+                Path(exports_dir),
+                session_factory=ctx.session_factory,
+                user_id=uid,
+                retention=ctx.config.EXPORT_RETENTION,
+            )
+            _notify(f"Export ready: {path}")
+
+        _with_spinner(_task, "Running export bundle...")
+
+    def backup_action(_):
+        def _task():
+            backups_dir = ctx.config.DATA_DIR / "backups"
+            backup_path = backup_database(backups_dir, config=ctx.config)
+            _notify(f"Backup saved: {backup_path}")
+
+        _with_spinner(_task, "Creating backup...")
+
+    def restore_action(_):
         restore_picker.pick_files(
             allow_multiple=False,
             allowed_extensions=["db"],
@@ -233,68 +140,29 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
     def _restore_result(e: ft.FilePickerResultEvent):
         selected = e.files[0] if e.files else None
         if not selected or not selected.path:
+            _notify("No file selected")
             return
+
         def _task():
-            try:
-                restored = restore_database(Path(selected.path), config=ctx.config)
-                _show_message(f"Database restored to {restored} (restart app to reload)")
-            except Exception as exc:  # pragma: no cover - user facing
-                _show_message(f"Restore failed: {exc}")
+            target = restore_database(Path(selected.path), config=ctx.config)
+            _notify(f"Database restored to {target}; restart app to reload.")
+            _refresh_user_views()
 
         _with_spinner(_task, "Restoring database...")
 
     restore_picker.on_result = _restore_result
-    try:
-        page.overlay.append(restore_picker)
-    except Exception:
-        pass
 
-    def backup_db(_):
-        def _task():
-            try:
-                backups_dir = ctx.config.DATA_DIR / "backups"
-                backup_path = backup_database(backups_dir, config=ctx.config)
-                _show_message(f"Backup saved: {backup_path}")
-            except Exception as exc:  # pragma: no cover - user facing
-                _show_message(f"Backup failed: {exc}")
-
-        _with_spinner(_task, "Creating backup...")
-
-    def seed_action(_):
-        user_id = _selected_id()
-        if user_id is None:
-            _show_message("Select a user to seed")
-            return
-        def _task():
-            summary = run_heavy_seed(session_factory=ctx.session_factory, user_id=user_id)
-            _show_message(f"Seeded heavy demo data ({summary.transactions} transactions)")
-
-        _with_spinner(_task, "Seeding demo data...")
-
-    def reset_action(_):
-        user_id = _selected_id()
-        if user_id is None:
-            _show_message("Select a user to reset")
-            return
-        def _task():
-            summary = reset_demo_database(user_id=user_id, session_factory=ctx.session_factory)
-            _show_message(f"Reset demo data ({summary.transactions} transactions)")
-
-        _with_spinner(_task, "Resetting demo data...")
-
-    def _metrics():
-        with ctx.session_factory() as session:
-            total_users = session.exec(select(func.count(User.id))).one()
-            total_accounts = session.exec(select(func.count(Account.id))).one()
-            total_transactions = session.exec(select(func.count(Transaction.id))).one()
-            total_habits = session.exec(select(func.count(Habit.id))).one()
-        return total_users, total_accounts, total_transactions, total_habits
-
-    total_users, total_accounts, total_transactions, total_habits = _metrics()
+    with ctx.session_factory() as session:
+        total_accounts = session.exec(
+            select(func.count(Account.id)).where(Account.user_id == uid)
+        ).one()
+        total_transactions = session.exec(
+            select(func.count(Transaction.id)).where(Transaction.user_id == uid)
+        ).one()
+        total_habits = session.exec(select(func.count(Habit.id)).where(Habit.user_id == uid)).one()
 
     metrics_row = ft.Row(
         [
-            _metric_card("Users", total_users, ft.Icons.GROUP),
             _metric_card("Accounts", total_accounts, ft.Icons.ACCOUNT_BALANCE),
             _metric_card("Transactions", total_transactions, ft.Icons.RECEIPT_LONG),
             _metric_card("Habits", total_habits, ft.Icons.CHECK_CIRCLE),
@@ -302,122 +170,66 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
         spacing=12,
     )
 
-    selected_user_id.current = ft.Dropdown(
-        label="Select user",
-        options=[ft.dropdown.Option(str(u.id), text=f"{u.username} ({u.role})") for u in users],
-        value=str(ctx.current_user.id) if ctx.current_user and ctx.current_user.id else None,
-        width=320,
-    )
-
-    create_username = ft.TextField(label="Username", width=240)
-    create_password = ft.TextField(
-        label="Password", width=240, password=True, can_reveal_password=True
-    )
-    create_confirm = ft.TextField(
-        label="Confirm password", width=240, password=True, can_reveal_password=True
-    )
-    create_role = ft.Dropdown(
-        label="Role",
-        options=[ft.dropdown.Option("user", "User"), ft.dropdown.Option("admin", "Admin")],
-        value="user",
-        width=160,
-    )
-
     actions = ft.Column(
         [
-            ft.Text("User management", size=16, weight=ft.FontWeight.BOLD),
-            ft.Row([selected_user_id.current], spacing=8),
+            ft.Text("Admin actions (single local profile)", size=16, weight=ft.FontWeight.BOLD),
+            ft.Row(
+                [
+                    ft.FilledButton("Run Demo Seed", icon=ft.Icons.DOWNLOAD, on_click=seed_action),
+                    ft.TextButton("Reset Demo Data", icon=ft.Icons.RESTORE, on_click=reset_action),
+                ],
+                spacing=8,
+                wrap=True,
+            ),
             ft.Row(
                 [
                     ft.FilledTonalButton(
-                        "Promote to admin", on_click=lambda _: set_role_action("admin")
+                        "Export bundle", icon=ft.Icons.IOS_SHARE, on_click=export_action
                     ),
-                    ft.FilledTonalButton("Set as user", on_click=lambda _: set_role_action("user")),
-                    ft.IconButton(
-                        icon=ft.Icons.DELETE_OUTLINE,
-                        icon_color=ft.Colors.RED,
-                        tooltip="Delete user",
-                        on_click=delete_user_action,
+                    ft.FilledTonalButton(
+                        "Backup database", icon=ft.Icons.BACKUP, on_click=backup_action
                     ),
-                    ft.IconButton(
-                        icon=ft.Icons.KEY,
-                        tooltip="Reset password",
-                        on_click=reset_password_action,
-                    ),
-                    ft.IconButton(
-                        icon=ft.Icons.IOS_SHARE,
-                        tooltip="Export all users",
-                        on_click=export_all_users,
-                    ),
-                    ft.IconButton(
-                        icon=ft.Icons.BACKUP,
-                        tooltip="Backup DB (all users)",
-                        on_click=backup_db,
-                    ),
-                    ft.IconButton(
-                        icon=ft.Icons.RESTORE_PAGE,
-                        tooltip="Restore from backup (.db)",
-                        on_click=restore_from_backup,
+                    ft.TextButton(
+                        "Restore from backup", icon=ft.Icons.RESTORE_PAGE, on_click=restore_action
                     ),
                 ],
                 spacing=8,
+                wrap=True,
             ),
-            ft.Row(
-                [
-                    ft.FilledButton("Seed demo data", icon=ft.Icons.DOWNLOAD, on_click=seed_action),
-                    ft.TextButton("Reset demo data", icon=ft.Icons.RESTORE, on_click=reset_action),
-                ],
-                spacing=8,
-            ),
-            ft.Divider(),
-            ft.Text("Create user", size=16, weight=ft.FontWeight.BOLD),
-            ft.Row([create_username, create_role], spacing=8),
-            ft.Row([create_password, create_confirm], spacing=8),
-            ft.FilledButton("Create", icon=ft.Icons.ADD, on_click=create_user_action),
+            retention_text,
+            ft.Text("", ref=status_ref, color=ft.Colors.ON_SURFACE_VARIANT),
         ],
         spacing=10,
     )
 
-    users_table_rows = [
-        ft.DataRow(
-            cells=[
-                ft.DataCell(ft.Text(user.username)),
-                ft.DataCell(ft.Text(user.role)),
-                ft.DataCell(ft.Text(str(user.created_at.date()) if user.created_at else "-")),
-            ]
-        )
-        for user in users
-    ]
-    users_table = ft.DataTable(
-        columns=[
-            ft.DataColumn(ft.Text("Username")),
-            ft.DataColumn(ft.Text("Role")),
-            ft.DataColumn(ft.Text("Created")),
-        ],
-        rows=users_table_rows
-        or [ft.DataRow(cells=[ft.DataCell(ft.Text("No users found")) for _ in range(3)])],
-        expand=True,
+    profile_card = ft.Card(
+        content=ft.Container(
+            padding=16,
+            content=ft.Column(
+                [
+                    ft.Text("Profile", size=16, weight=ft.FontWeight.BOLD),
+                    ft.Text(f"Username: {ctx.current_user.username if ctx.current_user else 'local'}"),
+                    ft.Text(f"Mode: {'Admin' if getattr(ctx, 'admin_mode', False) else 'User'}"),
+                    ft.Text(f"Data directory: {ctx.config.DATA_DIR}"),
+                ],
+                spacing=4,
+            ),
+        ),
+        elevation=1,
     )
+
+    actions_card = ft.Card(content=ft.Container(padding=16, content=actions), expand=True)
 
     content = ft.Column(
         [
             metrics_row,
             ft.Container(height=16),
-            ft.Row(
-                [
-                    ft.Card(content=ft.Container(padding=16, content=actions), expand=True),
-                    ft.Card(content=ft.Container(padding=16, content=users_table), expand=True),
-                ],
-                spacing=12,
-            ),
-            ft.Text("", ref=status_ref, color=ft.Colors.ON_SURFACE_VARIANT),
+            ft.Row([actions_card, profile_card], spacing=12, wrap=True),
         ],
         spacing=12,
         scroll=ft.ScrollMode.AUTO,
         expand=True,
     )
-
-    refresh_users()
 
     app_bar = build_app_bar(ctx, "Admin", page)
     layout = build_main_layout(ctx, page, "/admin", content)

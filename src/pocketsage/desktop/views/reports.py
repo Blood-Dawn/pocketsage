@@ -1,4 +1,5 @@
 """Reports/export view implementation for Flet app."""
+# TODO(@pocketsage-reports): Centralize report generation to a service layer and keep views thin.
 
 from __future__ import annotations
 

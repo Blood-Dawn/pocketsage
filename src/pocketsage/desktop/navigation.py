@@ -34,6 +34,9 @@ class Router:
         route = e.route or "/"
         if route == "/login":
             route = "/dashboard"
+        if route == "/admin" and not getattr(self.context, "admin_mode", False):
+            self.show_error("Enable Admin mode to access admin tools.")
+            route = "/dashboard"
 
         if route not in self.routes:
             route = "/dashboard"

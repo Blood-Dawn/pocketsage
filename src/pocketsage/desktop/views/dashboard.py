@@ -46,6 +46,10 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
         if ctx.habit_repo.get_entry(h.id, date.today(), user_id=uid)
     )
 
+    def _open_new_transaction():
+        ctx.pending_new_transaction = True
+        controllers.navigate(page, "/ledger")
+
     # Build stat cards
     stat_cards = ft.Row(
         [
@@ -233,7 +237,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             ft.FilledButton(
                                 "Add Transaction",
                                 icon=ft.Icons.ADD,
-                                on_click=lambda _: controllers.navigate(page, "/ledger"),
+                                on_click=lambda _: _open_new_transaction(),
                             ),
                             ft.FilledButton(
                                 "Track Habit",
