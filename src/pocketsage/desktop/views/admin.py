@@ -284,7 +284,7 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     app_bar = build_app_bar(ctx, "Admin", page)
-    layout = build_main_layout(ctx, page, "/admin", content)
+    layout = build_main_layout(ctx, page, "/admin", content, use_menu_bar=True)
 
     return ft.View(route="/admin", appbar=app_bar, controls=layout, padding=0)
 

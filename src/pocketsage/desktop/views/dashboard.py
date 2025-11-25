@@ -415,9 +415,9 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
         expand=True,
     )
 
-    # Build main layout
+    # Build main layout (use HomeBank-style menu bar)
     app_bar = build_app_bar(ctx, "Dashboard", page)
-    main_layout = build_main_layout(ctx, page, "/dashboard", content)
+    main_layout = build_main_layout(ctx, page, "/dashboard", content, use_menu_bar=True)
 
     return ft.View(
         route="/dashboard",

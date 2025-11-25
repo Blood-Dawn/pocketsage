@@ -20,6 +20,7 @@ from ...devtools import dev_log
 from ...models.habit import Habit, HabitEntry
 from ...services.habits import reminder_placeholder
 from ..components import build_app_bar, build_main_layout
+from ..components.dialogs import show_habit_dialog
 
 if TYPE_CHECKING:
     from ..context import AppContext
@@ -247,21 +248,58 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         archived_rows: list[ft.Control] = []
         if show_archived and archived:
+            # Add section header
+            archived_rows.append(
+                ft.Container(
+                    content=ft.Text(
+                        "Archived Habits",
+                        size=16,
+                        weight=ft.FontWeight.BOLD,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                    padding=ft.padding.only(top=16, bottom=8),
+                )
+            )
             for habit in archived:
                 archived_rows.append(
-                    ft.Row(
-                        controls=[
-                            ft.Text(habit.name),
-                            ft.TextButton(
-                                "Reactivate",
-                                on_click=lambda _e, hid=habit.id: _archive(hid, True),
-                            ),
-                        ],
-                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    ft.Container(
+                        content=ft.Row(
+                            controls=[
+                                ft.Column(
+                                    controls=[
+                                        ft.Text(habit.name, weight=ft.FontWeight.W_500),
+                                        ft.Text(
+                                            habit.description or "No description",
+                                            size=12,
+                                            color=ft.Colors.ON_SURFACE_VARIANT,
+                                        ),
+                                    ],
+                                    expand=True,
+                                ),
+                                ft.IconButton(
+                                    icon=ft.Icons.UNARCHIVE,
+                                    tooltip="Reactivate habit",
+                                    on_click=lambda _e, hid=habit.id: _archive(hid, True),
+                                ),
+                            ],
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        ),
+                        padding=12,
+                        bgcolor=ft.Colors.SURFACE_VARIANT,
+                        border_radius=8,
                     )
                 )
         elif show_archived:
-            archived_rows.append(ft.Text("No archived habits"))
+            archived_rows.append(
+                ft.Container(
+                    content=ft.Text(
+                        "No archived habits",
+                        color=ft.Colors.ON_SURFACE_VARIANT,
+                        italic=True,
+                    ),
+                    padding=16,
+                )
+            )
 
         if archived_list_ref.current is not None:
             archived_list_ref.current.controls = archived_rows
@@ -313,6 +351,22 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         page.update()
 
     def open_create_dialog(_=None, *, habit: Habit | None = None):
+        """Open habit creation/editing dialog using reusable component."""
+        def on_save():
+            """Callback after habit is saved."""
+            refresh_habit_list(show_archived_checkbox.value)
+            if habit:
+                select_habit(habit.id, habit.name)
+
+        show_habit_dialog(
+            ctx=ctx,
+            page=page,
+            habit=habit,
+            on_save_callback=on_save,
+        )
+
+    # Kept for backward compatibility - remove in future cleanup
+    def _old_open_create_dialog(_=None, *, habit: Habit | None = None):
         is_edit = habit is not None
         name_field = ft.TextField(
             label="Name",
@@ -456,7 +510,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     app_bar = build_app_bar(ctx, "Habits", page)
-    main_layout = build_main_layout(ctx, page, "/habits", content)
+    main_layout = build_main_layout(ctx, page, "/habits", content, use_menu_bar=True)
 
     return ft.View(
         route="/habits",

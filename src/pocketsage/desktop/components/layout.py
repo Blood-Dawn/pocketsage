@@ -56,6 +56,14 @@ def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
         page.snack_bar.open = True
         page.go("/login")
 
+    def _refresh(_e):
+        """Refresh the current view."""
+        current_route = getattr(page, "route", "/dashboard")
+        page.snack_bar = ft.SnackBar(content=ft.Text("Refreshing..."))
+        page.snack_bar.open = True
+        page.go(current_route)  # Re-navigate to current route to refresh
+        page.update()
+
     quick_actions: List[ft.Control] = [
         month_selector,
         ft.IconButton(
@@ -73,6 +81,11 @@ def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
         user_role = ctx.current_user.role or "user"
         user_chip_label = f"{ctx.current_user.username} ({user_role})"
         quick_actions.extend([
+            ft.IconButton(
+                icon=ft.Icons.REFRESH,
+                tooltip="Refresh current view",
+                on_click=_refresh,
+            ),
             ft.Chip(
                 label=ft.Text(user_chip_label),
                 leading=ft.Icon(ft.Icons.PERSON),
@@ -127,30 +140,70 @@ def build_main_layout(
     page: ft.Page,
     current_route: str,
     content: ft.Control,
+    use_menu_bar: bool = False,
 ) -> List[ft.Control]:
-    """Build the main layout with navigation rail and content."""
+    """Build the main layout with navigation rail and content.
 
-    nav_rail = build_navigation_rail(ctx, page, current_route)
+    Args:
+        ctx: Application context
+        page: Flet page
+        current_route: Current route path
+        content: Main content control
+        use_menu_bar: If True, use HomeBank-style menu bar instead of navigation rail
 
-    content_column = ft.Column(
-        [
-            ft.Container(content=content, expand=True, padding=20),
-        ],
-        spacing=0,
-        expand=True,
-    )
+    Returns:
+        List of controls to display
+    """
+    if use_menu_bar:
+        # HomeBank-style: menu bar at top, full-width content below
+        from .menubar import build_menu_bar
+        menu = build_menu_bar(ctx, page)
 
-    return [
-        ft.Row(
+        content_column = ft.Column(
             [
-                nav_rail,
-                ft.VerticalDivider(width=1),
-                ft.Container(
-                    content=content_column,
-                    expand=True,
-                ),
+                ft.Container(content=content, expand=True, padding=20),
             ],
             spacing=0,
             expand=True,
         )
-    ]
+
+        return [
+            ft.Column(
+                [
+                    menu,
+                    ft.Divider(height=1, thickness=1),
+                    ft.Container(
+                        content=content_column,
+                        expand=True,
+                    ),
+                ],
+                spacing=0,
+                expand=True,
+            )
+        ]
+    else:
+        # Original navigation rail layout
+        nav_rail = build_navigation_rail(ctx, page, current_route)
+
+        content_column = ft.Column(
+            [
+                ft.Container(content=content, expand=True, padding=20),
+            ],
+            spacing=0,
+            expand=True,
+        )
+
+        return [
+            ft.Row(
+                [
+                    nav_rail,
+                    ft.VerticalDivider(width=1),
+                    ft.Container(
+                        content=content_column,
+                        expand=True,
+                    ),
+                ],
+                spacing=0,
+                expand=True,
+            )
+        ]

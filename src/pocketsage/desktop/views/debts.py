@@ -21,8 +21,12 @@ from ...models.liability import Liability
 from ...services.debts import DebtAccount, avalanche_schedule, schedule_summary, snowball_schedule
 from ...services.liabilities import build_payment_transaction
 from ..charts import debt_payoff_chart_png
-from ..components import build_app_bar, build_main_layout
-from ..components.dialogs import show_confirm_dialog, show_error_dialog
+from ..components import (
+    build_app_bar,
+    build_main_layout,
+    show_confirm_dialog,
+    show_error_dialog,
+)
 
 if TYPE_CHECKING:
     from ..context import AppContext
@@ -532,7 +536,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     app_bar = build_app_bar(ctx, "Debts", page)
-    main_layout = build_main_layout(ctx, page, "/debts", content)
+    main_layout = build_main_layout(ctx, page, "/debts", content, use_menu_bar=True)
 
     _refresh()
 

@@ -12,6 +12,7 @@ from ..scheduler import create_scheduler
 from . import controllers
 from .context import create_app_context
 from .navigation import Router
+from .views.add_data import build_add_data_view
 from .views.admin import build_admin_view
 from .views.budgets import build_budgets_view
 from .views.dashboard import build_dashboard_view
@@ -42,11 +43,12 @@ def main(page: ft.Page) -> None:
     def on_page_close(_):
         logger.info("Application closing, shutting down scheduler")
         scheduler.stop()
-        # Hint where the session log will land
+        # Export session log location for user reference
         from ..logging_config import session_log_path
         slp = session_log_path()
         if slp:
-            logger.info("Session log will be flushed", extra={"session_log": str(slp)})
+            logger.info(f"Debug session log saved to: {slp}")
+            print(f"\n=== Debug log saved to: {slp} ===\n")
 
     page.on_close = on_page_close
 
@@ -106,6 +108,7 @@ def main(page: ft.Page) -> None:
         "/help": build_help_view,
         "/settings": build_settings_view,
         "/admin": build_admin_view,
+        "/add-data": build_add_data_view,
     }
     for route, builder in route_builders.items():
         router.register(route, builder)

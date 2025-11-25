@@ -33,6 +33,10 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
     uid = ctx.require_user_id()
     charts_row = ft.ResponsiveRow()
 
+    # FilePicker for export destination
+    export_dir_picker = ft.FilePicker()
+    page.overlay.append(export_dir_picker)
+
     def notify(message: str):
         page.snack_bar = ft.SnackBar(content=ft.Text(message))
         page.snack_bar.open = True
@@ -149,18 +153,38 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
         out.mkdir(parents=True, exist_ok=True)
         return out
 
+    def _pick_export_dir(callback):
+        """Show directory picker and call callback with selected path."""
+        def on_result(e: ft.FilePickerResultEvent):
+            if e.path:
+                callback(Path(e.path))
+            else:
+                # User cancelled, use default
+                callback(_exports_dir())
+
+        export_dir_picker.get_directory_path(
+            dialog_title="Select Export Destination",
+        )
+        export_dir_picker.on_result = on_result
+
     def export_all_to(custom_path: Path | None = None):
-        try:
-            target_dir = custom_path.parent if custom_path else _exports_dir()
-            path = run_export(
-                target_dir,
-                session_factory=ctx.session_factory,
-                user_id=uid,
-                retention=ctx.config.EXPORT_RETENTION,
-            )
-            notify(f"Export ready: {path}")
-        except Exception as exc:
-            notify(f"Export failed: {exc}")
+        def _do_export(export_dir: Path):
+            try:
+                target_dir = export_dir
+                path = run_export(
+                    output_dir=str(target_dir),
+                    session_factory=ctx.session_factory,
+                    user_id=uid,
+                    retention=ctx.config.EXPORT_RETENTION,
+                )
+                notify(f"Export ready: {path}")
+            except Exception as exc:
+                notify(f"Export failed: {exc}")
+
+        if custom_path:
+            _do_export(custom_path)
+        else:
+            _pick_export_dir(_do_export)
 
     def export_monthly_spending(custom_path: Path | None = None):
         try:
@@ -444,7 +468,7 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     app_bar = build_app_bar(ctx, "Reports", page)
-    main_layout = build_main_layout(ctx, page, "/reports", content)
+    main_layout = build_main_layout(ctx, page, "/reports", content, use_menu_bar=True)
 
     return ft.View(
         route="/reports",

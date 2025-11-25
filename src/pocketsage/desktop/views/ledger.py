@@ -26,8 +26,13 @@ from .. import controllers
 
 logger = get_logger(__name__)
 from ..charts import spending_chart_png
-from ..components import build_app_bar, build_main_layout, build_progress_bar
-from ..components.dialogs import show_confirm_dialog, show_error_dialog
+from ..components import (
+    build_app_bar,
+    build_main_layout,
+    build_progress_bar,
+    show_confirm_dialog,
+    show_error_dialog,
+)
 
 if TYPE_CHECKING:
     from ..context import AppContext
@@ -923,5 +928,5 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         open_transaction_dialog(None)
 
     app_bar = build_app_bar(ctx, "Ledger", page)
-    main_layout = build_main_layout(ctx, page, "/ledger", content)
+    main_layout = build_main_layout(ctx, page, "/ledger", content, use_menu_bar=True)
     return ft.View(route="/ledger", appbar=app_bar, controls=main_layout, padding=0)

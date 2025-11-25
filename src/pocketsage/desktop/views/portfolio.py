@@ -24,8 +24,12 @@ from ...models.account import Account
 from ...models.portfolio import Holding
 from .. import controllers
 from ..charts import allocation_chart_png
-from ..components import build_app_bar, build_main_layout
-from ..components.dialogs import show_confirm_dialog, show_error_dialog
+from ..components import (
+    build_app_bar,
+    build_main_layout,
+    show_confirm_dialog,
+    show_error_dialog,
+)
 
 if TYPE_CHECKING:
     from ..context import AppContext
@@ -427,7 +431,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     app_bar = build_app_bar(ctx, "Portfolio", page)
-    main_layout = build_main_layout(ctx, page, "/portfolio", content)
+    main_layout = build_main_layout(ctx, page, "/portfolio", content, use_menu_bar=True)
 
     _refresh()
 

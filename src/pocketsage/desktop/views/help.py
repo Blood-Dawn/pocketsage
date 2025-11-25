@@ -181,6 +181,6 @@ def build_help_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     app_bar = build_app_bar(ctx, "Help", page)
-    layout = build_main_layout(ctx, page, "/help", content)
+    layout = build_main_layout(ctx, page, "/help", content, use_menu_bar=True)
 
     return ft.View(route="/help", appbar=app_bar, controls=layout, padding=0)

@@ -11,6 +11,7 @@ import flet as ft
 from ...models.budget import Budget, BudgetLine
 from ...models.category import Category
 from ..components import build_app_bar, build_main_layout, build_progress_bar
+from ..components.dialogs import show_budget_dialog
 
 if TYPE_CHECKING:
     from ..context import AppContext
@@ -40,73 +41,13 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
         page.update()
 
     def show_create_budget_dialog():
-        categories = ctx.category_repo.list_all(user_id=uid)
-        if not categories:
-            default_cat = ctx.category_repo.create(
-                Category(
-                    name="General",
-                    slug="general",
-                    category_type="expense",
-                    user_id=uid,
-                ),
-                user_id=uid,
-            )
-            categories = [default_cat]
-        label_field = ft.TextField(label="Label", value=f"{today.strftime('%B %Y')} Budget")
-        category_dd = ft.Dropdown(
-            label="Category",
-            options=[ft.dropdown.Option(str(c.id), c.name) for c in categories],
-            width=220,
+        """Open budget creation/editing dialog using reusable component."""
+        show_budget_dialog(
+            ctx=ctx,
+            page=page,
+            target_month=ctx.current_month,
+            on_save_callback=refresh_view,
         )
-        amount_field = ft.TextField(
-            label="Planned amount", width=180, helper_text="Optional first line amount"
-        )
-
-        def save_budget(_):
-            from calendar import monthrange
-
-            start = today.replace(day=1)
-            end = today.replace(day=monthrange(today.year, today.month)[1])
-            budget_obj = Budget(
-                period_start=start,
-                period_end=end,
-                label=label_field.value or f"{today.strftime('%B %Y')} Budget",
-                user_id=uid,
-            )
-            created = ctx.budget_repo.create(budget_obj, user_id=uid)
-            try:
-                if category_dd.value and amount_field.value:
-                    planned_amount = float(amount_field.value)
-                    line = BudgetLine(
-                        budget_id=created.id,
-                        category_id=int(category_dd.value),
-                        planned_amount=planned_amount,
-                        rollover_enabled=False,
-                        user_id=uid,
-                    )
-                    ctx.budget_repo.create_line(line, user_id=uid)
-                page.snack_bar = ft.SnackBar(content=ft.Text("Budget created"))
-                page.snack_bar.open = True
-            except Exception as exc:
-                page.snack_bar = ft.SnackBar(
-                    content=ft.Text(f"Budget saved, but first line failed: {exc}")
-                )
-                page.snack_bar.open = True
-            dialog.open = False
-            page.update()
-            refresh_view()
-
-        dialog = ft.AlertDialog(
-            title=ft.Text("Create budget"),
-            content=ft.Column(controls=[label_field, category_dd, amount_field], tight=True, spacing=8),
-            actions=[
-                ft.TextButton("Cancel", on_click=lambda _: _close_dialog(dialog)),
-                ft.FilledButton("Create", on_click=save_budget),
-            ],
-        )
-        page.dialog = dialog
-        dialog.open = True
-        page.update()
 
     def copy_previous_month():
         prev_month = today.month - 1 or 12
@@ -489,7 +430,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     # Build main layout
     app_bar = build_app_bar(ctx, "Budgets", page)
-    main_layout = build_main_layout(ctx, page, "/budgets", content)
+    main_layout = build_main_layout(ctx, page, "/budgets", content, use_menu_bar=True)
 
     return ft.View(
         route="/budgets",
