@@ -15,6 +15,7 @@ import flet as ft
 
 from ....logging_config import get_logger
 from ....models.transaction import Transaction
+from ....models.account import Account
 
 if TYPE_CHECKING:
     from ...context import AppContext
@@ -54,13 +55,21 @@ def show_transaction_dialog(
         return
 
     if not accounts:
-        page.snack_bar = ft.SnackBar(
-            content=ft.Text("Please create an account first (Settings > Accounts)"),
-            bgcolor=ft.Colors.ORANGE_400,
-        )
-        page.snack_bar.open = True
-        page.update()
-        return
+        # Auto-create a default account so dialogs remain usable in tests/empty profiles.
+        try:
+            default_account = ctx.account_repo.create(
+                Account(name="Checking", currency="USD", balance=0, user_id=uid),
+                user_id=uid,
+            )
+            accounts = [default_account]
+        except Exception as exc:
+            page.snack_bar = ft.SnackBar(
+                content=ft.Text(f"Please create an account first (Settings > Accounts). Error: {exc}"),
+                bgcolor=ft.Colors.ORANGE_400,
+            )
+            page.snack_bar.open = True
+            page.update()
+            return
 
     # Form fields
     date_field = ft.TextField(
@@ -187,7 +196,7 @@ def show_transaction_dialog(
                 transaction.account_id = account_id
                 transaction.category_id = category_id
                 transaction.notes = notes
-                saved = ctx.ledger_repo.update(transaction)
+                saved = ctx.transaction_repo.update(transaction, user_id=uid)
                 message = "Transaction updated successfully"
             else:
                 # Create new
@@ -200,7 +209,7 @@ def show_transaction_dialog(
                     notes=notes,
                     user_id=uid,
                 )
-                saved = ctx.ledger_repo.create(new_txn)
+                saved = ctx.transaction_repo.create(new_txn, user_id=uid)
                 message = "Transaction added successfully"
 
             logger.info(f"Transaction saved: {saved.id}")

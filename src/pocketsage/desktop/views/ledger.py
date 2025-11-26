@@ -792,7 +792,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.FilledButton(
                         "+ Add transaction",
                         icon=ft.Icons.ADD,
-                        on_click=lambda _: open_transaction_dialog(None),
+                        on_click=lambda _: controllers.navigate(page, "/add-data"),
                     ),
                 ],
                 alignment=ft.MainAxisAlignment.END,

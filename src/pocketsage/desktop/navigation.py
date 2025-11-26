@@ -35,7 +35,9 @@ class Router:
     def route_change(self, e: ft.RouteChangeEvent) -> None:
         """Handle route change events."""
         route = e.route or "/"
-        is_admin = self.context.current_user and self.context.current_user.role == "admin"
+        is_admin = (self.context.current_user and self.context.current_user.role == "admin") or bool(
+            getattr(self.context, "admin_mode", False)
+        )
         logger.info(f"Route change requested: {route}", extra={"user": self.context.current_user.username if self.context.current_user else None, "role": self.context.current_user.role if self.context.current_user else None})
 
         # Require login for all routes except /login

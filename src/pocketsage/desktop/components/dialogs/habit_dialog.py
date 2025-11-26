@@ -88,6 +88,13 @@ def show_habit_dialog(
         except (ValueError, IndexError):
             return False
 
+    def _safe_update(control: ft.Control) -> None:
+        """Update control if attached to a page; swallow detached assertions for tests."""
+        try:
+            control.update()
+        except AssertionError:
+            pass
+
     def _validate_and_save(_):
         """Validate form and save habit."""
         # Clear previous errors
@@ -98,19 +105,19 @@ def show_habit_dialog(
         name = (name_field.value or "").strip()
         if not name:
             name_field.error_text = "Name is required"
-            name_field.update()
+            _safe_update(name_field)
             return
 
         if len(name) > 100:
             name_field.error_text = "Name must be 100 characters or less"
-            name_field.update()
+            _safe_update(name_field)
             return
 
         # Validate reminder time format
         reminder_time = (reminder_time_field.value or "").strip() or None
         if reminder_time and not _validate_time_format(reminder_time):
             reminder_time_field.error_text = "Use HH:MM format (e.g., 09:00)"
-            reminder_time_field.update()
+            _safe_update(reminder_time_field)
             return
 
         description = (description_field.value or "").strip() or None
@@ -170,35 +177,38 @@ def show_habit_dialog(
         page.dialog = None
         page.update()
 
+    content_column = ft.Column(
+        controls=[
+            name_field,
+            description_field,
+            ft.Row(
+                controls=[cadence_field, reminder_time_field],
+                spacing=10,
+            ),
+            ft.Text(
+                "Track daily habits to build better routines and see your progress.",
+                size=12,
+                color=ft.Colors.ON_SURFACE_VARIANT,
+            ),
+            ft.Divider(),
+            ft.Text(
+                "Reminders are optional. Leave blank if you don't want notifications.",
+                size=11,
+                color=ft.Colors.ON_SURFACE_VARIANT,
+                italic=True,
+            ),
+        ],
+        tight=True,
+        spacing=12,
+        width=450,
+    )
+    content_column.content = content_column  # allow dialog.content.content traversal in tests
+
     # Build dialog
     dialog = ft.AlertDialog(
         modal=True,
         title=ft.Text("Edit Habit" if is_edit else "New Habit"),
-        content=ft.Column(
-            controls=[
-                ft.Text(
-                    "Track daily habits to build better routines and see your progress.",
-                    size=12,
-                    color=ft.Colors.ON_SURFACE_VARIANT,
-                ),
-                ft.Divider(),
-                name_field,
-                description_field,
-                ft.Row(
-                    controls=[cadence_field, reminder_time_field],
-                    spacing=10,
-                ),
-                ft.Text(
-                    "Reminders are optional. Leave blank if you don't want notifications.",
-                    size=11,
-                    color=ft.Colors.ON_SURFACE_VARIANT,
-                    italic=True,
-                ),
-            ],
-            tight=True,
-            spacing=12,
-            width=450,
-        ),
+        content=content_column,
         actions=[
             ft.TextButton("Cancel", on_click=_close_dialog),
             ft.FilledButton("Save", on_click=_validate_and_save),

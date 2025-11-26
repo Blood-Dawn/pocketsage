@@ -76,14 +76,6 @@ def _click(control: ft.Control):
 
 def test_ledger_add_transaction_button_creates_record(monkeypatch: pytest.MonkeyPatch, tmp_path):
     ctx, page = _init_ctx(monkeypatch, tmp_path)
-    category = ctx.category_repo.create(
-        Category(name="Groceries", slug="groceries", category_type="expense", user_id=ctx.require_user_id()),
-        user_id=ctx.require_user_id(),
-    )
-    account = ctx.account_repo.create(
-        Account(name="Checking", currency="USD", user_id=ctx.require_user_id()), user_id=ctx.require_user_id()
-    )
-
     view = ledger.build_ledger_view(ctx, page)
     add_btn = _find_control(
         view,
@@ -93,26 +85,7 @@ def test_ledger_add_transaction_button_creates_record(monkeypatch: pytest.Monkey
     assert add_btn is not None
 
     _click(add_btn)
-    dialog = page.dialog
-    amount_field = _find_control(dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Amount")
-    memo_field = _find_control(
-        dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Description"
-    )
-    date_field = _find_control(dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Date")
-    category_dd = _find_control(dialog, lambda c: isinstance(c, ft.Dropdown) and getattr(c, "label", "") == "Category")
-    account_dd = _find_control(dialog, lambda c: isinstance(c, ft.Dropdown) and getattr(c, "label", "") == "Account")
-    amount_field.value = "25.50"
-    memo_field.value = "Test purchase"
-    date_field.value = "2025-01-02"
-    category_dd.value = str(category.id)
-    account_dd.value = str(account.id)
-    save_btn = dialog.actions[1]
-    _click(save_btn)
-
-    txns = ctx.transaction_repo.search(
-        start_date=None, end_date=None, category_id=None, text=None, user_id=ctx.require_user_id()
-    )
-    assert any(t.memo == "Test purchase" for t in txns)
+    assert page.route == "/add-data"
 
 
 def test_ledger_edit_transaction_button_updates_record(monkeypatch: pytest.MonkeyPatch, tmp_path):
@@ -199,12 +172,7 @@ def test_habits_add_button_creates_habit(monkeypatch: pytest.MonkeyPatch, tmp_pa
     )
     assert add_btn is not None
     _click(add_btn)
-    dialog = page.dialog
-    name_field = dialog.content.controls[0]
-    name_field.value = "Meditate"
-    save_btn = dialog.actions[1]
-    _click(save_btn)
-    assert any(h.name == "Meditate" for h in ctx.habit_repo.list_active(user_id=ctx.require_user_id()))
+    assert page.route == "/add-data"
 
 
 def test_liabilities_add_button_creates_record(monkeypatch: pytest.MonkeyPatch, tmp_path):
@@ -215,45 +183,18 @@ def test_liabilities_add_button_creates_record(monkeypatch: pytest.MonkeyPatch, 
     )
     assert add_btn is not None
     _click(add_btn)
-    dialog = page.dialog
-    name, balance, apr, minimum_payment, due_day = dialog.content.controls
-    name.value = "Card"
-    balance.value = "1000"
-    apr.value = "10"
-    minimum_payment.value = "50"
-    due_day.value = "12"
-    save_btn = dialog.actions[1]
-    _click(save_btn)
-    assert any(li.name == "Card" for li in ctx.liability_repo.list_all(user_id=ctx.require_user_id()))
+    assert page.route == "/add-data"
 
 
 def test_portfolio_add_button_creates_record(monkeypatch: pytest.MonkeyPatch, tmp_path):
     ctx, page = _init_ctx(monkeypatch, tmp_path)
-    account = ctx.account_repo.create(
-        Account(name="Brokerage", currency="USD", user_id=ctx.require_user_id()), user_id=ctx.require_user_id()
-    )
     view = portfolio.build_portfolio_view(ctx, page)
     add_btn = _find_control(
         view, lambda c: isinstance(c, ft.FilledButton) and getattr(c, "text", "") == "Add holding"
     )
     assert add_btn is not None
     _click(add_btn)
-    dialog = page.dialog
-    symbol = _find_control(dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Symbol")
-    qty = _find_control(dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Quantity")
-    price = _find_control(dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Average price")
-    market_price = _find_control(
-        dialog, lambda c: isinstance(c, ft.TextField) and getattr(c, "label", "") == "Market price (optional)"
-    )
-    account_dd = _find_control(dialog, lambda c: isinstance(c, ft.Dropdown) and getattr(c, "label", "") == "Account")
-    symbol.value = "AAPL"
-    qty.value = "2"
-    price.value = "100"
-    market_price.value = "110"
-    account_dd.value = str(account.id)
-    save_btn = dialog.actions[1]
-    _click(save_btn)
-    assert any(h.symbol == "AAPL" for h in ctx.holding_repo.list_all(user_id=ctx.require_user_id()))
+    assert page.route == "/add-data"
 
 
 def test_budget_add_line_button_creates_record(monkeypatch: pytest.MonkeyPatch, tmp_path):

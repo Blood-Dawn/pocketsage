@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 import flet as ft
 
 from ...models.habit import HabitEntry
-from .. import controllers
 from ..charts import cashflow_trend_png, spending_chart_png
 from ..components import build_app_bar, build_main_layout, build_stat_card
 
@@ -48,7 +47,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     def _open_new_transaction():
         ctx.pending_new_transaction = True
-        controllers.navigate(page, "/ledger")
+        page.go("/ledger")
 
     # Build stat cards
     stat_cards = ft.Row(
@@ -242,12 +241,12 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             ft.FilledButton(
                                 "Track Habit",
                                 icon=ft.Icons.CHECK_CIRCLE_OUTLINE,
-                                on_click=lambda _: controllers.navigate(page, "/habits"),
+                                on_click=lambda _: page.go("/habits"),
                             ),
                             ft.FilledButton(
                                 "View Budget",
                                 icon=ft.Icons.ACCOUNT_BALANCE,
-                                on_click=lambda _: controllers.navigate(page, "/budgets"),
+                                on_click=lambda _: page.go("/budgets"),
                             ),
                         ],
                         spacing=16,

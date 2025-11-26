@@ -19,6 +19,8 @@ class Account(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", nullable=False, index=True)
     name: str = Field(nullable=False, max_length=128)
+    account_type: str = Field(default="checking", max_length=32)
+    balance: float = Field(default=0.0)
     currency: str = Field(default="USD", max_length=3)
 
     transactions: list["Transaction"] = Relationship(

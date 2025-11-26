@@ -382,7 +382,7 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     return ft.View(
         route="/add-data",
-        controls=[build_main_layout(ctx, page, "/add-data", content, use_menu_bar=True)],
+        controls=build_main_layout(ctx, page, "/add-data", content, use_menu_bar=True),
         padding=0,
         scroll=ft.ScrollMode.HIDDEN,
     )

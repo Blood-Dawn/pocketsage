@@ -179,6 +179,23 @@ def ensure_default_accounts(session_factory: SessionFactory) -> None:
     ensure_local_user(session_factory)
 
 
+def set_password(*, user_id: int, new_password: str, session_factory: SessionFactory) -> User:
+    """Set a new password for the given user."""
+
+    if not new_password or len(new_password.strip()) < 4:
+        raise ValueError("Password must be at least 4 characters")
+    with session_factory() as session:
+        user = session.get(User, user_id)
+        if user is None:
+            raise ValueError(f"User {user_id} not found")
+        user.password_hash = _hasher.hash(new_password.strip())
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        session.expunge(user)
+        return user
+
+
 def purge_guest_user(session_factory: SessionFactory) -> bool:
     """Delete guest user data so sessions never persist to disk."""
 

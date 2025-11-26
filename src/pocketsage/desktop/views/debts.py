@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 
 import flet as ft
 
+from .. import controllers
 from ...devtools import dev_log
 from ...models.liability import Liability
 from ...services.debts import DebtAccount, avalanche_schedule, schedule_summary, snowball_schedule
@@ -187,7 +188,6 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             _update_schedule(schedule, payoff, total_interest)
         except ValueError as exc:
             show_error_dialog(page, "Payoff calculation failed", str(exc))
-        page.update()
         page.update()
 
     def _open_edit_dialog(liability: Liability | None = None) -> None:
@@ -493,7 +493,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.Row(
                 controls=[
                     ft.Text("Debts & Liabilities", size=24, weight=ft.FontWeight.BOLD),
-                    ft.FilledButton("Add liability", icon=ft.Icons.ADD, on_click=lambda _: _open_edit_dialog(None)),
+                    ft.FilledButton("Add liability", icon=ft.Icons.ADD, on_click=lambda _: controllers.navigate(page, '/add-data')),
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             ),

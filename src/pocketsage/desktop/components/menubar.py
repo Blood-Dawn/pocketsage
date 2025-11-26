@@ -37,12 +37,12 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
             ft.MenuItemButton(
                 content=ft.Text("New Transaction  Ctrl+N"),
                 leading=ft.Icon(ft.Icons.ADD),
-                on_click=lambda _: _open_transaction_dialog(ctx, page),
+                on_click=lambda _: page.go("/add-data"),
             ),
             ft.MenuItemButton(
-                content=ft.Text("Quick Add Data"),
+                content=ft.Text("Add Data"),
                 leading=ft.Icon(ft.Icons.ADD_BOX),
-                on_click=lambda _: controllers.navigate(page, "/add-data"),
+                on_click=lambda _: page.go("/add-data"),
             ),
             ft.MenuItemButton(
                 content=ft.Text("Import CSV  Ctrl+I"),
@@ -91,7 +91,7 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
             ft.MenuItemButton(
                 content=ft.Text("Budgets"),
                 leading=ft.Icon(ft.Icons.SAVINGS),
-                on_click=lambda _: controllers.navigate(page, "/budgets"),
+                on_click=lambda _: page.go("/budgets"),
             ),
         ],
     )
@@ -103,12 +103,12 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
             ft.MenuItemButton(
                 content=ft.Text("Dashboard"),
                 leading=ft.Icon(ft.Icons.DASHBOARD),
-                on_click=lambda _: controllers.navigate(page, "/dashboard"),
+                on_click=lambda _: page.go("/dashboard"),
             ),
             ft.MenuItemButton(
                 content=ft.Text("Ledger"),
                 leading=ft.Icon(ft.Icons.RECEIPT_LONG),
-                on_click=lambda _: controllers.navigate(page, "/ledger"),
+                on_click=lambda _: page.go("/ledger"),
             ),
         ],
     )
@@ -332,4 +332,3 @@ def _close_dialog(page: ft.Page, dialog: ft.AlertDialog):
     """Close a dialog."""
     dialog.open = False
     page.update()
-

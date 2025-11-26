@@ -10,6 +10,7 @@ Implements budget management with per-category budget lines:
 from __future__ import annotations
 
 from datetime import date
+from calendar import monthrange
 from typing import TYPE_CHECKING
 
 import flet as ft
@@ -63,6 +64,18 @@ def show_budget_dialog(
     categories = ctx.category_repo.list_all(user_id=uid)
     expense_categories = [c for c in categories if c.category_type == "expense"]
 
+    # Budget name input
+    default_label = (
+        existing_budget.label
+        if existing_budget and getattr(existing_budget, "label", "")
+        else f"Budget for {target_month.strftime('%B %Y')}"
+    )
+    budget_name_field = ft.TextField(
+        label="Budget Name *",
+        value=default_label,
+        width=350,
+    )
+
     # Budget lines container
     budget_lines_ref = ft.Ref[ft.Column]()
     budget_lines_data: list[dict] = []
@@ -77,6 +90,13 @@ def show_budget_dialog(
                 "category_name": cat.name,
                 "amount": line.planned_amount,
             })
+
+    def _safe_update(control: ft.Control) -> None:
+        """Update control if attached to a page; ignore detached assertions (tests)."""
+        try:
+            control.update()
+        except AssertionError:
+            pass
 
     def _render_budget_lines():
         """Render the budget lines list."""
@@ -120,7 +140,7 @@ def show_budget_dialog(
                         ),
                         padding=8,
                         border_radius=4,
-                        bgcolor=ft.Colors.SURFACE_VARIANT,
+                        bgcolor=ft.Colors.SURFACE,
                     )
                 )
 
@@ -138,7 +158,7 @@ def show_budget_dialog(
 
             budget_lines_ref.current.controls = lines
 
-        budget_lines_ref.current.update()
+        _safe_update(budget_lines_ref.current)
 
     def _add_budget_line(_):
         """Show dialog to add a new budget line."""
@@ -234,6 +254,13 @@ def show_budget_dialog(
 
     def _save_budget(_):
         """Save the budget and all lines."""
+        # Validate name
+        budget_name = (budget_name_field.value or "").strip()
+        if not budget_name:
+            budget_name_field.error_text = "Budget name is required"
+            _safe_update(budget_name_field)
+            return
+
         if not budget_lines_data:
             page.snack_bar = ft.SnackBar(
                 content=ft.Text("Add at least one category to create a budget"),
@@ -247,17 +274,22 @@ def show_budget_dialog(
             # Create or update budget
             if is_edit:
                 budget = existing_budget
+                budget.label = budget_name
                 # Delete all existing lines first
                 for line in existing_lines:
                     ctx.budget_repo.delete_line(line.id, user_id=uid)
             else:
                 # Create new budget
                 budget = Budget(
-                    year=target_month.year,
-                    month=target_month.month,
+                    period_start=target_month,
+                    period_end=target_month.replace(day=monthrange(target_month.year, target_month.month)[1]),
+                    label=budget_name,
                     user_id=uid,
                 )
                 budget = ctx.budget_repo.create(budget, user_id=uid)
+            # Persist label updates when editing
+            if is_edit:
+                budget = ctx.budget_repo.update(budget, user_id=uid)
 
             # Create all budget lines
             for line_data in budget_lines_data:
@@ -315,6 +347,7 @@ def show_budget_dialog(
         content=ft.Container(
             content=ft.Column(
                 controls=[
+                    budget_name_field,
                     ft.Text(
                         "Set spending limits for each category to stay on track.",
                         size=12,

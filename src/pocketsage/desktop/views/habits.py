@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 
 import flet as ft
 
+from .. import controllers
 from ...devtools import dev_log
 from ...models.habit import Habit, HabitEntry
 from ...services.habits import reminder_placeholder
@@ -285,7 +286,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         ),
                         padding=12,
-                        bgcolor=ft.Colors.SURFACE_VARIANT,
+                        bgcolor=ft.Colors.SURFACE,
                         border_radius=8,
                     )
                 )
@@ -483,7 +484,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             ft.FilledButton(
                                 "Add habit",
                                 icon=ft.Icons.ADD,
-                                on_click=open_create_dialog,
+                                on_click=lambda _: controllers.navigate(page, '/add-data'),
                             ),
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,

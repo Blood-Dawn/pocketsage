@@ -69,12 +69,12 @@ def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
         ft.IconButton(
             icon=ft.Icons.ADD,
             tooltip="Add transaction (Ctrl+N)",
-            on_click=lambda _: _go("/ledger"),
+            on_click=lambda _: _go("/add-data"),
         ),
         ft.IconButton(
             icon=ft.Icons.CHECK_CIRCLE,
             tooltip="Add habit (Ctrl+Shift+H)",
-            on_click=lambda _: _go("/habits"),
+            on_click=lambda _: _go("/add-data"),
         ),
     ]
     if ctx.current_user:

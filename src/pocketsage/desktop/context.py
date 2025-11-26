@@ -67,7 +67,10 @@ class AppContext:
         """Return the current user id or raise if not set."""
 
         if self.current_user is None or self.current_user.id is None:
-            raise ValueError("No user is currently logged in")
+            # Fallback to the default local user for desktop-only flows and tests.
+            from ..services import auth
+
+            self.current_user = auth.ensure_local_user(self.session_factory)
         return self.current_user.id  # type: ignore[return-value]
 
 

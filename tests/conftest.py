@@ -6,6 +6,7 @@ for testing domain logic, repositories, and services without touching the real a
 
 from __future__ import annotations
 
+import sys
 import tempfile
 from datetime import date, datetime
 from pathlib import Path
@@ -25,6 +26,49 @@ from pocketsage.models import (
 )
 from pocketsage.models.portfolio import Holding
 from sqlmodel import Session, SQLModel, create_engine, select
+
+# Ensure stdout/stderr use UTF-8 and safe flush to avoid encoding/invalid-handle issues on Windows CI/console
+def _safe_stream(stream):
+    if hasattr(stream, "reconfigure"):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+        except Exception:
+            pass
+    class _Wrapper:
+        def __init__(self, inner):
+            self._inner = inner
+        def write(self, data):
+            return self._inner.write(data)
+        def flush(self):
+            try:
+                return self._inner.flush()
+            except OSError:
+                return None
+        def __getattr__(self, name):
+            return getattr(self._inner, name)
+    return _Wrapper(stream)
+
+# Apply immediately on import to influence pytest's terminal streams
+sys.stdout = _safe_stream(sys.stdout)
+sys.stderr = _safe_stream(sys.stderr)
+sys.__stdout__ = _safe_stream(sys.__stdout__)
+sys.__stderr__ = _safe_stream(sys.__stderr__)
+
+
+def pytest_sessionstart(session):
+    """Normalize stdout/stderr encoding before tests run."""
+    sys.stdout = _safe_stream(sys.stdout)
+    sys.stderr = _safe_stream(sys.stderr)
+    sys.__stdout__ = _safe_stream(sys.__stdout__)
+    sys.__stderr__ = _safe_stream(sys.__stderr__)
+
+
+def pytest_unconfigure(config):
+    """Re-apply safe streams before pytest finalizes (avoids flush OSError on Windows)."""
+    sys.stdout = _safe_stream(sys.stdout)
+    sys.stderr = _safe_stream(sys.stderr)
+    sys.__stdout__ = _safe_stream(sys.__stdout__)
+    sys.__stderr__ = _safe_stream(sys.__stderr__)
 
 # =============================================================================
 # Database Fixtures

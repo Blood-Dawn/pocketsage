@@ -16,7 +16,8 @@ import flet as ft
 from sqlalchemy import func, select
 
 from ...logging_config import get_logger
-from ...models import Account, Habit, Transaction
+from ...models import Account, Habit, Transaction, Category, Budget
+from ...services import auth
 from ...services.admin_tasks import (
     backup_database,
     reset_demo_database,
@@ -36,7 +37,7 @@ logger = get_logger(__name__)
 def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Render admin dashboard with seed/reset/export/backup controls for single-user mode."""
 
-    is_admin = ctx.current_user and ctx.current_user.role == "admin"
+    is_admin = (ctx.current_user and ctx.current_user.role == "admin") or getattr(ctx, "admin_mode", False)
     logger.info("Building admin view", extra={"user": ctx.current_user.username if ctx.current_user else None, "is_admin": is_admin})
 
     if not is_admin:
@@ -220,6 +221,122 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
         spacing=12,
     )
 
+    # Additional overview data
+    with ctx.session_factory() as session:
+        total_categories = session.exec(
+            select(func.count(Category.id)).where(Category.user_id == uid)
+        ).one()
+        total_budgets = session.exec(
+            select(func.count(Budget.id)).where(Budget.user_id == uid)
+        ).one()
+
+    overview_card = ft.Card(
+        content=ft.Container(
+            padding=16,
+            content=ft.Column(
+                controls=[
+                    ft.Text("Data overview", size=16, weight=ft.FontWeight.BOLD),
+                    metrics_row,
+                    ft.Row(
+                        controls=[
+                            _metric_card("Categories", total_categories, ft.Icons.CATEGORY),
+                            _metric_card("Budgets", total_budgets, ft.Icons.ACCOUNT_BALANCE_WALLET),
+                        ],
+                        spacing=12,
+                    ),
+                    ft.Text(
+                        "Seeded data and metrics are visible here without running actions. Use the controls below for seeding, exports, and backups.",
+                        size=12,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                ],
+                spacing=10,
+            ),
+        ),
+    )
+
+    # User management (default to local account)
+    users = auth.list_users(ctx.session_factory)
+    if not users:
+        users = [auth.ensure_local_user(ctx.session_factory)]
+
+    user_dd = ft.Dropdown(
+        label="Select user",
+        options=[
+            ft.dropdown.Option(str(u.id), f"{u.username} ({u.role})")
+            for u in users
+            if u.id is not None
+        ],
+        value=str(users[0].id) if users and users[0].id is not None else None,
+        width=260,
+    )
+    new_pw_field = ft.TextField(label="New password", password=True, can_reveal_password=True, width=260)
+    confirm_pw_field = ft.TextField(label="Confirm password", password=True, can_reveal_password=True, width=260)
+    user_status_ref = ft.Ref[ft.Text]()
+
+    def _safe_update(control: ft.Control | None) -> None:
+        if control is None:
+            return
+        try:
+            control.update()
+        except AssertionError:
+            pass
+
+    def _refresh_users():
+        refreshed = auth.list_users(ctx.session_factory)
+        if not refreshed:
+            refreshed = [auth.ensure_local_user(ctx.session_factory)]
+        user_dd.options = [
+            ft.dropdown.Option(str(u.id), f"{u.username} ({u.role})")
+            for u in refreshed
+            if u.id is not None
+        ]
+        if not user_dd.value and user_dd.options:
+            user_dd.value = user_dd.options[0].key
+        try:
+            user_dd.update()
+        except AssertionError:
+            pass
+
+    def _update_password(_):
+        target = user_dd.value
+        if not target:
+            user_status_ref.current.value = "Select a user first."
+            _safe_update(user_status_ref)
+            return
+        pw1 = (new_pw_field.value or "").strip()
+        pw2 = (confirm_pw_field.value or "").strip()
+        if not pw1 or not pw2:
+            user_status_ref.current.value = "Enter and confirm the password."
+            _safe_update(user_status_ref)
+            return
+        if pw1 != pw2:
+            user_status_ref.current.value = "Passwords do not match."
+            _safe_update(user_status_ref)
+            return
+        try:
+            auth.set_password(user_id=int(target), new_password=pw1, session_factory=ctx.session_factory)
+            user_status_ref.current.value = "Password updated."
+        except Exception as exc:
+            user_status_ref.current.value = f"Failed to update: {exc}"
+        _safe_update(user_status_ref)
+
+    user_card = ft.Card(
+        content=ft.Container(
+            padding=16,
+            content=ft.Column(
+                controls=[
+                    ft.Text("User management", size=16, weight=ft.FontWeight.BOLD),
+                    ft.Row([user_dd], spacing=8),
+                    ft.Row([new_pw_field, confirm_pw_field], spacing=12, wrap=True),
+                    ft.FilledButton("Update password", icon=ft.Icons.PASSWORD, on_click=_update_password),
+                    ft.Text("", ref=user_status_ref, color=ft.Colors.ON_SURFACE_VARIANT),
+                ],
+                spacing=10,
+            ),
+        )
+    )
+
     actions = ft.Column(
         controls=[
             ft.Text("Admin actions (single local profile)", size=16, weight=ft.FontWeight.BOLD),
@@ -270,13 +387,13 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
         elevation=1,
     )
 
-    actions_card = ft.Card(content=ft.Container(padding=16, content=actions), expand=True)
+    actions_card = ft.Card(content=ft.Container(padding=16, content=actions))
 
     content = ft.Column(
         controls=[
-            metrics_row,
-            ft.Container(height=16),
-            ft.Row(controls=[actions_card, profile_card], spacing=12, wrap=True),
+            overview_card,
+            ft.Container(height=12),
+            ft.Row(controls=[actions_card, profile_card, user_card], spacing=12, wrap=True),
         ],
         spacing=12,
         scroll=ft.ScrollMode.AUTO,

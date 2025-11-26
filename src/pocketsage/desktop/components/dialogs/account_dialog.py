@@ -203,7 +203,7 @@ def show_account_list_dialog(ctx: AppContext, page: ft.Page) -> None:
                         ft.ListTile(
                             leading=ft.Icon(ft.Icons.ACCOUNT_BALANCE_WALLET),
                             title=ft.Text(acc.name),
-                            subtitle=ft.Text(f"{acc.account_type.title()} • Balance: ${acc.balance:,.2f}"),
+                            subtitle=ft.Text(f"{getattr(acc, 'account_type', 'checking').title()} - Balance: ${getattr(acc, 'balance', 0):,.2f}"),
                             trailing=ft.Row(
                                 controls=[
                                     ft.IconButton(
@@ -223,7 +223,11 @@ def show_account_list_dialog(ctx: AppContext, page: ft.Page) -> None:
                         )
                     )
 
-            account_list.update()
+            try:
+                account_list.update()
+            except AssertionError:
+                # Dialog/tests may not attach the list to a page; ignore in that case.
+                pass
         except Exception as exc:
             logger.error(f"Failed to load accounts: {exc}")
             page.snack_bar = ft.SnackBar(

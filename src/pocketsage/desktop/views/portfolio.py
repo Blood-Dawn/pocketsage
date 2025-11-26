@@ -397,7 +397,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
     controls_row = ft.Row(
         controls=[
             ft.FilledButton(
-                "Add holding", icon=ft.Icons.ADD, on_click=lambda _: _open_dialog(None)
+                "Add holding", icon=ft.Icons.ADD, on_click=lambda _: controllers.navigate(page, '/add-data')
             ),
             ft.TextButton(
                 "Import CSV",

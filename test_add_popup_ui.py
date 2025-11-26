@@ -39,17 +39,25 @@ def extract_dialog_info(dialog):
     if hasattr(title, "value"):
         title = title.value
     fields = []
+    def collect_fields(control):
+        # Recursively collect fields from any control with 'controls' attribute
+        if hasattr(control, "controls"):
+            for c in control.controls:
+                collect_fields(c)
+        # Also check for fields inside 'content' attribute (for e.g. RadioGroup)
+        if hasattr(control, "content") and hasattr(control.content, "controls"):
+            for c in control.content.controls:
+                collect_fields(c)
+        if hasattr(control, "label"):
+            fields.append((control.label, getattr(control, "value", None)))
     if hasattr(dialog, "content") and hasattr(dialog.content, "content"):
-        col = dialog.content.content
-        if hasattr(col, "controls"):
-            for control in col.controls:
-                if hasattr(control, "label") and hasattr(control, "value"):
-                    fields.append((control.label, control.value))
-                elif hasattr(control, "label"):
-                    fields.append((control.label, None))
+        collect_fields(dialog.content.content)
     return title, fields
 
 def test_add_popup_transaction():
+    print("\n╔" + "=" * 58 + "╗")
+    print("║" + " " * 18 + "ADD POPUP UI TEST" + " " * 19 + "║")
+    print("╚" + "=" * 58 + "╝\n")
     ctx = create_app_context()
     ctx.current_user = User(id=1, username="testuser", email="test@example.com", role="admin")
     page = MockPage()
@@ -60,13 +68,15 @@ def test_add_popup_transaction():
     print("Fields:")
     for label, value in fields:
         print(f"  • {label}")
-    assert "Date *" in [label for label, _ in fields]
-    assert "Amount *" in [label for label, _ in fields]
-    assert "Account *" in [label for label, _ in fields]
-    assert "Category" in [label for label, _ in fields]
+    required = ["Date *", "Amount *", "Account *", "Category", "Description *", "Notes (optional)"]
+    for req in required:
+        assert req in [label for label, _ in fields], f"Missing field: {req}"
     print("✓ Transaction Add popup shows correct fields")
 
 def test_add_popup_account():
+    print("\n╔" + "=" * 58 + "╗")
+    print("║" + " " * 18 + "ADD POPUP UI TEST" + " " * 19 + "║")
+    print("╚" + "=" * 58 + "╝\n")
     ctx = create_app_context()
     ctx.current_user = User(id=1, username="testuser", email="test@example.com", role="admin")
     page = MockPage()
@@ -77,12 +87,15 @@ def test_add_popup_account():
     print("Fields:")
     for label, value in fields:
         print(f"  • {label}")
-    assert "Account Name *" in [label for label, _ in fields]
-    assert "Account Type *" in [label for label, _ in fields]
-    assert "Initial Balance" in [label for label, _ in fields]
+    required = ["Account Name *", "Account Type *", "Initial Balance"]
+    for req in required:
+        assert req in [label for label, _ in fields], f"Missing field: {req}"
     print("✓ Account Add popup shows correct fields")
 
 def test_add_popup_category():
+    print("\n╔" + "=" * 58 + "╗")
+    print("║" + " " * 18 + "ADD POPUP UI TEST" + " " * 19 + "║")
+    print("╚" + "=" * 58 + "╝\n")
     ctx = create_app_context()
     ctx.current_user = User(id=1, username="testuser", email="test@example.com", role="admin")
     page = MockPage()
@@ -93,11 +106,34 @@ def test_add_popup_category():
     print("Fields:")
     for label, value in fields:
         print(f"  • {label}")
-    assert "Category Name *" in [label for label, _ in fields]
-    assert "Slug (optional)" in [label for label, _ in fields]
+    required = ["Category Name *", "Slug (optional)"]
+    for req in required:
+        assert req in [label for label, _ in fields], f"Missing field: {req}"
+    # Check for Type label and radio options
+    # The Type label is a Text control, not a field, so we check for it in the dialog content
+    dialog_content = getattr(page.dialog, "content", None)
+    found_type_label = False
+    found_expense_radio = False
+    found_income_radio = False
+    if hasattr(dialog_content, "controls"):
+        for control in dialog_content.controls:
+            if getattr(control, "value", None) == "Type:":
+                found_type_label = True
+            if hasattr(control, "content") and hasattr(control.content, "controls"):
+                for radio in control.content.controls:
+                    if getattr(radio, "label", None) == "Expense":
+                        found_expense_radio = True
+                    if getattr(radio, "label", None) == "Income":
+                        found_income_radio = True
+    assert found_type_label, "Missing Type label"
+    assert found_expense_radio, "Missing Expense radio option"
+    assert found_income_radio, "Missing Income radio option"
     print("✓ Category Add popup shows correct fields")
 
 def test_add_popup_habit():
+    print("\n╔" + "=" * 58 + "╗")
+    print("║" + " " * 18 + "ADD POPUP UI TEST" + " " * 19 + "║")
+    print("╚" + "=" * 58 + "╝\n")
     ctx = create_app_context()
     ctx.current_user = User(id=1, username="testuser", email="test@example.com", role="admin")
     page = MockPage()
@@ -108,10 +144,15 @@ def test_add_popup_habit():
     print("Fields:")
     for label, value in fields:
         print(f"  • {label}")
-    assert "Habit Name *" in [label for label, _ in fields]
+    required = ["Habit Name *"]
+    for req in required:
+        assert req in [label for label, _ in fields], f"Missing field: {req}"
     print("✓ Habit Add popup shows correct fields")
 
 def test_add_popup_budget():
+    print("\n╔" + "=" * 58 + "╗")
+    print("║" + " " * 18 + "ADD POPUP UI TEST" + " " * 19 + "║")
+    print("╚" + "=" * 58 + "╝\n")
     ctx = create_app_context()
     ctx.current_user = User(id=1, username="testuser", email="test@example.com", role="admin")
     page = MockPage()
@@ -122,13 +163,12 @@ def test_add_popup_budget():
     print("Fields:")
     for label, value in fields:
         print(f"  • {label}")
-    assert "Budget Name *" in [label for label, _ in fields]
+    required = ["Budget Name *"]
+    for req in required:
+        assert req in [label for label, _ in fields], f"Missing field: {req}"
     print("✓ Budget Add popup shows correct fields")
 
 def main():
-    print("\n╔" + "=" * 58 + "╗")
-    print("║" + " " * 18 + "ADD POPUP UI TEST" + " " * 19 + "║")
-    print("╚" + "=" * 58 + "╝\n")
     test_add_popup_transaction()
     test_add_popup_account()
     test_add_popup_category()
