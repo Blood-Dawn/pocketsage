@@ -137,16 +137,25 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         _with_spinner(_task, "Seeding demo data...")
 
-    def reset_action(_):
-        logger.info("Reset button clicked")
+    def restart_seed_action(_):
+        logger.info("Restart seed button clicked")
         def _task():
             logger.info("Starting database reset")
             summary = reset_demo_database(user_id=uid, session_factory=ctx.session_factory)
             logger.info(f"Reset completed: {summary.transactions} transactions")
-            _notify(f"Reset demo data ({summary.transactions} transactions)")
+            _notify(f"Restarted demo data ({summary.transactions} transactions)")
             _refresh_user_views()
 
-        _with_spinner(_task, "Resetting demo data...")
+        _with_spinner(_task, "Restarting demo data...")
+
+    def delete_data_action(_):
+        logger.info("Delete data button clicked")
+        def _task():
+            reset_demo_database(user_id=uid, session_factory=ctx.session_factory, reseed=False)
+            _notify("All demo data deleted")
+            _refresh_user_views()
+
+        _with_spinner(_task, "Deleting demo data...")
 
     def export_action(_):
         logger.info("Export button clicked")
@@ -343,7 +352,8 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.Row(
                 controls=[
                     ft.FilledButton("Run Demo Seed", icon=ft.Icons.DOWNLOAD, on_click=seed_action),
-                    ft.TextButton("Reset Demo Data", icon=ft.Icons.RESTORE, on_click=reset_action),
+                    ft.TextButton("Restart Seed", icon=ft.Icons.RESTORE, on_click=restart_seed_action),
+                    ft.TextButton("Delete Data", icon=ft.Icons.DELETE, on_click=delete_data_action),
                 ],
                 spacing=8,
                 wrap=True,

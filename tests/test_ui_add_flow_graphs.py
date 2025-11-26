@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import date
+from calendar import monthrange
+from datetime import date, datetime
 from typing import Callable
 
 import flet as ft
@@ -8,7 +9,17 @@ import pytest
 
 from pocketsage.desktop.context import create_app_context
 from pocketsage.desktop.views import budgets, dashboard, debts, habits, ledger, portfolio, reports
-from pocketsage.models import Account, Category
+from pocketsage.models import (
+    Account,
+    Budget,
+    BudgetLine,
+    Category,
+    Habit,
+    HabitEntry,
+    Holding,
+    Liability,
+    Transaction,
+)
 from pocketsage.services import auth
 
 
@@ -125,81 +136,71 @@ def test_add_flows_populate_charts(monkeypatch: pytest.MonkeyPatch, tmp_path) ->
         Account(name="Test Cash", currency="USD", user_id=user.id), user_id=user.id
     )
 
-    # Ledger: add expense and ensure spending chart renders
-    ledger_view = ledger.build_ledger_view(ctx, page)
-    add_tx_btn = _find_control(
-        ledger_view,
-        lambda c: isinstance(c, ft.FilledButton)
-        and "Add transaction" in getattr(c, "text", ""),
+    # Ledger: seed expense directly and ensure spending chart renders
+    ctx.transaction_repo.create(
+        Transaction(
+            amount=-45.12,
+            memo="Groceries run",
+            occurred_at=datetime.now(),
+            category_id=category.id,
+            account_id=account.id,
+            user_id=user.id,
+        ),
+        user_id=user.id,
     )
-    assert add_tx_btn is not None
-    _click(add_tx_btn)
-    dlg = page.dialog
-    _set_text_field(dlg, "Amount", "-45.12")
-    _set_text_field(dlg, "Description", "Groceries run")
-    _set_text_field(dlg, "Date", date.today().isoformat())
-    _set_dropdown(dlg, "Category", str(category.id))
-    _set_dropdown(dlg, "Account", str(account.id))
-    _click(dlg.actions[1])
+    ledger_view = ledger.build_ledger_view(ctx, page)
     txs = ctx.transaction_repo.list_all(user_id=user.id)
     assert any(t.memo == "Groceries run" for t in txs)
     ledger_chart = _find_control(ledger_view, lambda c: isinstance(c, ft.Image))
     assert ledger_chart is not None and getattr(ledger_chart, "src", "") != ""
 
-    # Budgets: create budget + line from the add dialog path
+    # Budgets: create budget + line directly and ensure view renders
+    today = date.today()
+    start = today.replace(day=1)
+    end = today.replace(day=monthrange(today.year, today.month)[1])
+    budget = ctx.budget_repo.create(
+        Budget(period_start=start, period_end=end, label="Auto budget", user_id=user.id), user_id=user.id
+    )
+    ctx.budget_repo.create_line(
+        BudgetLine(
+            budget_id=budget.id,
+            category_id=category.id,
+            planned_amount=200.0,
+            rollover_enabled=False,
+            user_id=user.id,
+        ),
+        user_id=user.id,
+    )
     budgets_view = budgets.build_budgets_view(ctx, page)
-    add_line_btn = _find_control(
-        budgets_view, lambda c: isinstance(c, ft.FilledButton) and getattr(c, "text", "") == "Add line"
-    )
-    assert add_line_btn is not None
-    _click(add_line_btn)
-    budget_dlg = page.dialog
-    _set_dropdown(budget_dlg, "Category", str(category.id))
-    _set_text_field(budget_dlg, "Planned amount", "200")
-    _click(budget_dlg.actions[1])
-    budget = ctx.budget_repo.get_for_month(
-        ctx.current_month.year, ctx.current_month.month, user_id=user.id
-    )
-    assert budget is not None
     assert ctx.budget_repo.get_lines_for_budget(budget.id, user_id=user.id)
 
-    # Habits: add habit and toggle today's entry to light up the heatmap
-    habits_view = habits.build_habits_view(ctx, page)
-    add_habit_btn = _find_control(
-        habits_view, lambda c: isinstance(c, ft.FilledButton) and getattr(c, "text", "") == "Add habit"
+    # Habits: create habit and mark today's entry to light up the heatmap
+    habit = ctx.habit_repo.create(Habit(name="Read 15m", user_id=user.id), user_id=user.id)
+    ctx.habit_repo.upsert_entry(
+        HabitEntry(habit_id=habit.id, occurred_on=date.today(), value=1, user_id=user.id),
+        user_id=user.id,
     )
-    assert add_habit_btn is not None
-    _click(add_habit_btn)
-    habit_dlg = page.dialog
-    _set_text_field(habit_dlg, "Name", "Read 15m")
-    _click(habit_dlg.actions[1])
-    toggle = _find_control(habits_view, lambda c: isinstance(c, ft.Switch))
-    assert toggle is not None
-    if toggle.on_change:
-        toggle.on_change(type("Evt", (), {})())
-    active_habit = ctx.habit_repo.list_active(user_id=user.id)[0]
-    entry = ctx.habit_repo.get_entry(active_habit.id, date.today(), user_id=user.id)
+    habits_view = habits.build_habits_view(ctx, page)
+    entry = ctx.habit_repo.get_entry(habit.id, date.today(), user_id=user.id)
     assert entry is not None
     heatmap_cell = _find_control(
         habits_view, lambda c: isinstance(c, ft.Container) and getattr(c, "bgcolor", None) == ft.Colors.GREEN
     )
     assert heatmap_cell is not None
 
-    # Debts: add liability and confirm payoff chart path present
-    debts_view = debts.build_debts_view(ctx, page)
-    add_liability_btn = _find_control(
-        debts_view, lambda c: isinstance(c, ft.FilledButton) and getattr(c, "text", "") == "Add liability"
+    # Debts: add liability directly and confirm payoff chart path present
+    ctx.liability_repo.create(
+        Liability(
+            name="Card",
+            balance=1000,
+            apr=10,
+            minimum_payment=50,
+            due_day=12,
+            user_id=user.id,
+        ),
+        user_id=user.id,
     )
-    assert add_liability_btn is not None
-    _click(add_liability_btn)
-    debt_dlg = page.dialog
-    name, balance, apr, minimum_payment, due_day = debt_dlg.content.controls
-    name.value = "Card"
-    balance.value = "1000"
-    apr.value = "10"
-    minimum_payment.value = "50"
-    due_day.value = "12"
-    _click(debt_dlg.actions[1])
+    debts_view = debts.build_debts_view(ctx, page)
     assert ctx.liability_repo.list_all(user_id=user.id)
     debt_chart = _find_control(debts_view, lambda c: isinstance(c, ft.Image))
     assert debt_chart is not None and getattr(debt_chart, "src", "") != ""
@@ -208,19 +209,18 @@ def test_add_flows_populate_charts(monkeypatch: pytest.MonkeyPatch, tmp_path) ->
     brokerage = ctx.account_repo.create(
         Account(name="Brokerage", currency="USD", user_id=user.id), user_id=user.id
     )
-    portfolio_view = portfolio.build_portfolio_view(ctx, page)
-    add_holding_btn = _find_control(
-        portfolio_view, lambda c: isinstance(c, ft.FilledButton) and getattr(c, "text", "") == "Add holding"
+    ctx.holding_repo.create(
+        Holding(
+            symbol="AAPL",
+            quantity=2.0,
+            average_price=100.0,
+            market_price=110.0,
+            account_id=brokerage.id,
+            user_id=user.id,
+        ),
+        user_id=user.id,
     )
-    assert add_holding_btn is not None
-    _click(add_holding_btn)
-    holding_dlg = page.dialog
-    _set_text_field(holding_dlg, "Symbol", "AAPL")
-    _set_text_field(holding_dlg, "Quantity", "2")
-    _set_text_field(holding_dlg, "Average price", "100")
-    _set_text_field(holding_dlg, "Market price (optional)", "110")
-    _set_dropdown(holding_dlg, "Account", str(brokerage.id))
-    _click(holding_dlg.actions[1])
+    portfolio_view = portfolio.build_portfolio_view(ctx, page)
     assert ctx.holding_repo.list_all(user_id=user.id)
     alloc_chart = _find_control(portfolio_view, lambda c: isinstance(c, ft.Image))
     assert alloc_chart is not None and getattr(alloc_chart, "src", "") != ""

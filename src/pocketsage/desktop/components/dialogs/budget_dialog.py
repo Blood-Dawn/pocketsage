@@ -264,10 +264,10 @@ def show_budget_dialog(
         if not budget_lines_data:
             page.snack_bar = ft.SnackBar(
                 content=ft.Text("Add at least one category to create a budget"),
-                bgcolor=ft.Colors.WARNING,
+                bgcolor=ft.Colors.AMBER,
             )
             page.snack_bar.open = True
-            page.update()
+            _safe_update(page.snack_bar)
             return
 
         try:

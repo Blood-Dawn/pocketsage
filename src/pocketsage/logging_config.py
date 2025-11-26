@@ -100,7 +100,7 @@ def setup_logging(config: BaseConfig) -> logging.Logger:
 
     # Console handler (human-readable format for development)
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.DEBUG if config.DEV_MODE else logging.WARNING)
+    console_handler.setLevel(logging.INFO if config.DEV_MODE else logging.WARNING)
 
     # Choose format based on dev mode
     if config.DEV_MODE:

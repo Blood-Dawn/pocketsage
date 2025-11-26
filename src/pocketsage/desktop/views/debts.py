@@ -96,8 +96,8 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 ft.Row(
                     [
                         ft.Text(str(entry.get("date", "")), width=110),
-                        ft.Text(f"${total_payment:,.2f}", width=130),
-                        ft.Text(f"${remaining:,.2f}", width=150),
+                        ft.Text(f"Payment: ${total_payment:,.2f}", width=160),
+                        ft.Text(f"Remaining: ${remaining:,.2f}", width=160),
                     ],
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 )

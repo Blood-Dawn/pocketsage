@@ -32,6 +32,20 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
         """Show inline transaction creation form."""
         accounts = ctx.account_repo.list_all(user_id=uid)
         categories = ctx.category_repo.list_all(user_id=uid)
+        if not accounts:
+            from ...models.account import Account
+            default_acct = ctx.account_repo.create(
+                Account(name="Cash", account_type="cash", balance=0.0, user_id=uid),
+                user_id=uid,
+            )
+            accounts = [default_acct]
+        if not categories:
+            from ...models.category import Category
+            default_cat = ctx.category_repo.create(
+                Category(name="General", slug="general", category_type="expense", user_id=uid),
+                user_id=uid,
+            )
+            categories = [default_cat]
 
         account_dd = ft.Dropdown(
             label="Account *",
@@ -84,8 +98,8 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     account_id=int(account_dd.value),
                     category_id=int(category_dd.value),
                     amount=float(amount_field.value),
-                    description=description_field.value or "",
-                    transaction_date=date.fromisoformat(date_field.value),
+                    memo=description_field.value or "",
+                    occurred_at=date.fromisoformat(date_field.value),
                     user_id=uid,
                 )
                 ctx.transaction_repo.create(txn, user_id=uid)
@@ -201,6 +215,13 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
     def show_holding_form():
         """Show inline holding creation form."""
         accounts = ctx.account_repo.list_all(user_id=uid)
+        if not accounts:
+            from ...models.account import Account
+            default_acct = ctx.account_repo.create(
+                Account(name="Brokerage", account_type="investment", balance=0.0, user_id=uid),
+                user_id=uid,
+            )
+            accounts = [default_acct]
 
         account_dd = ft.Dropdown(
             label="Account *",
@@ -209,7 +230,8 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
         )
         ticker_field = ft.TextField(label="Ticker Symbol *", width=150)
         shares_field = ft.TextField(label="Shares *", width=150, keyboard_type=ft.KeyboardType.NUMBER)
-        cost_basis_field = ft.TextField(label="Cost Basis *", width=150, keyboard_type=ft.KeyboardType.NUMBER)
+        cost_basis_field = ft.TextField(label="Average Price *", width=150, keyboard_type=ft.KeyboardType.NUMBER)
+        market_price_field = ft.TextField(label="Market Price (optional)", width=170, keyboard_type=ft.KeyboardType.NUMBER)
 
         def save_holding(_):
             if not all([account_dd.value, ticker_field.value, shares_field.value, cost_basis_field.value]):
@@ -221,9 +243,10 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
                 holding = Holding(
                     account_id=int(account_dd.value),
-                    ticker=ticker_field.value.upper(),
-                    shares=float(shares_field.value),
-                    cost_basis=float(cost_basis_field.value),
+                    symbol=ticker_field.value.upper(),
+                    quantity=float(shares_field.value),
+                    avg_price=float(cost_basis_field.value),
+                    market_price=float(market_price_field.value or 0.0),
                     user_id=uid,
                 )
                 ctx.holding_repo.create(holding, user_id=uid)
@@ -232,9 +255,11 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 ticker_field.value = ""
                 shares_field.value = ""
                 cost_basis_field.value = ""
+                market_price_field.value = ""
                 ticker_field.update()
                 shares_field.update()
                 cost_basis_field.update()
+                market_price_field.update()
             except Exception as exc:
                 notify(f"Failed to create holding: {exc}")
 
@@ -244,7 +269,7 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.Text("New Portfolio Holding", size=20, weight=ft.FontWeight.BOLD),
                     ft.Divider(),
                     account_dd,
-                    ft.Row([ticker_field, shares_field, cost_basis_field]),
+                    ft.Row([ticker_field, shares_field, cost_basis_field, market_price_field]),
                     ft.FilledButton("Save Holding", on_click=save_holding),
                 ],
                 spacing=16,

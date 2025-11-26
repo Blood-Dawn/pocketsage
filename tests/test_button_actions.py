@@ -261,7 +261,7 @@ def test_admin_reset_button_invokes_reset(monkeypatch: pytest.MonkeyPatch, tmp_p
     monkeypatch.setattr(admin, "reset_demo_database", fake_reset)
     view = admin.build_admin_view(ctx, page)
     reset_btn = _find_control(
-        view, lambda c: isinstance(c, ft.TextButton) and getattr(c, "text", "") == "Reset Demo Data"
+        view, lambda c: isinstance(c, ft.TextButton) and getattr(c, "text", "") == "Restart Seed"
     )
     assert reset_btn is not None
     _click(reset_btn)

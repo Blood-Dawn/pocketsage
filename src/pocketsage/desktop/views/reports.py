@@ -139,11 +139,23 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         return ft.ResponsiveRow(
             controls=[
-                _chart_card("Spending by category", spending_png),
-                _chart_card("Budget usage", None, ft.Column(controls=budget_rows, spacing=6)),
-                _chart_card("Habit completion (7d)", None, ft.Column(controls=habit_rows, spacing=6)),
-                _chart_card("Debt payoff projection", payoff_png),
-                _chart_card("Portfolio allocation", allocation_png),
+                _chart_card("Spending by category", spending_png, page=page, drill_route="/ledger"),
+                _chart_card(
+                    "Budget usage",
+                    None,
+                    ft.Column(controls=budget_rows, spacing=6),
+                    page=page,
+                    drill_route="/budgets",
+                ),
+                _chart_card(
+                    "Habit completion (7d)",
+                    None,
+                    ft.Column(controls=habit_rows, spacing=6),
+                    page=page,
+                    drill_route="/habits",
+                ),
+                _chart_card("Debt payoff projection", payoff_png, page=page, drill_route="/debts"),
+                _chart_card("Portfolio allocation", allocation_png, page=page, drill_route="/portfolio"),
             ],
             spacing=12,
             run_spacing=12,
@@ -497,7 +509,54 @@ def _report_card(title: str, description: str, on_click):
     )
 
 
-def _chart_card(title: str, image_path: Path | str | None, content: ft.Control | None = None):
+def _open_chart_dialog(
+    page: ft.Page,
+    title: str,
+    image_path: Path | str | None,
+    content: ft.Control | None,
+    drill_route: str | None,
+):
+    """Show an expanded chart with optional drill-down navigation."""
+    if image_path:
+        dialog_body: ft.Control = ft.Image(src=str(image_path), height=420, fit=ft.ImageFit.CONTAIN)
+    elif content is not None:
+        dialog_body = content
+    else:
+        dialog_body = ft.Text("No data available", color=ft.Colors.ON_SURFACE_VARIANT)
+
+    def close_dialog(_: ft.ControlEvent | None = None):
+        if page.dialog:
+            page.dialog.open = False
+        page.update()
+
+    def view_details(_: ft.ControlEvent | None = None):
+        close_dialog()
+        if drill_route:
+            page.go(drill_route)
+
+    actions: list[ft.Control] = [ft.TextButton("Close", on_click=close_dialog)]
+    if drill_route:
+        actions.insert(0, ft.TextButton("View details", on_click=view_details))
+
+    dialog = ft.AlertDialog(
+        modal=True,
+        title=ft.Text(title, weight=ft.FontWeight.BOLD),
+        content=ft.Container(padding=12, content=dialog_body),
+        actions=actions,
+        actions_alignment=ft.MainAxisAlignment.END,
+    )
+    page.dialog = dialog
+    dialog.open = True
+    page.update()
+
+
+def _chart_card(
+    title: str,
+    image_path: Path | str | None,
+    content: ft.Control | None = None,
+    page: ft.Page | None = None,
+    drill_route: str | None = None,
+):
     body: ft.Control
     if image_path:
         body = ft.Image(src=str(image_path), height=200, fit=ft.ImageFit.CONTAIN)
@@ -506,8 +565,15 @@ def _chart_card(title: str, image_path: Path | str | None, content: ft.Control |
     else:
         body = ft.Text("No data", color=ft.Colors.ON_SURFACE_VARIANT)
 
+    on_click = (
+        (lambda _: _open_chart_dialog(page, title, image_path, content, drill_route))
+        if page is not None and (image_path or content is not None)
+        else None
+    )
+
     return ft.Container(
         col={"sm": 12, "md": 6},
+        on_click=on_click,
         content=ft.Card(
             content=ft.Container(
                 padding=12,

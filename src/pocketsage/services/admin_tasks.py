@@ -31,17 +31,7 @@ from sqlmodel import Session, select
 from ..config import BaseConfig
 from ..infra.database import create_db_engine, init_database
 from ..infra.database import session_scope as infra_session_scope
-from ..models import (
-    Account,
-    Budget,
-    BudgetLine,
-    Category,
-    Habit,
-    HabitEntry,
-    Holding,
-    Liability,
-    Transaction,
-)
+from ..models import Account, Budget, BudgetLine, Category, Habit, HabitEntry, Holding, Liability, Transaction
 from .export_csv import export_transactions_csv
 from .reports import export_spending_png
 
@@ -158,9 +148,10 @@ def _seed_categories(session: Session, user_id: int) -> dict[str, Category]:
 def _seed_accounts(session: Session, user_id: int) -> dict[str, Account]:
     accounts_seed = [
         {"name": "Everyday Checking", "currency": "USD", "account_type": "checking", "balance": 2500},
-        {"name": "Rainy Day Savings", "currency": "USD", "account_type": "savings", "balance": 5000},
+        {"name": "Rainy Day Savings", "currency": "USD", "account_type": "savings", "balance": 5200},
         {"name": "Travel Card", "currency": "USD", "account_type": "credit", "balance": -800},
-        {"name": "Brokerage", "currency": "USD", "account_type": "investment", "balance": 12000},
+        {"name": "Brokerage", "currency": "USD", "account_type": "investment", "balance": 15000},
+        {"name": "Cash Wallet", "currency": "USD", "account_type": "cash", "balance": 200},
     ]
     accounts: dict[str, Account] = {}
     for payload in accounts_seed:
@@ -392,6 +383,7 @@ def _seed_habits(session: Session, user_id: int) -> None:
                 (date(2024, 1, 6), 1),
                 (date(2024, 1, 7), 0),
                 (date(2024, 1, 8), 1),
+                (date(2024, 1, 9), 1),
             ],
         },
         {
@@ -401,6 +393,35 @@ def _seed_habits(session: Session, user_id: int) -> None:
             "entries": [
                 (date(2024, 1, 5), 1),
                 (date(2024, 1, 12), 1),
+                (date(2024, 1, 19), 1),
+            ],
+        },
+        {
+            "name": "Meditation",
+            "description": "10 minutes of mindfulness.",
+            "cadence": "daily",
+            "entries": [
+                (date(2024, 1, 6), 1),
+                (date(2024, 1, 7), 1),
+                (date(2024, 1, 8), 1),
+            ],
+        },
+        {
+            "name": "Strength Training",
+            "description": "Bodyweight routine.",
+            "cadence": "weekly",
+            "entries": [
+                (date(2024, 1, 4), 1),
+                (date(2024, 1, 11), 1),
+            ],
+        },
+        {
+            "name": "Read 10 pages",
+            "description": "Non-fiction reading habit.",
+            "cadence": "daily",
+            "entries": [
+                (date(2024, 1, 6), 1),
+                (date(2024, 1, 7), 1),
             ],
         },
     ]
@@ -454,20 +475,11 @@ def _seed_habits(session: Session, user_id: int) -> None:
 
 def _seed_liabilities(session: Session, user_id: int) -> None:
     liability_specs = [
-        {
-            "name": "Student Loan",
-            "balance": 12500.0,
-            "apr": 4.5,
-            "minimum_payment": 150.0,
-            "due_day": 15,
-        },
-        {
-            "name": "Credit Card",
-            "balance": 2300.0,
-            "apr": 19.99,
-            "minimum_payment": 65.0,
-            "due_day": 10,
-        },
+        {"name": "Student Loan", "balance": 12500.0, "apr": 4.5, "minimum_payment": 150.0, "due_day": 15},
+        {"name": "Credit Card", "balance": 2300.0, "apr": 19.99, "minimum_payment": 65.0, "due_day": 10},
+        {"name": "Auto Loan", "balance": 8000.0, "apr": 6.5, "minimum_payment": 220.0, "due_day": 12},
+        {"name": "Personal Loan", "balance": 3000.0, "apr": 12.5, "minimum_payment": 90.0, "due_day": 8},
+        {"name": "Medical Bill", "balance": 1200.0, "apr": 0.0, "minimum_payment": 50.0, "due_day": 20},
     ]
 
     for spec in liability_specs:
@@ -483,53 +495,93 @@ def _seed_liabilities(session: Session, user_id: int) -> None:
             existing.due_day = spec["due_day"]
 
 
-def _seed_budget(session: Session, categories: dict[str, Category], user_id: int) -> None:
-    now = datetime.now(timezone.utc)
-    period_start = date(now.year, now.month, 1)
-    period_end = date(now.year, now.month, monthrange(now.year, now.month)[1])
-    existing_budget = session.exec(
-        select(Budget).where(
-            Budget.period_start == period_start,
-            Budget.period_end == period_end,
-            Budget.user_id == user_id,
+def _seed_holdings(session: Session, accounts: dict[str, Account], user_id: int) -> None:
+    """Seed a basic portfolio with multiple holdings."""
+    brokerage = accounts.get("Brokerage")
+    if brokerage is None:
+        brokerage = Account(
+            user_id=user_id, name="Brokerage", account_type="investment", currency="USD", balance=15000
         )
-    ).one_or_none()
-    if existing_budget is None:
-        budget = Budget(
-            user_id=user_id,
-            period_start=period_start,
-            period_end=period_end,
-            label=f"{now.strftime('%B %Y')} Demo Budget",
-        )
-        session.add(budget)
+        session.add(brokerage)
         session.flush()
-        existing_budget = budget
-    if existing_budget.id is None:
-        session.flush()
-    if existing_budget.id is None:
-        return
+        accounts["Brokerage"] = brokerage
 
-    coffee_category = categories.get("coffee")
-    if coffee_category:
-        existing_line = session.exec(
-            select(BudgetLine).where(
-                BudgetLine.budget_id == existing_budget.id,
-                BudgetLine.category_id == coffee_category.id,
-                BudgetLine.user_id == user_id,
-            )
-        ).one_or_none()
-        if existing_line is None:
+    holdings = [
+        {"symbol": "AAPL", "quantity": 5, "avg_price": 110.0, "market_price": 125.0},
+        {"symbol": "MSFT", "quantity": 3, "avg_price": 280.0, "market_price": 320.0},
+        {"symbol": "GOOG", "quantity": 1.5, "avg_price": 140.0, "market_price": 150.0},
+        {"symbol": "TSLA", "quantity": 2, "avg_price": 190.0, "market_price": 210.0},
+        {"symbol": "VTI", "quantity": 4, "avg_price": 230.0, "market_price": 240.0},
+    ]
+
+    for payload in holdings:
+        symbol = payload["symbol"]
+        existing = session.exec(
+            select(Holding).where(Holding.symbol == symbol, Holding.user_id == user_id)
+        ).first()
+        if existing:
+            existing.quantity = payload["quantity"]
+            existing.avg_price = payload["avg_price"]
+            existing.market_price = payload["market_price"]
+            existing.account_id = brokerage.id
+        else:
             session.add(
-                BudgetLine(
+                Holding(
                     user_id=user_id,
-                    budget_id=existing_budget.id,
-                    category_id=coffee_category.id,
-                    planned_amount=50.0,
-                    rollover_enabled=False,
+                    account_id=brokerage.id,
+                    symbol=symbol,
+                    quantity=payload["quantity"],
+                    avg_price=payload["avg_price"],
+                    market_price=payload["market_price"],
+                    currency="USD",
                 )
             )
 
 
+def _seed_budget(session: Session, categories: dict[str, Category], user_id: int) -> None:
+    today = date.today()
+    first_of_month = today.replace(day=1)
+    last_day = monthrange(today.year, today.month)[1]
+    end_of_month = today.replace(day=last_day)
+
+    existing_budget = session.exec(
+        select(Budget).where(
+            Budget.user_id == user_id,
+            Budget.period_start == first_of_month,
+            Budget.period_end == end_of_month,
+        )
+    ).one_or_none()
+
+    if existing_budget is None:
+        existing_budget = Budget(
+            user_id=user_id,
+            period_start=first_of_month,
+            period_end=end_of_month,
+            label=f"{today.strftime('%B %Y')} Budget",
+        )
+        session.add(existing_budget)
+        session.flush()
+
+    expense_slugs = ["rent", "utilities", "groceries", "dining-out", "transit", "coffee"]
+    lines = session.exec(
+        select(BudgetLine).where(BudgetLine.budget_id == existing_budget.id, BudgetLine.user_id == user_id)
+    ).all()
+    if not lines:
+        payloads: list[BudgetLine] = []
+        for slug in expense_slugs:
+            cat = categories.get(slug)
+            if cat is None:
+                continue
+            payloads.append(
+                BudgetLine(
+                    user_id=user_id,
+                    budget_id=existing_budget.id,
+                    category_id=cat.id,
+                    planned_amount=200.0 if slug != "rent" else 1200.0,
+                    rollover_enabled=False,
+                )
+            )
+        session.add_all(payloads)
 def reset_demo_database(
     user_id: int, session_factory: Optional[SessionFactory] = None, reseed: bool = True
 ) -> SeedSummary:
@@ -578,10 +630,35 @@ def run_demo_seed(
         categories = _seed_categories(session, user_id=user_id)
         accounts = _seed_accounts(session, user_id=user_id)
         _seed_transactions(session, categories, accounts, user_id=user_id)
+        # Ensure baseline transactions exist
+        tx_exists = session.exec(select(Transaction.id).where(Transaction.user_id == user_id)).first()
+        if tx_exists is None:
+            sample = [
+                Transaction(
+                    user_id=user_id,
+                    occurred_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                    amount=1500.0,
+                    memo="Seed Paycheck",
+                    category_id=categories.get("salary").id if categories.get("salary") else None,  # type: ignore[union-attr]
+                    account_id=accounts.get("Everyday Checking").id if accounts.get("Everyday Checking") else None,  # type: ignore[union-attr]
+                    currency="USD",
+                ),
+                Transaction(
+                    user_id=user_id,
+                    occurred_at=datetime(2025, 1, 2, tzinfo=timezone.utc),
+                    amount=-120.0,
+                    memo="Seed Groceries",
+                    category_id=categories.get("groceries").id if categories.get("groceries") else None,  # type: ignore[union-attr]
+                    account_id=accounts.get("Everyday Checking").id if accounts.get("Everyday Checking") else None,  # type: ignore[union-attr]
+                    currency="USD",
+                ),
+            ]
+            session.add_all(sample)
         _seed_habits(session, user_id=user_id)
         _seed_liabilities(session, user_id=user_id)
         _seed_budget(session, categories, user_id=user_id)
-        session.flush()
+        _seed_holdings(session, accounts, user_id=user_id)
+        session.commit()
         return _build_seed_summary(session, user_id=user_id)
 
 
