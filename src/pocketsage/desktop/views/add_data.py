@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import flet as ft
 
 from ..components import build_main_layout
-from ..devtools import dev_log
+from ...devtools import dev_log
 
 if TYPE_CHECKING:
     from ..context import AppContext
