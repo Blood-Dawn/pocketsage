@@ -337,10 +337,8 @@ def test_megaflow_end_to_end(monkeypatch: pytest.MonkeyPatch, tmp_path):
     monkeypatch.setattr(menubar, "_open_accounts_dialog", lambda *_: acct_open.__setitem__("v", True))
     categories_item = _menu_item_by_label(menu, "Categories")
     accounts_item = _menu_item_by_label(menu, "Accounts")
-    assert categories_item and accounts_item
-    _click(categories_item)
-    _click(accounts_item)
-    assert cat_open["v"] and acct_open["v"]
+    # Categories/Accounts entries were removed from View menu; ensure they stay absent.
+    assert categories_item is None and accounts_item is None
 
     # View admin entry
     admin_item = _menu_item_by_label(menu, "Admin")
