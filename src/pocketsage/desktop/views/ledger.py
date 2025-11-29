@@ -332,7 +332,10 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 if tx.category_id
                 else None
             )
-            type_label = "Income" if tx.amount >= 0 else "Expense"
+            if getattr(tx, "liability_id", None):
+                type_label = "Debt"
+            else:
+                type_label = "Income" if tx.amount >= 0 else "Expense"
             amount_color = ft.Colors.GREEN if tx.amount >= 0 else ft.Colors.RED
             rows.append(
                 ft.DataRow(
@@ -678,6 +681,9 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         except Exception as exc:  # pragma: no cover - user-facing guard
             show_error_dialog(page, "Export failed", str(exc))
 
+    # Reset page scroll handler to avoid lingering callbacks
+    page.on_scroll = None
+
     filter_bar = ft.Row(
         controls=[
             start_field,
@@ -697,47 +703,62 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         spacing=8,
         run_spacing=8,
     )
+    # Close dropdown overlays when the page scrolls to avoid floating menus
+    def _close_filters_on_scroll(_):
+        for dd in (quick_range, category_field, type_field):
+            try:
+                dd.open = False  # type: ignore[attr-defined]
+            except Exception:
+                pass
+    page.on_scroll = _close_filters_on_scroll
 
-    summary_cards = ft.Row(
+    summary_cards = ft.ResponsiveRow(
         controls=[
-            ft.Card(
-                content=ft.Container(
-                    ft.Column(
-                        controls=[
-                            ft.Text("Income (this period)"),
-                            ft.Text("", ref=income_text, size=20, weight=ft.FontWeight.BOLD),
-                        ]
+            ft.Container(
+                content=ft.Card(
+                    content=ft.Container(
+                        ft.Column(
+                            controls=[
+                                ft.Text("Income (this period)"),
+                                ft.Text("", ref=income_text, size=20, weight=ft.FontWeight.BOLD),
+                            ]
+                        ),
+                        padding=12,
                     ),
-                    padding=12,
                 ),
-                expand=True,
+                col={"sm": 12, "md": 4},
             ),
-            ft.Card(
-                content=ft.Container(
-                    ft.Column(
-                        controls=[
-                            ft.Text("Expenses (this period)"),
-                            ft.Text("", ref=expense_text, size=20, weight=ft.FontWeight.BOLD),
-                        ]
+            ft.Container(
+                content=ft.Card(
+                    content=ft.Container(
+                        ft.Column(
+                            controls=[
+                                ft.Text("Expenses (this period)"),
+                                ft.Text("", ref=expense_text, size=20, weight=ft.FontWeight.BOLD),
+                            ]
+                        ),
+                        padding=12,
                     ),
-                    padding=12,
                 ),
-                expand=True,
+                col={"sm": 12, "md": 4},
             ),
-            ft.Card(
-                content=ft.Container(
-                    ft.Column(
-                        controls=[
-                            ft.Text("Net (this period)"),
-                            ft.Text("", ref=net_text, size=20, weight=ft.FontWeight.BOLD),
-                        ]
+            ft.Container(
+                content=ft.Card(
+                    content=ft.Container(
+                        ft.Column(
+                            controls=[
+                                ft.Text("Net (this period)"),
+                                ft.Text("", ref=net_text, size=20, weight=ft.FontWeight.BOLD),
+                            ]
+                        ),
+                        padding=12,
                     ),
-                    padding=12,
                 ),
-                expand=True,
+                col={"sm": 12, "md": 4},
             ),
         ],
         spacing=12,
+        run_spacing=12,
     )
 
     table = ft.DataTable(
@@ -800,6 +821,8 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ),
         ],
         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+        wrap=True,
+        run_spacing=8,
     )
 
     register_card = ft.Card(

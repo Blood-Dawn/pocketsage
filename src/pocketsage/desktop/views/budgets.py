@@ -11,6 +11,7 @@ import flet as ft
 from ...models.budget import Budget, BudgetLine
 from ...models.category import Category
 from ..components import build_app_bar, build_main_layout, build_progress_bar
+from .. import controllers
 from ..components.dialogs import show_budget_dialog
 
 if TYPE_CHECKING:
@@ -162,9 +163,18 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
         dlg.open = True
         page.update()
 
+    def handle_add_line(_):
+        """Route add-line requests based on whether a budget exists."""
+        if budget and budget.id:
+            add_budget_line(int(budget.id))
+        else:
+            show_create_budget_dialog()
+
     if budget:
         # Get budget lines
         lines = ctx.budget_repo.get_lines_for_budget(budget.id, user_id=uid)
+        period_start_dt = datetime.combine(budget.period_start, datetime.min.time())
+        period_end_dt = datetime.combine(budget.period_end, datetime.max.time())
 
         # Build budget progress bars
         budget_rows = []
@@ -178,8 +188,8 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
             # Get actual spending for this category this month
             transactions = ctx.transaction_repo.search(
-                start_date=budget.period_start,
-                end_date=budget.period_end,
+                start_date=period_start_dt,
+                end_date=period_end_dt,
                 category_id=line.category_id,
                 user_id=uid,
             )
@@ -238,6 +248,11 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 page.update()
 
             def delete_line(_e, line_id=line.id):
+                if line_id is None:
+                    page.snack_bar = ft.SnackBar(content=ft.Text("Cannot delete an unsaved line"))
+                    page.snack_bar.open = True
+                    page.update()
+                    return
                 try:
                     ctx.budget_repo.delete_line(line_id, user_id=uid)
                     refresh_view()
@@ -264,6 +279,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     border=ft.border.only(
                         bottom=ft.border.BorderSide(1, ft.Colors.OUTLINE_VARIANT)
                     ),
+                    on_click=lambda _e, l=line: edit_line(_e, line=l),
                 )
             )
 
@@ -370,7 +386,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.FilledButton(
                         "Create Budget",
                         icon=ft.Icons.ADD,
-                        on_click=lambda _: show_create_budget_dialog(),
+                        on_click=lambda _: controllers.navigate(page, "/add-data"),
                     ),
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -404,9 +420,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             ft.FilledButton(
                                 "Add line",
                                 icon=ft.Icons.ADD,
-                                on_click=lambda _: add_budget_line(budget.id)
-                                if budget
-                                else show_create_budget_dialog(),
+                                on_click=handle_add_line,
                             ),
                             ft.TextButton(
                                 "Create budget", on_click=lambda _: show_create_budget_dialog()
@@ -416,9 +430,13 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             ),
                         ],
                         spacing=8,
+                        wrap=True,
+                        run_spacing=8,
                     ),
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                wrap=True,
+                run_spacing=8,
             ),
             ft.Container(height=16),
             budget_content,

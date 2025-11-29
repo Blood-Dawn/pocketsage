@@ -94,6 +94,7 @@ def main(page: ft.Page) -> None:
 
     # Register routes and aliases
     from .views.auth import build_auth_view
+    from .views.about import build_about_view
 
     route_builders = {
         "/login": build_auth_view,
@@ -106,6 +107,7 @@ def main(page: ft.Page) -> None:
         "/portfolio": build_portfolio_view,
         "/reports": build_reports_view,
         "/help": build_help_view,
+        "/about": build_about_view,
         "/settings": build_settings_view,
         "/admin": build_admin_view,
         "/add-data": build_add_data_view,
@@ -122,10 +124,12 @@ def main(page: ft.Page) -> None:
     _last_err_msg: str | None = None
     _last_err_ts: float = 0.0
     _suppress_count: int = 0
+    _error_log: list[str] = []
 
     def _on_error(e: ft.ControlEvent):  # pragma: no cover (UI callback)
-        nonlocal _last_err_msg, _last_err_ts, _suppress_count
+        nonlocal _last_err_msg, _last_err_ts, _suppress_count, _error_log
         msg = getattr(e, 'data', None) or "<no-data>"
+        _error_log.append(msg)
         now = time.time()
         # If same message within 0.5s, suppress
         if _last_err_msg == msg and (now - _last_err_ts) < 0.5:
@@ -147,7 +151,16 @@ def main(page: ft.Page) -> None:
         _last_err_msg = msg
         _last_err_ts = now
         _suppress_count = 0
-        logger.error("Flet page error", extra={"event": "error", "data": msg})
+        logger.error("Flet page error", extra={"event": "error", "data": msg, "errors": _error_log[-5:]})
+        page.snack_bar = ft.SnackBar(
+            content=ft.Text(f"UI error: {msg}"),
+            action="Open log",
+            on_action=lambda _: page.launch_url(str((_SESSION_LOG_PATH or (Path(ctx.config.DATA_DIR) / 'logs' / 'session.log')).as_posix()))
+            if hasattr(page, "launch_url")
+            else None,
+        )
+        page.snack_bar.open = True
+        page.update()
 
     page.on_error = _on_error
 

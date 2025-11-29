@@ -496,6 +496,8 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.FilledButton("Add liability", icon=ft.Icons.ADD, on_click=lambda _: controllers.navigate(page, '/add-data')),
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                wrap=True,
+                run_spacing=8,
             ),
             ft.Container(height=16),
             summary,

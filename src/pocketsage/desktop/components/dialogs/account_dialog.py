@@ -15,6 +15,7 @@ import flet as ft
 
 from ....logging_config import get_logger
 from ....models.account import Account
+from ...constants import ACCOUNT_TYPE_OPTIONS
 
 if TYPE_CHECKING:
     from ...context import AppContext
@@ -51,16 +52,13 @@ def show_account_dialog(
     account_type_dropdown = ft.Dropdown(
         label="Account Type *",
         value=account.account_type if account else "checking",
-        options=[
-            ft.dropdown.Option(key="checking", text="Checking"),
-            ft.dropdown.Option(key="savings", text="Savings"),
-            ft.dropdown.Option(key="credit", text="Credit Card"),
-            ft.dropdown.Option(key="investment", text="Investment"),
-            ft.dropdown.Option(key="cash", text="Cash"),
-            ft.dropdown.Option(key="other", text="Other"),
-        ],
+        options=[ft.dropdown.Option(key=key, text=text) for key, text in ACCOUNT_TYPE_OPTIONS],
         width=250,
     )
+    if account and account.account_type and account.account_type not in {k for k, _ in ACCOUNT_TYPE_OPTIONS}:
+        account_type_dropdown.options.append(
+            ft.dropdown.Option(key=account.account_type, text=account.account_type.title())
+        )
 
     balance_field = ft.TextField(
         label="Initial Balance",

@@ -266,7 +266,12 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         weight=ft.FontWeight.BOLD,
                     ),
                     ft.Text(
-                        "SQLCipher toggle placeholder (restart required when enabled).",
+                        "Encryption is optional. Enable SQLCipher via environment flags to protect the local database at rest.",
+                        size=12,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                    ft.Text(
+                        "Set POCKETSAGE_USE_SQLCIPHER=true and POCKETSAGE_SQLCIPHER_KEY to turn it on, then restart the app.",
                         size=12,
                         color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
@@ -275,13 +280,22 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             ft.Switch(
                                 label="Encrypt database (SQLCipher-ready)",
                                 value=encryption_enabled,
-                                disabled=True,
-                                tooltip="Planned SQLCipher support; enable via env once wired.",
+                                disabled=False,
+                                tooltip="Toggle on to request SQLCipher; restart required and valid env key needed.",
+                                on_change=lambda e: _notify(
+                                    "Enable POCKETSAGE_USE_SQLCIPHER=true and POCKETSAGE_SQLCIPHER_KEY then restart to apply."
+                                ),
                             ),
                             ft.Text(
                                 "Status: enabled" if encryption_enabled else "Status: disabled (default SQLite)",
                                 size=12,
                                 color=ft.Colors.ON_SURFACE_VARIANT,
+                            ),
+                            ft.TextButton(
+                                "Why encrypt?",
+                                on_click=lambda _: _notify(
+                                    "Encryption prevents casual access if your device is lost. Configure via env and restart."
+                                ),
                             ),
                         ],
                         spacing=8,

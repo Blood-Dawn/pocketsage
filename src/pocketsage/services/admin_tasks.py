@@ -101,9 +101,11 @@ def _seed_categories(session: Session, user_id: int) -> dict[str, Category]:
         {"name": "Groceries", "slug": "groceries", "category_type": "expense", "color": "#4CAF50"},
         {"name": "Dining Out", "slug": "dining-out", "category_type": "expense", "color": "#FF7043"},
         {"name": "Rent", "slug": "rent", "category_type": "expense", "color": "#8D6E63"},
+        {"name": "Mortgage", "slug": "mortgage", "category_type": "expense", "color": "#5D4037"},
         {"name": "Utilities", "slug": "utilities", "category_type": "expense", "color": "#29B6F6"},
         {"name": "Internet", "slug": "internet", "category_type": "expense", "color": "#0277BD"},
         {"name": "Phone", "slug": "phone", "category_type": "expense", "color": "#5C6BC0"},
+        {"name": "Insurance", "slug": "insurance", "category_type": "expense", "color": "#546E7A"},
         {"name": "Gas", "slug": "gas", "category_type": "expense", "color": "#AB47BC"},
         {"name": "Transit", "slug": "transit", "category_type": "expense", "color": "#7E57C2"},
         {"name": "Medical", "slug": "medical", "category_type": "expense", "color": "#C62828"},
@@ -118,11 +120,14 @@ def _seed_categories(session: Session, user_id: int) -> dict[str, Category]:
         {"name": "Entertainment", "slug": "entertainment", "category_type": "expense", "color": "#F4511E"},
         {"name": "Coffee", "slug": "coffee", "category_type": "expense", "color": "#795548"},
         {"name": "Wellness", "slug": "wellness", "category_type": "expense", "color": "#8D6E63"},
+        {"name": "Childcare", "slug": "childcare", "category_type": "expense", "color": "#F57C00"},
+        {"name": "Charity", "slug": "charity", "category_type": "expense", "color": "#AD1457"},
         # Income / transfers
         {"name": "Salary", "slug": "salary", "category_type": "income", "color": "#2E7D32"},
         {"name": "Bonus", "slug": "bonus", "category_type": "income", "color": "#4CAF50"},
         {"name": "Interest", "slug": "interest", "category_type": "income", "color": "#1B5E20"},
         {"name": "Dividends", "slug": "dividends", "category_type": "income", "color": "#00796B"},
+        {"name": "Side Hustle", "slug": "side-hustle", "category_type": "income", "color": "#00695C"},
         {"name": "Refund", "slug": "refund", "category_type": "income", "color": "#558B2F"},
         {"name": "Transfer In", "slug": "transfer-in", "category_type": "income", "color": "#00796B"},
         {"name": "Transfer Out", "slug": "transfer-out", "category_type": "expense", "color": "#00838F"},
@@ -175,32 +180,32 @@ def _seed_transactions(
     accounts: dict[str, Account],
     user_id: int,
 ) -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now()
     transaction_specs = [
         {
             "external_id": "demo-tx-001",
-            "occurred_at": datetime(2024, 1, 5, 13, 30, tzinfo=timezone.utc),
+            "occurred_at": datetime(2024, 1, 5, 13, 30),
             "amount": -58.23,
             "memo": "Grocery Run",
             "category_slug": "groceries",
         },
         {
             "external_id": "demo-tx-002",
-            "occurred_at": datetime(2024, 1, 8, 19, 45, tzinfo=timezone.utc),
+            "occurred_at": datetime(2024, 1, 8, 19, 45),
             "amount": -32.5,
             "memo": "Dinner with friends",
             "category_slug": "dining-out",
         },
         {
             "external_id": "demo-tx-003",
-            "occurred_at": datetime(2024, 1, 10, 8, 0, tzinfo=timezone.utc),
+            "occurred_at": datetime(2024, 1, 10, 8, 0),
             "amount": -90.0,
             "memo": "Electric bill",
             "category_slug": "utilities",
         },
         {
             "external_id": "demo-tx-004",
-            "occurred_at": datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            "occurred_at": datetime(2024, 1, 15, 12, 0),
             "amount": 2800.0,
             "memo": "Monthly salary",
             "category_slug": "salary",
@@ -260,8 +265,9 @@ def _heavy_transactions_seed(session: Session, user_id: int, accounts: dict[str,
     import random
     from datetime import timedelta
 
-    start_date = datetime(2015, 1, 1, tzinfo=timezone.utc)
-    end_date = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    start_date = datetime(2015, 1, 1)
+    # Always include the current month in the randomized dataset
+    end_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
     income_categories = ["Salary", "Bonus", "Interest", "Dividends", "Refund"]
     expense_categories = [
         "Groceries",
@@ -473,7 +479,7 @@ def _seed_habits(session: Session, user_id: int) -> None:
                 entry.value = value
 
 
-def _seed_liabilities(session: Session, user_id: int) -> None:
+def _seed_liabilities(session: Session, user_id: int) -> list[Liability]:
     liability_specs = [
         {"name": "Student Loan", "balance": 12500.0, "apr": 4.5, "minimum_payment": 150.0, "due_day": 15},
         {"name": "Credit Card", "balance": 2300.0, "apr": 19.99, "minimum_payment": 65.0, "due_day": 10},
@@ -482,17 +488,92 @@ def _seed_liabilities(session: Session, user_id: int) -> None:
         {"name": "Medical Bill", "balance": 1200.0, "apr": 0.0, "minimum_payment": 50.0, "due_day": 20},
     ]
 
+    liabilities: list[Liability] = []
     for spec in liability_specs:
         existing = session.exec(
             select(Liability).where(Liability.name == spec["name"], Liability.user_id == user_id)
         ).one_or_none()
         if existing is None:
-            session.add(Liability(user_id=user_id, **spec))
+            existing = Liability(user_id=user_id, **spec)
+            session.add(existing)
         else:
             existing.balance = spec["balance"]
             existing.apr = spec["apr"]
             existing.minimum_payment = spec["minimum_payment"]
             existing.due_day = spec["due_day"]
+        liabilities.append(existing)
+    session.flush()
+    return liabilities
+
+
+def _seed_liability_transactions(
+    session: Session,
+    liabilities: list[Liability],
+    accounts: dict[str, Account],
+    categories: dict[str, Category],
+    user_id: int,
+) -> None:
+    """Link liabilities to the ledger by inserting/updating payment transactions."""
+
+    if not liabilities:
+        return
+
+    primary_account = (
+        accounts.get("Everyday Checking")
+        or accounts.get("Rainy Day Savings")
+        or next((acct for acct in accounts.values() if acct.id), None)
+    )
+    if primary_account is None or primary_account.id is None:
+        return
+
+    payment_category = categories.get("payment") or categories.get("transfer-out")
+    today = date.today()
+    last_day = monthrange(today.year, today.month)[1]
+
+    for liability in liabilities:
+        if liability.id is None:
+            continue
+        due_day = getattr(liability, "due_day", 1) or 1
+        due_date = date(today.year, today.month, min(due_day, last_day))
+        occurred_at = datetime.combine(due_date, datetime.min.time())
+        external_id = f"liability-payment-{liability.name}-{due_date.isoformat()}"
+        existing = session.exec(
+            select(Transaction).where(
+                Transaction.external_id == external_id,
+                Transaction.user_id == user_id,
+            )
+        ).one_or_none()
+
+        amount = -abs(getattr(liability, "minimum_payment", 0.0) or 0.0)
+        category_id = getattr(payment_category, "id", None)
+        payload = {
+            "occurred_at": occurred_at,
+            "amount": amount,
+            "memo": f"{liability.name} payment",
+            "category_id": category_id,
+            "account_id": primary_account.id,
+            "currency": primary_account.currency,
+            "liability_id": liability.id,
+            "user_id": user_id,
+        }
+
+        if existing is None:
+            session.add(
+                Transaction(
+                    external_id=external_id,
+                    **payload,
+                )
+            )
+        else:
+            existing.occurred_at = occurred_at
+            existing.amount = amount
+            existing.memo = payload["memo"]
+            existing.category_id = category_id
+            existing.account_id = primary_account.id
+            existing.currency = primary_account.currency
+            existing.liability_id = liability.id
+            existing.user_id = user_id
+    session.flush()
 
 
 def _seed_holdings(session: Session, accounts: dict[str, Account], user_id: int) -> None:
@@ -636,7 +717,7 @@ def run_demo_seed(
             sample = [
                 Transaction(
                     user_id=user_id,
-                    occurred_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                    occurred_at=datetime(2025, 1, 1),
                     amount=1500.0,
                     memo="Seed Paycheck",
                     category_id=categories.get("salary").id if categories.get("salary") else None,  # type: ignore[union-attr]
@@ -645,7 +726,7 @@ def run_demo_seed(
                 ),
                 Transaction(
                     user_id=user_id,
-                    occurred_at=datetime(2025, 1, 2, tzinfo=timezone.utc),
+                    occurred_at=datetime(2025, 1, 2),
                     amount=-120.0,
                     memo="Seed Groceries",
                     category_id=categories.get("groceries").id if categories.get("groceries") else None,  # type: ignore[union-attr]
@@ -655,9 +736,12 @@ def run_demo_seed(
             ]
             session.add_all(sample)
         _seed_habits(session, user_id=user_id)
-        _seed_liabilities(session, user_id=user_id)
+        liabilities = _seed_liabilities(session, user_id=user_id)
         _seed_budget(session, categories, user_id=user_id)
         _seed_holdings(session, accounts, user_id=user_id)
+        _seed_liability_transactions(
+            session, liabilities, accounts, categories, user_id=user_id
+        )
         session.commit()
         return _build_seed_summary(session, user_id=user_id)
 

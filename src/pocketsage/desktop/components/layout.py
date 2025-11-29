@@ -16,35 +16,7 @@ from ..navigation_helpers import NAVIGATION_DESTINATIONS, index_for_route
 
 
 def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
-    """Build the app bar with title, month selector, and quick actions."""
-
-    today = date.today()
-    base_month = (getattr(ctx, "current_month", None) or today).replace(day=1)
-    options: list[ft.dropdown.Option] = []
-    for offset in (-1, 0, 1):
-        month = (base_month.month - 1 + offset) % 12 + 1
-        year = base_month.year + ((base_month.month - 1 + offset) // 12)
-        label = date(year, month, 1).strftime("%b %Y")
-        options.append(ft.dropdown.Option(key=f"{year}-{month:02d}", text=label))
-
-    def set_month(e: ft.ControlEvent):
-        with suppress(Exception):
-            ctx.current_month = date.fromisoformat(f"{e.control.value}-01")
-        page.snack_bar = ft.SnackBar(content=ft.Text(f"Switched to {e.control.value}"))
-        page.snack_bar.open = True
-        # Refresh month-aware views inline so the change is visible immediately.
-        current_route = getattr(page, "route", "")
-        if current_route in {"/budgets", "/reports"}:
-            page.go(current_route)
-        page.update()
-
-    month_selector = ft.Dropdown(
-        options=options,
-        value=f"{base_month.year}-{base_month.month:02d}",
-        width=150,
-        dense=True,
-        on_change=set_month,
-    )
+    """Build the app bar with quick actions (no global month picker)."""
 
     def _go(path: str):
         controllers.navigate(page, path)
@@ -61,11 +33,11 @@ def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
         current_route = getattr(page, "route", "/dashboard")
         page.snack_bar = ft.SnackBar(content=ft.Text("Refreshing..."))
         page.snack_bar.open = True
-        page.go(current_route)  # Re-navigate to current route to refresh
+        # Trigger rerender by re-navigating to the current route.
+        page.go(current_route)
         page.update()
 
     quick_actions: List[ft.Control] = [
-        month_selector,
         ft.IconButton(
             icon=ft.Icons.ADD,
             tooltip="Add transaction (Ctrl+N)",
@@ -81,11 +53,6 @@ def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
         user_role = ctx.current_user.role or "user"
         user_chip_label = f"{ctx.current_user.username} ({user_role})"
         quick_actions.extend([
-            ft.IconButton(
-                icon=ft.Icons.REFRESH,
-                tooltip="Refresh current view",
-                on_click=_refresh,
-            ),
             ft.Chip(
                 label=ft.Text(user_chip_label),
                 leading=ft.Icon(ft.Icons.PERSON),

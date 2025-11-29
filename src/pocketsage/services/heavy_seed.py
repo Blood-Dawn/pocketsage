@@ -15,6 +15,11 @@ from .admin_tasks import (
     _heavy_transactions_seed,
     _seed_accounts,
     _seed_categories,
+    _seed_habits,
+    _seed_liabilities,
+    _seed_liability_transactions,
+    _seed_budget,
+    _seed_holdings,
 )
 
 SessionFactory = Callable[[], AbstractContextManager[Session]]
@@ -27,13 +32,20 @@ def run_heavy_seed(
 
     with _get_session(session_factory) as session:
         # ensure base categories/accounts
-        _seed_categories(session, user_id)
+        categories = _seed_categories(session, user_id)
         accounts = _seed_accounts(session, user_id)
         # clear prior transactions for this user only
         for tx in session.exec(select(Transaction).where(Transaction.user_id == user_id)).all():
             session.delete(tx)
         session.flush()
         _heavy_transactions_seed(session, user_id, accounts)
+        _seed_habits(session, user_id=user_id)
+        liabilities = _seed_liabilities(session, user_id=user_id)
+        _seed_budget(session, categories, user_id=user_id)
+        _seed_holdings(session, accounts, user_id=user_id)
+        _seed_liability_transactions(
+            session, liabilities, accounts, categories, user_id=user_id
+        )
         session.flush()
         return _build_seed_summary(session, user_id=user_id)
 

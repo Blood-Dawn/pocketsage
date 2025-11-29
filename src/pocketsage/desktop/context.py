@@ -33,7 +33,7 @@ class AppContext:
     config: BaseConfig
 
     # Session factory
-    session_factory: Callable[[], AbstractContextManager[Session]]
+    session_factory: Callable[[], Session]
 
     # Repositories
     transaction_repo: SQLModelTransactionRepository

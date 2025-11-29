@@ -326,9 +326,28 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
         try:
             auth.set_password(user_id=int(target), new_password=pw1, session_factory=ctx.session_factory)
             user_status_ref.current.value = "Password updated."
+            logger.info("Password updated via admin panel", extra={"user_id": target})
+            if page:
+                page.snack_bar = ft.SnackBar(
+                    content=ft.Text("Password updated."),
+                    bgcolor=ft.Colors.GREEN_400,
+                )
+                page.snack_bar.open = True
+            _refresh_users()
         except Exception as exc:
+            logger.exception("Failed to update password", extra={"user_id": target})
             user_status_ref.current.value = f"Failed to update: {exc}"
+            if page:
+                page.snack_bar = ft.SnackBar(
+                    content=ft.Text(f"Error updating password: {exc}"),
+                    bgcolor=ft.Colors.RED_400,
+                )
+                page.snack_bar.open = True
         _safe_update(user_status_ref)
+        try:
+            page.update()
+        except Exception:
+            pass
 
     user_card = ft.Card(
         content=ft.Container(

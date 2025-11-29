@@ -409,6 +409,9 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
         spacing=8,
     )
 
+    # Reset page scroll handler to avoid lingering callbacks
+    page.on_scroll = None
+
     content = ft.Column(
         controls=[
             ft.Row(
@@ -417,9 +420,15 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     controls_row,
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                wrap=True,
+                run_spacing=8,
             ),
             ft.Container(height=12),
-            ft.Row(controls=[account_filter, ft.TextButton("Apply filter", on_click=lambda _: _refresh())]),
+            ft.Row(
+                controls=[account_filter, ft.TextButton("Apply filter", on_click=lambda _: _refresh())],
+                wrap=True,
+                run_spacing=8,
+            ),
             ft.Container(height=16),
             summary_card,
             ft.Container(height=16),
@@ -429,6 +438,15 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
         scroll=ft.ScrollMode.AUTO,
         expand=True,
     )
+
+    # Close dropdown overlays when the page scrolls to avoid floating menus
+    def _close_filters_on_scroll(_):
+        try:
+            account_filter.open = False  # type: ignore[attr-defined]
+        except Exception:
+            pass
+
+    page.on_scroll = _close_filters_on_scroll
 
     app_bar = build_app_bar(ctx, "Portfolio", page)
     main_layout = build_main_layout(ctx, page, "/portfolio", content, use_menu_bar=True)

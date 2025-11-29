@@ -20,6 +20,9 @@ if TYPE_CHECKING:
     from ..context import AppContext
 
 from .. import controllers
+from ..context import AppContext
+from ...services.admin_tasks import reset_demo_database, run_demo_seed
+from ...services.heavy_seed import run_heavy_seed
 
 
 def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
@@ -35,11 +38,6 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
         content=ft.Text("File"),
         controls=[
             ft.MenuItemButton(
-                content=ft.Text("New Transaction  Ctrl+N"),
-                leading=ft.Icon(ft.Icons.ADD),
-                on_click=lambda _: page.go("/add-data"),
-            ),
-            ft.MenuItemButton(
                 content=ft.Text("Add Data"),
                 leading=ft.Icon(ft.Icons.ADD_BOX),
                 on_click=lambda _: page.go("/add-data"),
@@ -47,12 +45,22 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
             ft.MenuItemButton(
                 content=ft.Text("Import CSV  Ctrl+I"),
                 leading=ft.Icon(ft.Icons.UPLOAD_FILE),
-                on_click=lambda _: controllers.start_ledger_import(ctx, page),
+                on_click=lambda _: _confirm_action(
+                    page,
+                    "Import CSV",
+                    "Import a CSV into the ledger?",
+                    on_confirm=lambda: controllers.start_ledger_import(ctx, page),
+                ),
             ),
             ft.MenuItemButton(
                 content=ft.Text("Export CSV"),
                 leading=ft.Icon(ft.Icons.DOWNLOAD),
-                on_click=lambda _: _export_ledger(ctx, page),
+                on_click=lambda _: _confirm_action(
+                    page,
+                    "Export CSV",
+                    "Export ledger transactions to CSV?",
+                    on_confirm=lambda: _export_ledger(ctx, page),
+                ),
             ),
             ft.Divider(),
             ft.MenuItemButton(
@@ -74,29 +82,7 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
         ],
     )
 
-    # Edit menu
-    edit_menu = ft.SubmenuButton(
-        content=ft.Text("Edit"),
-        controls=[
-            ft.MenuItemButton(
-                content=ft.Text("Categories"),
-                leading=ft.Icon(ft.Icons.CATEGORY),
-                on_click=lambda _: _open_categories_dialog(ctx, page),
-            ),
-            ft.MenuItemButton(
-                content=ft.Text("Accounts"),
-                leading=ft.Icon(ft.Icons.ACCOUNT_BALANCE),
-                on_click=lambda _: _open_accounts_dialog(ctx, page),
-            ),
-            ft.MenuItemButton(
-                content=ft.Text("Budgets"),
-                leading=ft.Icon(ft.Icons.SAVINGS),
-                on_click=lambda _: page.go("/budgets"),
-            ),
-        ],
-    )
-
-    # View menu (placeholder for future features)
+    # View menu
     view_menu = ft.SubmenuButton(
         content=ft.Text("View"),
         controls=[
@@ -109,6 +95,22 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
                 content=ft.Text("Ledger"),
                 leading=ft.Icon(ft.Icons.RECEIPT_LONG),
                 on_click=lambda _: page.go("/ledger"),
+            ),
+            ft.MenuItemButton(
+                content=ft.Text("Budgets"),
+                leading=ft.Icon(ft.Icons.SAVINGS),
+                on_click=lambda _: page.go("/budgets"),
+            ),
+            *(
+                [
+                    ft.MenuItemButton(
+                        content=ft.Text("Admin"),
+                        leading=ft.Icon(ft.Icons.ADMIN_PANEL_SETTINGS),
+                        on_click=lambda _: page.go("/admin"),
+                    )
+                ]
+                if is_admin
+                else []
             ),
         ],
     )
@@ -150,11 +152,6 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
         content=ft.Text("Reports"),
         controls=[
             ft.MenuItemButton(
-                content=ft.Text("Dashboard"),
-                leading=ft.Icon(ft.Icons.DASHBOARD),
-                on_click=lambda _: controllers.navigate(page, "/dashboard"),
-            ),
-            ft.MenuItemButton(
                 content=ft.Text("All Reports  Ctrl+6"),
                 leading=ft.Icon(ft.Icons.ASSESSMENT),
                 on_click=lambda _: controllers.navigate(page, "/reports"),
@@ -162,34 +159,16 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
         ],
     )
 
-    # Tools menu (admin features)
-    tools_controls = []
-    if is_admin:
-        tools_controls.extend([
+    # Settings menu (replaces Tools)
+    settings_menu = ft.SubmenuButton(
+        content=ft.Text("Settings"),
+        controls=[
             ft.MenuItemButton(
-                content=ft.Text("Run Demo Seed"),
-                leading=ft.Icon(ft.Icons.PLAY_ARROW),
-                on_click=lambda _: _run_demo_seed(ctx, page),
+                content=ft.Text("App Settings  Ctrl+,"),
+                leading=ft.Icon(ft.Icons.SETTINGS),
+                on_click=lambda _: controllers.navigate(page, "/settings"),
             ),
-            ft.MenuItemButton(
-                content=ft.Text("Reset Demo Data"),
-                leading=ft.Icon(ft.Icons.REFRESH),
-                on_click=lambda _: _reset_demo_data(ctx, page),
-            ),
-            ft.Divider(),
-        ])
-
-    tools_controls.append(
-        ft.MenuItemButton(
-            content=ft.Text("Settings  Ctrl+,"),
-            leading=ft.Icon(ft.Icons.SETTINGS),
-            on_click=lambda _: controllers.navigate(page, "/settings"),
-        )
-    )
-
-    tools_menu = ft.SubmenuButton(
-        content=ft.Text("Tools"),
-        controls=tools_controls,
+        ],
     )
 
     # Help menu
@@ -204,7 +183,7 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
             ft.MenuItemButton(
                 content=ft.Text("About PocketSage"),
                 leading=ft.Icon(ft.Icons.INFO),
-                on_click=lambda _: _show_about_dialog(page),
+                on_click=lambda _: page.go("/about"),
             ),
         ],
     )
@@ -213,11 +192,10 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
     return ft.MenuBar(
         controls=[
             file_menu,
-            edit_menu,
             view_menu,
             manage_menu,
             reports_menu,
-            tools_menu,
+            settings_menu,
             help_menu,
         ],
     )
@@ -251,14 +229,21 @@ def _open_accounts_dialog(ctx: AppContext, page: ft.Page):
 
 
 def _export_ledger(ctx: AppContext, page: ft.Page):
-    """Export ledger to CSV."""
-    # Delegate to ledger export
-    controllers.navigate(page, "/ledger")
-    page.snack_bar = ft.SnackBar(
-        content=ft.Text("Go to Ledger page and click Export CSV button")
-    )
-    page.snack_bar.open = True
-    page.update()
+    """Export ledger to CSV via ledger controller."""
+    try:
+        from ..controllers import export_ledger_to_csv
+    except ImportError:
+        export_ledger_to_csv = None
+
+    if export_ledger_to_csv:
+        export_ledger_to_csv(ctx, page)
+    else:
+        controllers.navigate(page, "/ledger")
+        page.snack_bar = ft.SnackBar(
+            content=ft.Text("Go to Ledger page and click Export CSV button")
+        )
+        page.snack_bar.open = True
+        page.update()
 
 
 def _backup_database(ctx: AppContext, page: ft.Page):
@@ -282,20 +267,31 @@ def _restore_database(ctx: AppContext, page: ft.Page):
 
 
 def _run_demo_seed(ctx: AppContext, page: ft.Page):
-    """Run demo seed (admin only)."""
-    controllers.navigate(page, "/admin")
+    """Run heavy/demo seed (admin only)."""
+    try:
+        summary = run_heavy_seed(session_factory=ctx.session_factory, user_id=ctx.require_user_id())
+    except Exception:
+        summary = run_demo_seed(session_factory=ctx.session_factory, user_id=ctx.require_user_id(), force=True)
     page.snack_bar = ft.SnackBar(
-        content=ft.Text("Use Admin page to run demo seed")
+        content=ft.Text(f"Seeded demo data ({summary.transactions} transactions)"),
+        action="OK",
     )
     page.snack_bar.open = True
     page.update()
 
 
 def _reset_demo_data(ctx: AppContext, page: ft.Page):
-    """Reset demo data (admin only)."""
-    controllers.navigate(page, "/admin")
+    """Reset and reseed demo data (admin only)."""
+    summary = reset_demo_database(
+        user_id=ctx.require_user_id(),
+        session_factory=ctx.session_factory,
+        reseed=False,
+    )
+    # After delete, reseed with heavy generator
+    seed_summary = run_heavy_seed(session_factory=ctx.session_factory, user_id=ctx.require_user_id())
     page.snack_bar = ft.SnackBar(
-        content=ft.Text("Use Admin page to reset demo data")
+        content=ft.Text(f"Restarted demo data ({seed_summary.transactions} transactions)"),
+        action="OK",
     )
     page.snack_bar.open = True
     page.update()
@@ -331,4 +327,30 @@ def _show_about_dialog(page: ft.Page):
 def _close_dialog(page: ft.Page, dialog: ft.AlertDialog):
     """Close a dialog."""
     dialog.open = False
+    page.update()
+
+
+def _confirm_action(page: ft.Page, title: str, message: str, on_confirm):
+    """Simple confirmation dialog before running actions like import/export."""
+
+    def _do_confirm(_):
+        dialog.open = False
+        page.update()
+        on_confirm()
+
+    def _do_cancel(_):
+        dialog.open = False
+        page.update()
+
+    dialog = ft.AlertDialog(
+        title=ft.Text(title),
+        content=ft.Text(message),
+        actions=[
+            ft.TextButton("Cancel", on_click=_do_cancel),
+            ft.FilledButton("Confirm", on_click=_do_confirm),
+        ],
+        actions_alignment=ft.MainAxisAlignment.END,
+    )
+    page.dialog = dialog
+    dialog.open = True
     page.update()

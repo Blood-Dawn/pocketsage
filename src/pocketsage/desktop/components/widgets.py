@@ -132,7 +132,7 @@ def build_progress_bar(
         if percentage > 100:
             bar_color = ft.Colors.ERROR
         elif percentage > 90:
-            bar_color = ft.Colors.WARNING
+            bar_color = ft.Colors.AMBER
         else:
             bar_color = ft.Colors.PRIMARY
 

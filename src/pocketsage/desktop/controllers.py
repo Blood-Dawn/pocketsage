@@ -75,9 +75,16 @@ def reset_demo_data(ctx: AppContext, page: ft.Page) -> None:
     """Reset demo data to a known state (drop + reseed)."""
 
     summary = admin_tasks.reset_demo_database(
-        user_id=ctx.require_user_id(), session_factory=ctx.session_factory
+        user_id=ctx.require_user_id(), session_factory=ctx.session_factory, reseed=False
     )
-    _show_snack(page, f"Demo data reset ({summary.transactions} transactions)")
+    # Reseed with heavy dataset for consistency with Run seed
+    try:
+        from ..services.heavy_seed import run_heavy_seed
+
+        seed = run_heavy_seed(session_factory=ctx.session_factory, user_id=ctx.require_user_id())
+        _show_snack(page, f"Demo data reset ({seed.transactions} transactions)")
+    except Exception:
+        _show_snack(page, f"Demo data reset ({summary.transactions} transactions)")
 
 
 def attach_file_picker(ctx: AppContext, page: ft.Page) -> ft.FilePicker:
