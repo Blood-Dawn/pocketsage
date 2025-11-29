@@ -633,6 +633,7 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     show_account_form(),
                     show_habit_form(),
                     show_debt_form(),
+                    show_budget_form(),
                     show_holding_form(),
                 ],
                 spacing=20,
