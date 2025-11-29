@@ -31,7 +31,6 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Build the reports/export view."""
 
     uid = ctx.require_user_id()
-    charts_row = ft.ResponsiveRow()
 
     # FilePicker for export destination
     export_dir_picker = ft.FilePicker()
@@ -337,7 +336,6 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 spending_png = tmp / "spending.png"
                 export_spending_png(transactions=txs, output_path=spending_png, renderer=None)  # type: ignore[arg-type]
                 # YTD CSV
-                ytd_csv = tmp / "ytd_summary.csv"
                 export_ytd_summary(tmp / "ytd_summary.csv")
                 # Debt report
                 liabilities = ctx.liability_repo.list_all(user_id=uid)

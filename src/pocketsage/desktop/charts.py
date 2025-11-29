@@ -163,7 +163,6 @@ def category_trend_png(
 ) -> Path:
     """Render stacked expenses by category over the last N months."""
 
-    from datetime import datetime
 
     today = date.today()
     month_keys: list[tuple[int, int]] = []

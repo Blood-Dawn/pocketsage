@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 
 import flet as ft
 
@@ -125,9 +126,10 @@ def main(page: ft.Page) -> None:
     _last_err_ts: float = 0.0
     _suppress_count: int = 0
     _error_log: list[str] = []
+    _session_log_path: Path | None = None
 
     def _on_error(e: ft.ControlEvent):  # pragma: no cover (UI callback)
-        nonlocal _last_err_msg, _last_err_ts, _suppress_count, _error_log
+        nonlocal _last_err_msg, _last_err_ts, _suppress_count, _error_log, _session_log_path
         msg = getattr(e, 'data', None) or "<no-data>"
         _error_log.append(msg)
         now = time.time()
@@ -155,7 +157,7 @@ def main(page: ft.Page) -> None:
         page.snack_bar = ft.SnackBar(
             content=ft.Text(f"UI error: {msg}"),
             action="Open log",
-            on_action=lambda _: page.launch_url(str((_SESSION_LOG_PATH or (Path(ctx.config.DATA_DIR) / 'logs' / 'session.log')).as_posix()))
+            on_action=lambda _: page.launch_url(str((_session_log_path or (Path(ctx.config.DATA_DIR) / 'logs' / 'session.log')).as_posix()))
             if hasattr(page, "launch_url")
             else None,
         )

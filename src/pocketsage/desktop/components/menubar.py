@@ -300,7 +300,7 @@ def _run_demo_seed(ctx: AppContext, page: ft.Page):
 
 def _reset_demo_data(ctx: AppContext, page: ft.Page):
     """Reset and reseed demo data (admin only)."""
-    summary = reset_demo_database(
+    reset_demo_database(
         user_id=ctx.require_user_id(),
         session_factory=ctx.session_factory,
         reseed=False,

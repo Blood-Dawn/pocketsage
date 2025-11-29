@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from contextlib import suppress
-from datetime import date
 from typing import TYPE_CHECKING, List
 
 import flet as ft
