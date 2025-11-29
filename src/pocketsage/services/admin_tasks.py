@@ -268,14 +268,16 @@ def _heavy_transactions_seed(session: Session, user_id: int, accounts: dict[str,
     start_date = datetime(2015, 1, 1)
     # Always include the current month in the randomized dataset
     end_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
-    income_categories = ["Salary", "Bonus", "Interest", "Dividends", "Refund"]
+    income_categories = ["Salary", "Bonus", "Interest", "Dividends", "Side Hustle", "Refund"]
     expense_categories = [
         "Groceries",
         "Dining Out",
         "Rent",
+        "Mortgage",
         "Utilities",
         "Internet",
         "Phone",
+        "Insurance",
         "Gas",
         "Transit",
         "Medical",
@@ -288,6 +290,10 @@ def _heavy_transactions_seed(session: Session, user_id: int, accounts: dict[str,
         "Pets",
         "Household",
         "Entertainment",
+        "Coffee",
+        "Wellness",
+        "Childcare",
+        "Charity",
     ]
     transfer_categories = ["Transfer In", "Transfer Out", "Payment", "Rebalance"]
     merchants = [

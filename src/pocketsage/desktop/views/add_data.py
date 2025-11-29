@@ -1,5 +1,6 @@
 """Add Data view - unified interface for creating new entries across all categories."""
 
+
 from __future__ import annotations
 
 import traceback
@@ -10,115 +11,120 @@ from typing import TYPE_CHECKING
 
 import flet as ft
 
-from ...devtools import dev_log
-from ..constants import (
-    ACCOUNT_TYPE_OPTIONS,
-    DEFAULT_CATEGORY_SEED,
-)
 from ..components import build_main_layout
+from ..devtools import dev_log
 
 if TYPE_CHECKING:
     from ..context import AppContext
 
 
+    # Removed duplicate function definition
 def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Build the add data view with quick access to all creation forms."""
 
     uid = ctx.require_user_id()
+    DEFAULT_CATEGORY_NAMES = [
+        "Bonus",
+        "Clothing",
+        "Coffee",
+        "Dining Out",
+        "Dividends",
+        "Education",
+        "Entertainment",
+        "Gaming",
+        "Gas",
+        "Gifts",
+        "Groceries",
+        "Household",
+        "Interest",
+        "Internet",
+        "Medical",
+        "Payment",
+        "Pets",
+        "Phone",
+        "Rebalance",
+        "Refund",
+        "Rent",
+        "Salary",
+        "Subscriptions",
+        "Transfer In",
+        "Transfer Out",
+        "Transit",
+        "Travel",
+        "Utilities",
+        "Wellness",
+    ]
 
-    def notify(message: str) -> None:
-        page.snack_bar = ft.SnackBar(content=ft.Text(message))
-        page.snack_bar.open = True
+    def notify(message: str):
+        snack = ft.SnackBar(content=ft.Text(message), open=True)
+        page.overlay.append(snack)
         page.update()
 
-    def notify_error(context: str, exc: Exception) -> None:
+    def notify_error(context: str, exc: Exception):
         trace = traceback.format_exc()
-        dev_log(ctx.config, "Add data action failed", exc=exc, context={"action": context})
-        print(f"{context} failed: {exc}\n{trace}")
-        notify(f"Error: {context}")
-
-    def go_back() -> None:
-        page.go("/dashboard")
+        dev_log(ctx.config, f"{context} failed", exc=exc, context={"trace": trace})
+        snack = ft.SnackBar(
+            content=ft.Text(f"Error: {context}: {exc}"),
+            open=True,
+        )
+        page.overlay.append(snack)
         page.update()
 
-    def _ensure_default_categories():
-        from ...models.category import Category
-
-        categories = ctx.category_repo.list_all(user_id=uid)
-        existing_by_slug = {c.slug: c for c in categories}
-        ordered: list[Category] = []
-
-        for seed in DEFAULT_CATEGORY_SEED:
-            slug = seed["slug"]
-            existing = existing_by_slug.get(slug)
-            if existing is None:
-                category = Category(
-                    name=seed["name"],
-                    slug=slug,
-                    category_type=seed.get("category_type", "expense"),
-                    color=seed.get("color"),
-                    user_id=uid,
-                )
-                existing = ctx.category_repo.upsert_by_slug(category, user_id=uid)
-                existing_by_slug[slug] = existing
-            else:
-                updated = False
-                if existing.name != seed["name"]:
-                    existing.name = seed["name"]
-                    updated = True
-                if existing.category_type != seed.get("category_type", existing.category_type):
-                    existing.category_type = seed.get("category_type", existing.category_type)
-                    updated = True
-                if existing.color is None and seed.get("color"):
-                    existing.color = seed["color"]
-                    updated = True
-                if updated:
-                    existing = ctx.category_repo.update(existing, user_id=uid)
-            ordered.append(existing)
-
-        seed_slugs = {c["slug"] for c in DEFAULT_CATEGORY_SEED}
-        extras = [c for c in categories if c.slug not in seed_slugs]
-        ordered.extend(sorted(extras, key=lambda c: c.name.lower()))
-        return ordered
+    def go_back():
+        page.go("/dashboard")
 
     # Transaction form
     def show_transaction_form():
         """Show inline transaction creation form."""
-
         accounts = ctx.account_repo.list_all(user_id=uid)
+        categories = ctx.category_repo.list_all(user_id=uid)
+        # Ensure default categories are present and ordered
+        existing_by_name = {c.name: c for c in categories}
+        for name in DEFAULT_CATEGORY_NAMES:
+            if name not in existing_by_name:
+                from ...models.category import Category
+
+                cat = ctx.category_repo.create(
+                    Category(
+                        name=name,
+                        slug=name.lower().replace(" ", "-"),
+                        category_type=(
+                            "income"
+                            if name in ("Bonus", "Dividends", "Interest", "Salary")
+                            else "expense"
+                        ),
+                        user_id=uid,
+                    ),
+                    user_id=uid,
+                )
+                existing_by_name[name] = cat
+        categories = [
+            existing_by_name[name]
+            for name in DEFAULT_CATEGORY_NAMES
+            if name in existing_by_name
+        ]
         if not accounts:
             from ...models.account import Account
-
             default_acct = ctx.account_repo.create(
                 Account(name="Cash", account_type="cash", balance=0.0, user_id=uid),
                 user_id=uid,
             )
             accounts = [default_acct]
 
-        categories = _ensure_default_categories()
-
         account_dd = ft.Dropdown(
             label="Account *",
-            options=[
-                ft.dropdown.Option(
-                    str(a.id),
-                    f"{a.name} ({(a.account_type or 'account').title()})",
-                )
-                for a in accounts
-                if a.id
-            ],
+            options=[ft.dropdown.Option(str(a.id), a.name) for a in accounts if a.id],
             width=300,
         )
-        if account_dd.options:
-            account_dd.value = account_dd.options[0].key
+        if not account_dd.options:
+            account_dd.options = [ft.dropdown.Option("0", "Default")]
         category_dd = ft.Dropdown(
             label="Category *",
             options=[ft.dropdown.Option(str(c.id), c.name) for c in categories if c.id],
             width=300,
         )
-        if category_dd.options:
-            category_dd.value = category_dd.options[0].key
-
+        if not category_dd.options:
+            category_dd.options = [ft.dropdown.Option("0", "General")]
         amount_field = ft.TextField(
             label="Amount *",
             hint_text="0.00",
@@ -130,7 +136,9 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
             hint_text="What was this for?",
             width=400,
         )
-        date_picker = ft.DatePicker(on_change=lambda e: date_field.update())
+        date_picker = ft.DatePicker(
+            on_change=lambda e: date_field.update(),
+        )
         page.overlay.append(date_picker)
         date_field = ft.TextField(
             label="Date *",
@@ -157,29 +165,35 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
             try:
                 from ...models.transaction import Transaction
 
-                parsed_date = date.fromisoformat(date_field.value or str(date.today()))
+                # Parse date and convert to datetime
+                date_str = date_field.value or str(date.today())
+                parsed_date = date.fromisoformat(date_str)
                 occurred_datetime = datetime.combine(parsed_date, datetime.min.time())
-                amount = float(amount_field.value)
 
                 txn = Transaction(
                     account_id=int(account_dd.value or 0),
                     category_id=int(category_dd.value or 0),
-                    amount=amount,
+                    amount=float(amount_field.value),
                     memo=description_field.value or "",
                     occurred_at=occurred_datetime,
                     user_id=uid,
                 )
                 ctx.transaction_repo.create(txn, user_id=uid)
+                dev_log(
+                    ctx.config,
+                    "Transaction saved",
+                    context={"amount": txn.amount, "memo": txn.memo},
+                )
                 notify("Transaction created successfully!")
+                # Clear form
                 amount_field.value = ""
                 description_field.value = ""
-                with suppress(AssertionError):
-                    amount_field.update()
-                    description_field.update()
+                amount_field.update()
+                description_field.update()
             except Exception as exc:
                 notify_error("Create transaction", exc)
-
         def _clear_transaction_form():
+            """Clear transaction form fields."""
             amount_field.value = ""
             description_field.value = ""
             for fld in (amount_field, description_field):
@@ -211,16 +225,18 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     def show_budget_form():
         """Inline budget creation with a single planned line."""
-
         label_field = ft.TextField(
             label="Budget Name",
             value=f"Budget {ctx.current_month:%B %Y}",
             width=260,
         )
-        categories = _ensure_default_categories()
         category_dd = ft.Dropdown(
             label="Category",
-            options=[ft.dropdown.Option(str(c.id), c.name) for c in categories if c.id],
+            options=[
+                ft.dropdown.Option(str(c.id), c.name)
+                for c in ctx.category_repo.list_all(user_id=uid)
+                if c.id
+            ],
             width=240,
         )
         amount_field = ft.TextField(
@@ -242,7 +258,12 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
             )
             if not budget:
                 start = ctx.current_month.replace(day=1)
-                end = ctx.current_month.replace(day=monthrange(ctx.current_month.year, ctx.current_month.month)[1])
+                end = ctx.current_month.replace(
+                    day=monthrange(
+                        ctx.current_month.year,
+                        ctx.current_month.month
+                    )[1]
+                )
                 budget = ctx.budget_repo.create(
                     Budget(
                         period_start=start,
@@ -286,22 +307,15 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
             border_radius=8,
         )
 
+    # Habit inline form
     def show_habit_form():
-        """Habit inline form."""
-
         name_field = ft.TextField(label="Habit Name *", width=260)
         desc_field = ft.TextField(label="Description", width=320)
         cadence_dd = ft.Dropdown(
             label="Cadence",
-            options=[
-                ft.dropdown.Option("daily", "Daily"),
-                ft.dropdown.Option("weekly", "Weekly"),
-                ft.dropdown.Option("biweekly", "Bi-Weekly"),
-                ft.dropdown.Option("monthly", "Monthly"),
-                ft.dropdown.Option("yearly", "Yearly"),
-            ],
+            options=[ft.dropdown.Option("daily", "Daily")],
             value="daily",
-            width=200,
+            width=160,
         )
 
         def save_habit(_):
@@ -343,7 +357,6 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
     # Debt/Liability form
     def show_debt_form():
         """Show inline debt creation form."""
-
         name_field = ft.TextField(label="Debt Name *", width=300)
         balance_field = ft.TextField(
             label="Current Balance *",
@@ -358,14 +371,12 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
         )
 
         def save_debt(_):
-            if not all(
-                [
-                    name_field.value,
-                    balance_field.value,
-                    apr_field.value,
-                    min_payment_field.value,
-                ]
-            ):
+            if not all([
+                name_field.value,
+                balance_field.value,
+                apr_field.value,
+                min_payment_field.value,
+            ]):
                 notify("Please fill in all required fields")
                 return
 
@@ -380,15 +391,24 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     user_id=uid,
                 )
                 ctx.liability_repo.create(debt, user_id=uid)
-                dev_log(ctx.config, "Liability created", context={"name": debt.name})
+                dev_log(
+                    ctx.config,
+                    "Liability created",
+                    context={
+                        "name": debt.name,
+                        "balance": debt.balance,
+                    },
+                )
                 notify("Debt created successfully!")
+                # Clear form
+                name_field.value = ""
                 balance_field.value = ""
                 apr_field.value = ""
                 min_payment_field.value = ""
-                with suppress(AssertionError):
-                    balance_field.update()
-                    apr_field.update()
-                    min_payment_field.update()
+                name_field.update()
+                balance_field.update()
+                apr_field.update()
+                min_payment_field.update()
             except Exception as exc:
                 notify_error("Create debt", exc)
 
@@ -411,11 +431,9 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
     # Portfolio/Holding form
     def show_holding_form():
         """Show inline holding creation form."""
-
         accounts = ctx.account_repo.list_all(user_id=uid)
         if not accounts:
             from ...models.account import Account
-
             default_acct = ctx.account_repo.create(
                 Account(name="Brokerage", account_type="investment", balance=0.0, user_id=uid),
                 user_id=uid,
@@ -429,7 +447,8 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
         )
         if account_dd.options:
             account_dd.value = account_dd.options[0].key
-
+        if not account_dd.options:
+            account_dd.options = [ft.dropdown.Option("0", "Default")]
         ticker_field = ft.TextField(label="Ticker Symbol *", width=150)
         shares_field = ft.TextField(
             label="Shares *",
@@ -448,14 +467,12 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
         )
 
         def save_holding(_):
-            if not all(
-                [
-                    account_dd.value,
-                    ticker_field.value,
-                    shares_field.value,
-                    cost_basis_field.value,
-                ]
-            ):
+            if not all([
+                account_dd.value,
+                ticker_field.value,
+                shares_field.value,
+                cost_basis_field.value,
+            ]):
                 notify("Please fill in all required fields")
                 return
 
@@ -480,13 +497,15 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     },
                 )
                 notify("Holding created successfully!")
+                # Clear form
                 ticker_field.value = ""
                 shares_field.value = ""
                 cost_basis_field.value = ""
-                with suppress(AssertionError):
-                    ticker_field.update()
-                    shares_field.update()
-                    cost_basis_field.update()
+                market_price_field.value = ""
+                ticker_field.update()
+                shares_field.update()
+                cost_basis_field.update()
+                market_price_field.update()
             except Exception as exc:
                 notify_error("Create holding", exc)
 
@@ -509,13 +528,17 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
     # Account form
     def show_account_form():
         """Show inline account creation form."""
-
         name_field = ft.TextField(label="Account Name *", width=300)
         type_dd = ft.Dropdown(
             label="Account Type *",
-            options=[ft.dropdown.Option(key, text) for key, text in ACCOUNT_TYPE_OPTIONS],
-            width=240,
-            value="checking",
+            options=[
+                ft.dropdown.Option("checking", "Checking"),
+                ft.dropdown.Option("savings", "Savings"),
+                ft.dropdown.Option("credit", "Credit Card"),
+                ft.dropdown.Option("investment", "Investment"),
+                ft.dropdown.Option("cash", "Cash"),
+            ],
+            width=200,
         )
         balance_field = ft.TextField(
             label="Initial Balance",
@@ -548,11 +571,11 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     },
                 )
                 notify("Account created successfully!")
+                # Clear form
                 name_field.value = ""
                 balance_field.value = "0.00"
-                with suppress(AssertionError):
-                    name_field.update()
-                    balance_field.update()
+                name_field.update()
+                balance_field.update()
             except Exception as exc:
                 notify_error("Create account", exc)
 
@@ -561,10 +584,11 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 controls=[
                     ft.Text("New Account", size=20, weight=ft.FontWeight.BOLD),
                     ft.Divider(),
-                    ft.Row([name_field, type_dd, balance_field], wrap=True, spacing=10),
+                    name_field,
+                    ft.Row([type_dd, balance_field]),
                     ft.FilledButton("Save Account", on_click=save_account),
                 ],
-                spacing=12,
+                spacing=16,
             ),
             padding=20,
             border=ft.border.all(1, ft.Colors.OUTLINE),
@@ -590,19 +614,21 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.Text(
                 (
                     "Create new entries for your financial data. "
-                    "Fill out the forms below to quickly capture transactions, accounts, habits, debts, and holdings."
+                    "Fill out the forms below or use quick action buttons."
                 ),
                 size=14,
                 color=ft.Colors.ON_SURFACE_VARIANT,
             ),
             ft.Divider(),
+            # Quick action buttons row
+            # Quick action buttons removed; rely on inline forms below.
+            # Forms in expandable sections
             ft.Column(
                 controls=[
                     show_transaction_form(),
                     show_account_form(),
                     show_habit_form(),
                     show_debt_form(),
-                    show_budget_form(),
                     show_holding_form(),
                 ],
                 spacing=20,

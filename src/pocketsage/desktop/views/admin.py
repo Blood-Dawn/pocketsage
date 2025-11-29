@@ -310,22 +310,26 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
     def _update_password(_):
         target = user_dd.value
         if not target:
-            user_status_ref.current.value = "Select a user first."
+            if user_status_ref.current:
+                user_status_ref.current.value = "Select a user first."
             _safe_update(user_status_ref)
             return
         pw1 = (new_pw_field.value or "").strip()
         pw2 = (confirm_pw_field.value or "").strip()
         if not pw1 or not pw2:
-            user_status_ref.current.value = "Enter and confirm the password."
+            if user_status_ref.current:
+                user_status_ref.current.value = "Enter and confirm the password."
             _safe_update(user_status_ref)
             return
         if pw1 != pw2:
-            user_status_ref.current.value = "Passwords do not match."
+            if user_status_ref.current:
+                user_status_ref.current.value = "Passwords do not match."
             _safe_update(user_status_ref)
             return
         try:
             auth.set_password(user_id=int(target), new_password=pw1, session_factory=ctx.session_factory)
-            user_status_ref.current.value = "Password updated."
+            if user_status_ref.current:
+                user_status_ref.current.value = "Password updated."
             logger.info("Password updated via admin panel", extra={"user_id": target})
             if page:
                 page.snack_bar = ft.SnackBar(
@@ -336,7 +340,8 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
             _refresh_users()
         except Exception as exc:
             logger.exception("Failed to update password", extra={"user_id": target})
-            user_status_ref.current.value = f"Failed to update: {exc}"
+            if user_status_ref.current:
+                user_status_ref.current.value = f"Failed to update: {exc}"
             if page:
                 page.snack_bar = ft.SnackBar(
                     content=ft.Text(f"Error updating password: {exc}"),
