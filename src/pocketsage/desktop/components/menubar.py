@@ -82,6 +82,23 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
         ],
     )
 
+    # Edit menu
+    edit_menu = ft.SubmenuButton(
+        content=ft.Text("Edit"),
+        controls=[
+            ft.MenuItemButton(
+                content=ft.Text("Categories"),
+                leading=ft.Icon(ft.Icons.CATEGORY),
+                on_click=lambda _: _open_categories_dialog(ctx, page),
+            ),
+            ft.MenuItemButton(
+                content=ft.Text("Accounts"),
+                leading=ft.Icon(ft.Icons.ACCOUNT_BALANCE_WALLET),
+                on_click=lambda _: _open_accounts_dialog(ctx, page),
+            ),
+        ],
+    )
+
     # View menu
     view_menu = ft.SubmenuButton(
         content=ft.Text("View"),
@@ -192,6 +209,7 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
     return ft.MenuBar(
         controls=[
             file_menu,
+            edit_menu,
             view_menu,
             manage_menu,
             reports_menu,

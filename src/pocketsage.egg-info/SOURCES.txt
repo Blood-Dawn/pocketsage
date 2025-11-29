@@ -13,6 +13,7 @@ src/pocketsage.egg-info/top_level.txt
 src/pocketsage/desktop/__init__.py
 src/pocketsage/desktop/app.py
 src/pocketsage/desktop/charts.py
+src/pocketsage/desktop/constants.py
 src/pocketsage/desktop/context.py
 src/pocketsage/desktop/controllers.py
 src/pocketsage/desktop/navigation.py
