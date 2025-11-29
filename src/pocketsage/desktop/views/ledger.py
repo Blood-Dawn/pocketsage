@@ -205,6 +205,8 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         page.update()
 
     quick_range.on_change = lambda _: _set_quick_range(quick_range.value or "this_month")
+    # Seed the initial quick range so date fields and listings start aligned.
+    _set_quick_range(quick_range.value or "this_month")
 
     def _render_summary(totals: dict[str, float]) -> None:
         if income_text.current:
