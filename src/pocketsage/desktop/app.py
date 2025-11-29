@@ -94,8 +94,8 @@ def main(page: ft.Page) -> None:
     router = Router(page, ctx)
 
     # Register routes and aliases
-    from .views.auth import build_auth_view
     from .views.about import build_about_view
+    from .views.auth import build_auth_view
 
     route_builders = {
         "/login": build_auth_view,
@@ -126,10 +126,9 @@ def main(page: ft.Page) -> None:
     _last_err_ts: float = 0.0
     _suppress_count: int = 0
     _error_log: list[str] = []
-    _session_log_path: Path | None = None
 
     def _on_error(e: ft.ControlEvent):  # pragma: no cover (UI callback)
-        nonlocal _last_err_msg, _last_err_ts, _suppress_count, _error_log, _session_log_path
+        nonlocal _last_err_msg, _last_err_ts, _suppress_count, _error_log
         msg = getattr(e, 'data', None) or "<no-data>"
         _error_log.append(msg)
         now = time.time()
@@ -141,23 +140,35 @@ def main(page: ft.Page) -> None:
             if _suppress_count % 100 == 0:
                 logger.warning(
                     "Repeated Flet errors suppressed",
-                    extra={"event": "error_suppressed", "error_message": msg, "suppressed": _suppress_count},
+                    extra={
+                        "event": "error_suppressed",
+                        "error_message": msg,
+                        "suppressed": _suppress_count,
+                    },
                 )
             return
         # New message or spaced out
         if _suppress_count:
             logger.warning(
                 "Suppression summary",
-                extra={"event": "error_suppression_summary", "error_message": _last_err_msg, "suppressed": _suppress_count},
+                extra={
+                    "event": "error_suppression_summary",
+                    "error_message": _last_err_msg,
+                    "suppressed": _suppress_count,
+                },
             )
         _last_err_msg = msg
         _last_err_ts = now
         _suppress_count = 0
-        logger.error("Flet page error", extra={"event": "error", "data": msg, "errors": _error_log[-5:]})
+        logger.error(
+            "Flet page error",
+            extra={"event": "error", "data": msg, "errors": _error_log[-5:]},
+        )
+        session_log = Path(ctx.config.DATA_DIR) / 'logs' / 'session.log'
         page.snack_bar = ft.SnackBar(
             content=ft.Text(f"UI error: {msg}"),
             action="Open log",
-            on_action=lambda _: page.launch_url(str((_session_log_path or (Path(ctx.config.DATA_DIR) / 'logs' / 'session.log')).as_posix()))
+            on_action=lambda _: page.launch_url(str(session_log.as_posix()))
             if hasattr(page, "launch_url")
             else None,
         )

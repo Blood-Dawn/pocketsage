@@ -5,17 +5,44 @@ from __future__ import annotations
 
 import traceback
 from calendar import monthrange
-from contextlib import suppress
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 import flet as ft
 
-from ..components import build_main_layout
 from ...devtools import dev_log
+from ..components import build_main_layout
 
 if TYPE_CHECKING:
     from ..context import AppContext
+
+
+def safe_update_fields(*controls):
+    """Safely call `update()` on Flet controls that may not be attached to a page.
+
+    - Skips controls that do not have a `page` attribute set.
+    - Suppresses `AssertionError` raised by `update()` when a control
+      is not attached to a page (common in tests).
+    - Logs suppressed AssertionErrors for development visibility.
+    """
+    from ...config import Config
+
+    for control in controls:
+        if getattr(control, "page", None):
+            try:
+                control.update()
+            except AssertionError as exc:
+                # Log suppressed errors for development visibility
+                # Try to get config from page context if available
+                page = getattr(control, "page", None)
+                config = getattr(page, "data", {}).get("config") if page else None
+                if config and isinstance(config, Config):
+                    dev_log(
+                        config,
+                        f"Suppressed AssertionError during {control.__class__.__name__}.update()",
+                        exc=exc,
+                        context={"control_type": control.__class__.__name__},
+                    )
 
 
     # Removed duplicate function definition
@@ -188,21 +215,14 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 # Clear form
                 amount_field.value = ""
                 description_field.value = ""
-                # Only update if fields are attached to page (avoid assertion errors in tests)
-                for fld in (amount_field, description_field):
-                    if getattr(fld, "page", None):
-                        with suppress(AssertionError):
-                            fld.update()
+                safe_update_fields(amount_field, description_field)
             except Exception as exc:
                 notify_error("Create transaction", exc)
         def _clear_transaction_form():
             """Clear transaction form fields."""
             amount_field.value = ""
             description_field.value = ""
-            for fld in (amount_field, description_field):
-                if getattr(fld, "page", None):
-                    with suppress(AssertionError):
-                        fld.update()
+            safe_update_fields(amount_field, description_field)
 
         return ft.Container(
             content=ft.Column(
@@ -337,9 +357,7 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
             notify("Habit created")
             name_field.value = ""
             desc_field.value = ""
-            with suppress(AssertionError):
-                name_field.update()
-                desc_field.update()
+            safe_update_fields(name_field, desc_field)
 
         return ft.Container(
             content=ft.Column(
@@ -408,10 +426,7 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 balance_field.value = ""
                 apr_field.value = ""
                 min_payment_field.value = ""
-                name_field.update()
-                balance_field.update()
-                apr_field.update()
-                min_payment_field.update()
+                safe_update_fields(name_field, balance_field, apr_field, min_payment_field)
             except Exception as exc:
                 notify_error("Create debt", exc)
 
@@ -505,11 +520,7 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 shares_field.value = ""
                 cost_basis_field.value = ""
                 market_price_field.value = ""
-                # Only update if fields are attached to page (avoid assertion errors in tests)
-                for fld in (ticker_field, shares_field, cost_basis_field, market_price_field):
-                    if getattr(fld, "page", None):
-                        with suppress(AssertionError):
-                            fld.update()
+                safe_update_fields(ticker_field, shares_field, cost_basis_field, market_price_field)
             except Exception as exc:
                 notify_error("Create holding", exc)
 
@@ -578,8 +589,7 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 # Clear form
                 name_field.value = ""
                 balance_field.value = "0.00"
-                name_field.update()
-                balance_field.update()
+                safe_update_fields(name_field, balance_field)
             except Exception as exc:
                 notify_error("Create account", exc)
 
