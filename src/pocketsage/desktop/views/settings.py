@@ -97,7 +97,7 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
     def restore_db(_):
         restore_picker.pick_files(
             allow_multiple=False,
-            allowed_extensions=["db"],
+            allowed_extensions=["db", "zip"],
         )
 
     def _on_restore(e: ft.FilePickerResultEvent):

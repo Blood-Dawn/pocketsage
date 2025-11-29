@@ -11,7 +11,6 @@ import flet as ft
 from ...models.budget import Budget, BudgetLine
 from ...models.category import Category
 from ..components import build_app_bar, build_main_layout, build_progress_bar
-from .. import controllers
 from ..components.dialogs import show_budget_dialog
 
 if TYPE_CHECKING:
@@ -169,6 +168,14 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
             add_budget_line(int(budget.id))
         else:
             show_create_budget_dialog()
+
+    def _open_budget_dialog(_=None):
+        show_budget_dialog(
+            ctx=ctx,
+            page=page,
+            target_month=ctx.current_month,
+            on_save_callback=refresh_view,
+        )
 
     if budget:
         # Get budget lines
@@ -356,6 +363,22 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     content=ft.Column(controls=budget_rows, spacing=0),
                     elevation=2,
                 ),
+                ft.Container(height=12),
+                ft.Row(
+                    controls=[
+                        ft.FilledButton(
+                            "Edit budget",
+                            icon=ft.Icons.EDIT,
+                            on_click=_open_budget_dialog,
+                        ),
+                        ft.TextButton(
+                            "Add category",
+                            icon=ft.Icons.ADD,
+                            on_click=lambda _: _open_budget_dialog(),
+                        ),
+                    ],
+                    spacing=8,
+                ),
             ],
             spacing=0,
         )
@@ -386,7 +409,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.FilledButton(
                         "Create Budget",
                         icon=ft.Icons.ADD,
-                        on_click=lambda _: controllers.navigate(page, "/add-data"),
+                        on_click=_open_budget_dialog,
                     ),
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,

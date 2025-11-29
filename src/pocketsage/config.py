@@ -36,7 +36,8 @@ class BaseConfig:
         self.USE_SQLCIPHER = _env_bool(self.SQLCIPHER_FLAG, default=False)
         self.DEV_MODE = _env_bool("POCKETSAGE_DEV_MODE", default=True)
         self.DATABASE_URL = os.getenv("POCKETSAGE_DATABASE_URL", self._build_sqlite_url())
-        # TODO(@security-team): fail fast when SECRET_KEY is default in production modes.
+        if not self.DEV_MODE and self.SECRET_KEY == "replace-me":
+            raise ValueError("POCKETSAGE_SECRET_KEY must be set in non-dev mode.")
 
     def _resolve_data_dir(self) -> Path:
         """Return the directory where SQLite/SQLCipher files live."""

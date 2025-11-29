@@ -187,7 +187,7 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
         logger.info("Restore button clicked")
         restore_picker.pick_files(
             allow_multiple=False,
-            allowed_extensions=["db"],
+            allowed_extensions=["db", "zip"],
         )
         logger.info("File picker opened for restore")
 

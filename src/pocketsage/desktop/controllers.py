@@ -117,9 +117,9 @@ def attach_file_picker(ctx: AppContext, page: ft.Page) -> ft.FilePicker:
                     context={"path": csv_path, "created": created},
                 )
                 msg = (
-                    f"Imported {created} transactions"
+                    f"Imported {created} transactions from {csv_path.name}"
                     if created
-                    else "No new transactions imported (duplicates or invalid rows?)"
+                    else f"No new transactions from {csv_path.name} (duplicates or invalid rows)"
                 )
                 setattr(ctx, "pending_refresh_route", "/ledger")
                 _show_snack(page, msg)

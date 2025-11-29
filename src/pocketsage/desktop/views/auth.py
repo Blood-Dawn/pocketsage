@@ -7,9 +7,12 @@ from typing import TYPE_CHECKING
 import flet as ft
 
 from ...services import auth
+from ...logging_config import get_logger
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..context import AppContext
+
+logger = get_logger(__name__)
 
 
 def build_auth_view(ctx: AppContext, page: ft.Page) -> ft.View:
@@ -50,6 +53,7 @@ def build_auth_view(ctx: AppContext, page: ft.Page) -> ft.View:
             page.update()
             return
 
+        logger.info("Login attempt", extra={"username": username})
         user = auth.authenticate(
             username=username,
             password=password,
@@ -60,10 +64,13 @@ def build_auth_view(ctx: AppContext, page: ft.Page) -> ft.View:
             error_text.value = "Invalid username or password"
             error_text.visible = True
             page.update()
+            logger.warning("Login failed", extra={"username": username})
             return
 
         ctx.current_user = user
         ctx.guest_mode = False
+        ctx.admin_mode = bool(user.role == "admin")
+        logger.info("Login succeeded", extra={"username": username, "role": user.role})
         page.snack_bar = ft.SnackBar(
             content=ft.Text(f"Welcome, {user.username}!")
         )

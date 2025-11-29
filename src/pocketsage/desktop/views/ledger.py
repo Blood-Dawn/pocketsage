@@ -208,6 +208,11 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     # Seed the initial quick range so date fields and listings start aligned.
     _set_quick_range(quick_range.value or "this_month")
 
+    def _snack(message: str) -> None:
+        page.snack_bar = ft.SnackBar(content=ft.Text(message), show_close_icon=True)
+        page.snack_bar.open = True
+        page.update()
+
     def _render_summary(totals: dict[str, float]) -> None:
         if income_text.current:
             income_text.current.value = _format_currency(totals["income"])
@@ -468,9 +473,16 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 date_field.error_text = "Use YYYY-MM-DD"
                 if date_field.page:
                     date_field.update()
-                raise
+                raise ValueError("Date must be YYYY-MM-DD") from e
 
-            raw_amount = float(amount_field.value or 0)
+            try:
+                raw_amount = float(amount_field.value or 0)
+            except ValueError as amount_err:
+                logger.warning("Amount parsing failed", exc_info=True)
+                amount_field.error_text = "Enter a number"
+                if amount_field.page:
+                    amount_field.update()
+                raise ValueError("Amount must be a number") from amount_err
             logger.info(f"Raw amount: {raw_amount}")
             if raw_amount == 0:
                 logger.warning("Amount validation failed - zero")
@@ -506,19 +518,13 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             dialog.open = False
             page.dialog = None
             _load_transactions(current_page)
-            page.snack_bar = ft.SnackBar(
-                content=ft.Text(
-                    "Transaction updated" if existing else "Transaction saved"
-                ),
-                show_close_icon=True,
-            )
-            page.snack_bar.open = True
-            page.update()
+            _snack("Transaction updated" if existing else "Transaction saved")
             logger.info("Dialog closed and page updated")
         except Exception as exc:
             logger.error(f"Save transaction failed: {exc}", exc_info=True)
             if isinstance(exc, ValueError):
                 dev_log(ctx.config, "Ledger validation failed", exc=exc)
+                _snack(str(exc))
             else:
                 dev_log(ctx.config, "Ledger save failed", exc=exc)
             show_error_dialog(page, "Save failed", str(exc))
@@ -668,6 +674,9 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         show_confirm_dialog(page, "Delete transaction", "Are you sure?", _confirm)
 
     def _export_csv(_=None) -> None:
+        if not cached_transactions:
+            _snack("No transactions to export for this filter")
+            return
         stamp = datetime.now().strftime("%Y%m%d%H%M%S")
         export_dir = ctx.config.DATA_DIR / "exports"
         output_path = export_dir / f"ledger_export_{stamp}.csv"
@@ -675,11 +684,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             export_csv.export_transactions_csv(
                 transactions=cached_transactions, output_path=output_path
             )
-            page.snack_bar = ft.SnackBar(
-                content=ft.Text(f"Exported to {output_path}"), show_close_icon=True
-            )
-            page.snack_bar.open = True
-            page.update()
+            _snack(f"Exported {len(cached_transactions)} transactions to {output_path}")
         except Exception as exc:  # pragma: no cover - user-facing guard
             show_error_dialog(page, "Export failed", str(exc))
 

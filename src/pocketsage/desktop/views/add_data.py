@@ -23,26 +23,14 @@ def safe_update_fields(*controls):
     - Skips controls that do not have a `page` attribute set.
     - Suppresses `AssertionError` raised by `update()` when a control
       is not attached to a page (common in tests).
-    - Logs suppressed AssertionErrors for development visibility.
     """
-    from ...config import Config
-
     for control in controls:
         if getattr(control, "page", None):
             try:
                 control.update()
             except AssertionError as exc:
-                # Log suppressed errors for development visibility
-                # Try to get config from page context if available
-                page = getattr(control, "page", None)
-                config = getattr(page, "data", {}).get("config") if page else None
-                if config and isinstance(config, Config):
-                    dev_log(
-                        config,
-                        f"Suppressed AssertionError during {control.__class__.__name__}.update()",
-                        exc=exc,
-                        context={"control_type": control.__class__.__name__},
-                    )
+                # Best-effort suppression; control may not be attached in tests
+                dev_log(None, "Suppressed AssertionError during control.update()", exc=exc)
 
 
     # Removed duplicate function definition

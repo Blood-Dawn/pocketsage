@@ -162,6 +162,22 @@ def build_help_view(ctx: AppContext, page: ft.Page) -> ft.View:
         )
     )
 
+    quick_start = ft.Card(
+        content=ft.Container(
+            padding=16,
+            content=ft.Column(
+                [
+                    ft.Text("Quick start", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Text("1) Add an account and category (defaults exist)."),
+                    ft.Text("2) Add a transaction or import a CSV via Ledger."),
+                    ft.Text("3) Optional: add a habit, debt, or holding to light up charts."),
+                    ft.Text("4) Export via Reports/Admin when ready."),
+                ],
+                spacing=6,
+            ),
+        )
+    )
+
     content = ft.Column(
         [
             ft.Text("Help & CSV Guide", size=24, weight=ft.FontWeight.BOLD),
@@ -173,6 +189,8 @@ def build_help_view(ctx: AppContext, page: ft.Page) -> ft.View:
             tx_card,
             ft.Container(height=10),
             portfolio_card,
+            ft.Container(height=10),
+            quick_start,
             ft.Container(height=10),
             shortcuts_card,
         ],

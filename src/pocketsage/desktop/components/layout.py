@@ -22,6 +22,7 @@ def build_app_bar(ctx: AppContext, title: str, page: ft.Page) -> ft.AppBar:
     def _logout(_e):
         ctx.current_user = None
         ctx.guest_mode = False
+        ctx.admin_mode = False
         page.snack_bar = ft.SnackBar(content=ft.Text("Logged out successfully"))
         page.snack_bar.open = True
         page.go("/login")

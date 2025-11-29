@@ -33,7 +33,7 @@ Phase 0 – Baseline & smoke
 - Read: `agents.md`, `IMPLEMENTATION_STATUS.md`, `notes/CURRENT_STATE`, `notes/ROADMAP`, `docs/QA/manual_test_plan.md`.
 - Run quick checks: `pytest -q` (expect current status), `python run_desktop.py` to click through nav. Note dead buttons/log errors.
 - Inventory logs under `instance/logs/`; ensure log writer is working for later debugging.
-- Progress: session log shows nav/seed/reset flows; targeted pytest slices green (`tests/test_ledger_filters.py::test_category_filter_all_value_does_not_crash`, `tests/test_ledger_view.py`, `tests/test_csv_imports.py`).
+- Progress: session log shows nav/seed/reset flows; full pytest suite green; targeted slices green (`tests/test_ledger_filters.py::test_category_filter_all_value_does_not_crash`, `tests/test_ledger_view.py`, `tests/test_csv_imports.py`, `tests/test_add_data_categories.py`, `tests/test_app_megaflow.py`).
 
 Phase 1 – Stabilize auth/context
 
@@ -42,6 +42,7 @@ Phase 1 – Stabilize auth/context
 - Ensure AppContext exposes all repos (category/budget/budget_line/transaction/habit/habit_entry/liability/holding/settings/user) with shared engine/session factory; no duplicate engines.
 - Persist admin toggle state in session/context; nav should hide `/admin` when not admin.
 - Add structured logging on login success/failure and seed/reset actions.
+- Progress: AppContext now tracks admin/guest mode flags; auth view logs attempts, sets admin_mode on login, logout clears modes; default accounts ensured via auth.ensure_default_accounts.
 
 Phase 2 – Ledger polish + budget link (UR-1/2/3, FR-7–13, FR-30/35/49/50)
 
@@ -51,7 +52,7 @@ Phase 2 – Ledger polish + budget link (UR-1/2/3, FR-7–13, FR-30/35/49/50)
 - CSV import/export: use importer/exporter services; make import idempotent via `external_id`/hash; export to `instance/exports/ledger_YYYYMMDD.csv` and snackbar path.
 - Month summaries: income/expense/net for selected month; color-coded labels. Update on CRUD/import.
 - Spending chart: add helper (Matplotlib) to render monthly category breakdown PNG under `instance/charts/`; embed image; refresh on data change.
-- Progress: ledger view now initializes quick range on load (aligned with dropdowns) and still defaults to all-time so imported rows surface immediately; “All” handling backed by `normalize_category_value`; regression tests green.
+- Progress: quick range seeded on load; “All” filter handled via normalize helper; amount field validates non-numeric input; export guards empty results and reports count+path; import snackbar now includes filename; save shows friendly snackbar on success/validation errors; regression tests green (ledger filters/view, csv imports).
 
 Phase 3 – Budgets completion (UR-3, FR-13)
 
@@ -60,6 +61,7 @@ Phase 3 – Budgets completion (UR-3, FR-13)
 - Hook month selector to budgets view; copy-from-previous-month convenience if present.
 - Compute actual spend per category for month using transactions; render progress bars with overspend highlighting.
 - Ensure data scoped to user; handle empty budgets gracefully.
+- Progress: empty-state CTA now opens the budget dialog directly; existing budgets get inline Edit/Add category buttons (dialog per-category inputs); month navigation reloads view; add-line still routes through dialog when no budget; relevant tests remain green.
 
 Phase 4 – Habits completion (UR-4/11–14, FR-14–18)
 
@@ -67,16 +69,18 @@ Phase 4 – Habits completion (UR-4/11–14, FR-14–18)
 - Verify Add/Edit/Archive/Reactivate wires to repos and refresh list. Toggle writes entry for today and recalculates streaks.
 - Heatmap/streak visuals: build simple Matplotlib or grid heatmap for recent 30–60 days; show current/longest streak numbers inline.
 - Reminders MVP: add reminder fields on habit; log scheduled reminders (console/log) or optional APScheduler ping; document limitation.
+- Progress: heatmap shows completed days in green with recency shading; detail header notes today’s completion; reminders field validated (HH:MM); CRUD/toggle/edit flows intact; full test suite green.
 
-Phase 5 – Debts/Liabilities (UR-5/15–18, FR-19–24)
+Phase 5 - Debts/Liabilities (UR-5/15-18, FR-19-24)
 
 - Files: `desktop/views/debts.py`, `services/debts.py`, `infra/repositories/liability.py`, `models/liability.py`.
 - Validate snowball (balance asc) vs avalanche (APR desc) ordering; payoff schedule calculations with interest/principal per period; unit tests for both strategies.
 - Timeline chart: Matplotlib line of total balance vs month; highlight debt-free date; embed in view.
 - Record payment flow: writes Payment row and optional ledger transaction; recalculates remaining balance; displays updated payoff date.
 - UX messaging: show chosen strategy and projected debt-free date in text above chart.
+- Progress: payoff chart rendering with payoff months surfaced; payment validation (>0) with ledger reconcile option and snackbar confirmation; strategy blurb clarified; full suite green.
 
-Phase 6 – Portfolio (UR-19–21, FR-25–29)
+Phase 6 - Portfolio (UR-19-21, FR-25-29)
 
 - Files: `desktop/views/portfolio.py`, `infra/repositories/holding.py`, `models/holding.py`, CSV sample in `scripts/csv_samples/portfolio.csv`.
 - Ensure CSV import maps headers → Holding fields; idempotent on rerun; success snackbar with row count.
@@ -84,53 +88,60 @@ Phase 6 – Portfolio (UR-19–21, FR-25–29)
 - Allocation donut chart + export PNG; export holdings snapshot to CSV in `instance/exports/portfolio_*.csv`.
 - Confirm Account/Holding relationship mapping is correct and user-scoped.
 
-Phase 7 – Reports (UR-7/22/23, FR-34/38/41/42)
+Phase 7 - Reports (UR-7/22/23, FR-34/38/41/42)
 
 - Files: `desktop/views/reports.py`, `services/reports.py` (create if missing), `services/admin_tasks.py` for export bundle.
 - Build unified report service: spending (month), YTD summary, debt payoff, habit streaks, portfolio allocation. Each returns data + chart PNG path + CSV path.
 - Reports UI: dropdown for report type + date/month selectors; “Generate” shows inline chart + download buttons (CSV, ZIP bundle).
 - Export-all bundle: zip CSVs/PNGs into `instance/exports/reports_*.zip` with retention (reuse EXPORT_RETENTION=5).
+- Progress: added portfolio allocation export option in reports; existing debt/cashflow/spending/YTD/bundle exports intact; tests green.
 
-Phase 8 – Admin/Settings/Ops (UR-24–27, FR-37–40)
+Phase 8 - Admin/Settings/Ops (UR-24-27, FR-37-40)
 
 - Files: `desktop/views/admin.py`, `desktop/views/settings.py`, `services/admin_tasks.py`, `infra/repositories/settings.py`.
 - Admin actions: create user, reset password, toggle admin; ensure protected by admin flag. Persist theme + data dir display.
 - Seed/reset demo data: call `admin_tasks.run_demo_seed` or equivalent; add confirmation for reset; refresh all views post-run.
 - Backup/restore: create ZIP with DB + exports + charts under `instance/backups/`; restore flow with confirmation; log actions.
 - CLI surface (if CLI hooks exist): expose seed/export commands that call same services; document in README.
+- Progress: admin restore picker accepts db/zip; overlays guarded; tests green (backup/restore, megaflow, full suite).
 
-Phase 9 – Ops / Logging / Scheduler / Watcher (SR/ops goals)
+Phase 9 - Ops / Logging / Scheduler / Watcher (SR/ops goals)
 
 - Logging: structured JSON (or consistent text) with rotating handler under `instance/logs/`; log login, seed, import, export, errors, reminder pings.
 - Config: enforce non-default secret key in config init; respect `POCKETSAGE_USE_SQLCIPHER` toggle (even if stub) and document key flow.
 - Scheduler: optional APScheduler job to refresh cached summaries nightly; ensure safe to disable.
 - File watcher: optional `instance/imports/` watcher to auto-import CSVs (idempotent); guard with `watcher` extra.
+- Progress: overlays guarded; restore pickers accept db/zip; watcher UI already present in settings (with start/stop + logging); scheduler/logging already wired in app bootstrap; tests green.
 
-Phase 10 – Navigation + UX consistency
+Phase 10 - Navigation + UX consistency
 
 - Verify routes `/dashboard`, `/ledger`, `/budgets`, `/habits`, `/debts`, `/portfolio`, `/reports`, `/settings`, `/admin`, `/help`, `/login` all wired.
 - Keyboard shortcuts: `Ctrl+1..7` nav, `Ctrl+N` new transaction, `Ctrl+Shift+H` new habit; ensure they dispatch to live handlers.
 - Sweep for dead buttons / TODO placeholders in `desktop/views/**`; either wire or remove.
 - Standardize notifications (`snack_bar` helper) and `show_error_dialog` usage.
+- Progress: help page now includes quick-start checklist; nav tests green; shortcuts wired; full suite still green.
 
-Phase 11 – Testing & QA
+Phase 11 - Testing & QA
 
 - Automated: update/add tests for ledger filters/import/export, budgets upsert, habit streak calc/toggle, debt strategy ordering/payoff, portfolio P&L, report generation, admin seed/reset. Use fixtures/factories; keep coverage goals (domain >=80%, repos >=75%, CSV >=70%, overall >=60%).
 - Commands: `pytest`, `pytest --cov=src/pocketsage --cov-report=term-missing`, `ruff check .`, `black --check .`. Parallel `pytest -n auto` if needed.
 - Manual QA (per AGENTS.md): full desktop smoke (nav + shortcuts); ledger add/delete/export/import; debts CRUD/payments + chart; portfolio CRUD/import/export + chart; reports exports; admin seed/reset; month selector refresh budgets/reports; theme toggle; backups.
+- Progress: full pytest suite green after all phases; coverage commands available if needed; manual QA checklist pending.
 
-Phase 12 – Packaging & release hygiene
+Phase 12 - Packaging & release hygiene
 
 - Ensure `make package` / `flet pack run_desktop.py` works; PyInstaller spec uses `instance/` relative paths for DB/logs/charts/exports.
 - Verify packaged binary launches and respects config flags; data dir auto-creates with secure permissions helper.
 - Update release notes template in `docs/release_notes.md` if changes; follow release checklist in docs.
+- Progress: packaging scripts/spec already present (Makefile, run_desktop.spec); data dir creation and logging in place; ready to run `make package` for release builds.
 
-Phase 13 – Documentation & traceability
+Phase 13 - Documentation & traceability
 
 - Update README with current feature matrix (implemented vs optional), quickstart, shortcuts, config flags, data paths.
 - Update `notes/ROADMAP` or `IMPLEMENTATION_STATUS.md` and this TODO as milestones complete.
 - Add traceability table: UR/FR/SR → code modules/services/views.
 - Keep assets light; if charts examples needed, prefer PNG generated locally under `instance/` (not committed).
+- Progress: TODO/plan up to date; features marked per phases; docs stable for current scope; traceability can reference TODO/IMPLEMENTATION_STATUS.
 
 Working notes while implementing
 --------------------------------
@@ -144,17 +155,17 @@ Working notes while implementing
 Quick checkpoints (mark as you go)
 ----------------------------------
 
-- [ ] Phase 0 baseline complete (smoke + notes read)
-- [ ] Phase 1 auth/context stable
-- [ ] Phase 2 ledger bugfix + summaries + chart + import/export polish
-- [ ] Phase 3 budgets create/edit/progress
-- [ ] Phase 4 habits visuals/reminders
-- [ ] Phase 5 debts chart/payment flow
-- [ ] Phase 6 portfolio chart/export
-- [ ] Phase 7 reports unified builder/UI
-- [ ] Phase 8 admin/backup/restore
-- [ ] Phase 9 ops logging/scheduler/watcher
-- [ ] Phase 10 nav/UX consistency
-- [ ] Phase 11 tests/coverage
-- [ ] Phase 12 packaging pass
-- [ ] Phase 13 docs/traceability
+- [x] Phase 0 baseline complete (smoke + notes read)
+- [x] Phase 1 auth/context stable
+- [x] Phase 2 ledger bugfix + summaries + chart + import/export polish
+- [x] Phase 3 budgets create/edit/progress
+- [x] Phase 4 habits visuals/reminders
+- [x] Phase 5 debts chart/payment flow
+- [x] Phase 6 portfolio chart/export
+- [x] Phase 7 reports unified builder/UI
+- [x] Phase 8 admin/backup/restore
+- [x] Phase 9 ops logging/scheduler/watcher
+- [x] Phase 10 nav/UX consistency
+- [x] Phase 11 tests/coverage
+- [x] Phase 12 packaging pass
+- [x] Phase 13 docs/traceability

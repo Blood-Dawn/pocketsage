@@ -34,7 +34,10 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     # FilePicker for export destination
     export_dir_picker = ft.FilePicker()
-    page.overlay.append(export_dir_picker)
+    if page.overlay is None:
+        page.overlay = [export_dir_picker]
+    else:
+        page.overlay.append(export_dir_picker)
 
     def notify(message: str):
         page.snack_bar = ft.SnackBar(content=ft.Text(message))
@@ -159,6 +162,100 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
             spacing=12,
             run_spacing=12,
         )
+
+    # On-demand report generator
+    report_type_dd = ft.Dropdown(
+        label="Report type",
+        options=[
+            ft.dropdown.Option("spending", "Spending (this month)"),
+            ft.dropdown.Option("ytd", "YTD summary"),
+            ft.dropdown.Option("debt", "Debt payoff"),
+            ft.dropdown.Option("portfolio", "Portfolio allocation"),
+        ],
+        value="spending",
+        width=240,
+    )
+    result_text = ft.Ref[ft.Text]()
+    result_image = ft.Ref[ft.Image]()
+
+    def _generate_report(_=None):
+        rtype = report_type_dd.value or "spending"
+        stamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        try:
+            if rtype == "spending":
+                month = ctx.current_month
+                start = datetime(month.year, month.month, 1)
+                end = datetime(month.year + (1 if month.month == 12 else 0), (month.month % 12) + 1, 1)
+                txs = ctx.transaction_repo.search(
+                    start_date=start, end_date=end, user_id=uid, category_id=None, account_id=None, text=None  # type: ignore[arg-type]
+                )
+                out = _exports_dir() / f"spending_{stamp}.png"
+                export_spending_png(transactions=txs, output_path=out)
+                if result_image.current:
+                    result_image.current.src = str(out)
+                    result_image.current.visible = True
+                if result_text.current:
+                    result_text.current.value = f"Spending chart saved to {out}"
+            elif rtype == "ytd":
+                year = ctx.current_month.year
+                start = datetime(year, 1, 1)
+                end = datetime(year + 1, 1, 1)
+                txs = ctx.transaction_repo.search(
+                    start_date=start, end_date=end, user_id=uid, category_id=None, account_id=None, text=None  # type: ignore[arg-type]
+                )
+                income = sum(t.amount for t in txs if t.amount > 0)
+                expenses = sum(abs(t.amount) for t in txs if t.amount < 0)
+                net = income - expenses
+                out = _exports_dir() / f"ytd_{year}_{stamp}.csv"
+                with out.open("w", newline="") as fh:
+                    writer = csv.writer(fh)
+                    writer.writerow(["metric", "amount"])
+                    writer.writerow(["income", f"{income:.2f}"])
+                    writer.writerow(["expenses", f"{expenses:.2f}"])
+                    writer.writerow(["net", f"{net:.2f}"])
+                if result_image.current:
+                    result_image.current.visible = False
+                if result_text.current:
+                    result_text.current.value = f"YTD summary saved to {out}"
+            elif rtype == "debt":
+                liabilities = ctx.liability_repo.list_all(user_id=uid)
+                debts = [
+                    DebtAccount(
+                        id=lb.id or 0,
+                        balance=lb.balance,
+                        apr=lb.apr,
+                        minimum_payment=lb.minimum_payment,
+                        statement_due_day=getattr(lb, "due_day", 1) or 1,
+                    )
+                    for lb in liabilities
+                ]
+                if not debts:
+                    notify("No debts to report on.")
+                    return
+                schedule = snowball_schedule(debts=debts, surplus=0.0)
+                out = _exports_dir() / f"debt_{stamp}.png"
+                chart_path = debt_payoff_chart_png(schedule, output_path=out)
+                if result_image.current:
+                    result_image.current.src = str(chart_path)
+                    result_image.current.visible = True
+                if result_text.current:
+                    result_text.current.value = f"Debt payoff chart saved to {chart_path}"
+            elif rtype == "portfolio":
+                holdings = ctx.holding_repo.list_all(user_id=uid) if hasattr(ctx, "holding_repo") else []
+                if not holdings:
+                    notify("No holdings to export.")
+                    return
+                out = _exports_dir() / f"allocation_{stamp}.png"
+                chart = allocation_chart_png(holdings, output_path=out) if "output_path" in allocation_chart_png.__code__.co_varnames else allocation_chart_png(holdings)
+                chart_path = out if out.exists() else chart
+                if result_image.current:
+                    result_image.current.src = str(chart_path)
+                    result_image.current.visible = True
+                if result_text.current:
+                    result_text.current.value = f"Allocation chart saved to {chart_path}"
+        except Exception as exc:
+            notify(f"Report generation failed: {exc}")
+
     def _exports_dir() -> Path:
         out = Path(ctx.config.DATA_DIR) / "exports"
         out.mkdir(parents=True, exist_ok=True)
@@ -319,6 +416,20 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
         except Exception as exc:
             notify(f"Cashflow by account failed: {exc}")
 
+    def export_portfolio_allocation(custom_path: Path | None = None):
+        try:
+            holdings = ctx.holding_repo.list_all(user_id=uid) if hasattr(ctx, "holding_repo") else []
+            if not holdings:
+                notify("No holdings to export.")
+                return
+            png = allocation_chart_png(holdings)
+            stamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            dest = custom_path if custom_path is not None else _exports_dir() / f"allocation_{stamp}.png"
+            shutil.copy(png, dest)
+            notify(f"Portfolio allocation saved to {dest}")
+        except Exception as exc:
+            notify(f"Portfolio allocation failed: {exc}")
+
     def export_combined_bundle(custom_path: Path | None = None):
         try:
             exports_dir = _exports_dir() if custom_path is None else custom_path.parent
@@ -446,6 +557,16 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 ),
             ),
             _report_card(
+                title="Portfolio allocation",
+                description="Holdings split by symbol/account.",
+                on_click=lambda _: controllers.pick_export_destination(
+                    ctx,
+                    page,
+                    suggested_name="allocation.png",
+                    on_path_selected=lambda p: export_portfolio_allocation(p),
+                ),
+            ),
+            _report_card(
                 title="Combined bundle",
                 description="ZIP of transactions, spending, YTD, debt, trend, cashflow.",
                 on_click=lambda _: controllers.pick_export_destination(
@@ -460,6 +581,28 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
         run_spacing=12,
     )
 
+    generator_card = ft.Card(
+        content=ft.Container(
+            padding=12,
+            content=ft.Column(
+                controls=[
+                    ft.Text("On-demand report", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Row(
+                        controls=[
+                            report_type_dd,
+                            ft.FilledButton("Generate", icon=ft.Icons.PLAY_ARROW, on_click=_generate_report),
+                        ],
+                        spacing=8,
+                        wrap=True,
+                    ),
+                    ft.Text("", ref=result_text, color=ft.Colors.ON_SURFACE_VARIANT),
+                    ft.Image(ref=result_image, height=220, visible=False),
+                ],
+                spacing=8,
+            ),
+        )
+    )
+
     content = ft.Column(
         controls=[
             ft.Text("Reports & Exports", size=24, weight=ft.FontWeight.BOLD),
@@ -470,6 +613,8 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
             _build_charts(),
             ft.Container(height=16),
             cards,
+            ft.Container(height=16),
+            generator_card,
             ft.Container(height=16),
             empty_state("More reports coming soon."),
         ],

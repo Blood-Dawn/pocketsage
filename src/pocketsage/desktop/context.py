@@ -54,6 +54,8 @@ class AppContext:
     file_picker: Optional[ft.FilePicker] = None
     file_picker_mode: Optional[str] = None
     dev_mode: bool = False
+    admin_mode: bool = False
+    guest_mode: bool = False
     pending_new_transaction: bool = False
 
     current_user: Optional[User] = None
@@ -108,6 +110,8 @@ def create_app_context(config: Optional[BaseConfig] = None) -> AppContext:
     return AppContext(
         config=config,
         dev_mode=config.DEV_MODE,
+        admin_mode=False,
+        guest_mode=False,
         session_factory=session_factory,
         transaction_repo=transaction_repo,
         account_repo=account_repo,

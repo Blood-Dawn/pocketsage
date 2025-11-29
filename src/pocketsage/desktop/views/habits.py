@@ -80,16 +80,21 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         completed = {e.occurred_on for e in entries if e.value > 0}
         cells: list[ft.Control] = []
         day = start
+        max_count = max(1, len(completed))
         while day <= today:
             is_done = day in completed
+            # Intensity mapping for streak-ish visualization: darker for recent wins
+            recency_factor = max(0.2, 1 - (today - day).days / window)
+            alpha = 0.15 + (0.85 * recency_factor if is_done else 0.0)
             color = ft.Colors.GREEN if is_done else ft.Colors.SURFACE_CONTAINER_HIGHEST
             cells.append(
                 ft.Container(
                     width=18,
                     height=18,
                     bgcolor=color,
+                    opacity=alpha if is_done else 1.0,
                     border_radius=3,
-                    tooltip=day.isoformat(),
+                    tooltip=f"{day.isoformat()} {'✅' if is_done else '•'}",
                 )
             )
             day += timedelta(days=1)
@@ -122,6 +127,12 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
             reminder_ref.current.value = reminder_placeholder(habit_obj)
             if getattr(reminder_ref.current, "page", None):
                 reminder_ref.current.update()
+        # Update detail chips for completion meta
+        if habit_obj:
+            completed = ctx.habit_repo.get_entry(hid, date.today(), user_id=uid) is not None
+            selected_ref.current.value = (
+                f"{habit_obj.name} ({'done today' if completed else 'not done today'})"
+            )
         render_heatmap(hid)
         page.update()
 

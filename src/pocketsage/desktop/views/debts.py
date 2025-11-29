@@ -80,9 +80,13 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         payoff, total_interest, months = schedule_summary(sched)
         return sched, payoff, total_interest, months
 
-    def _update_schedule(schedule: list[dict], payoff: str | None, total_interest: float) -> None:
+    def _update_schedule(
+        schedule: list[dict], payoff: str | None, total_interest: float, months: int
+    ) -> None:
         if payoff_text.current:
-            payoff_text.current.value = f"Projected payoff: {payoff or 'N/A'}"
+            payoff_text.current.value = (
+                f"Projected payoff: {payoff or 'N/A'} ({months} months)" if schedule else "Projected payoff: N/A"
+            )
         if interest_text.current:
             interest_text.current.value = f"Projected interest: ${total_interest:,.2f}"
         rows: list[ft.Control] = []
@@ -117,6 +121,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 chart_path = debt_payoff_chart_png(schedule) if schedule else None
                 payoff_chart_ref.current.src = str(chart_path) if chart_path else ""
                 payoff_chart_ref.current.visible = bool(chart_path)
+                payoff_chart_ref.current.fit = ft.ImageFit.CONTAIN
             except Exception as exc:
                 dev_log(ctx.config, "Payoff chart render failed", exc=exc)
                 payoff_chart_ref.current.visible = False
@@ -182,10 +187,10 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             table_ref.current.rows = rows
 
         try:
-            schedule, payoff, total_interest, _months = _run_projection(
+            schedule, payoff, total_interest, months = _run_projection(
                 liabilities, mode=strategy_state.get("mode", "balanced")
             )
-            _update_schedule(schedule, payoff, total_interest)
+            _update_schedule(schedule, payoff, total_interest, months)
         except ValueError as exc:
             show_error_dialog(page, "Payoff calculation failed", str(exc))
         page.update()
@@ -287,6 +292,10 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         def _apply(_):
             try:
                 payment = float(amount_field.value or 0)
+                if payment <= 0:
+                    amount_field.error_text = "Payment must be greater than 0"
+                    amount_field.update()
+                    return
                 current = ctx.liability_repo.get_by_id(liability.id or 0, user_id=uid)
                 if current is None:
                     raise ValueError("Liability not found")
@@ -308,6 +317,16 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 )
                 payment_dialog.open = False
                 _refresh()
+                page.snack_bar = ft.SnackBar(
+                    content=ft.Text(
+                        f"Payment recorded; new balance ${current.balance:,.2f}"
+                        if current
+                        else "Payment recorded"
+                    ),
+                    show_close_icon=True,
+                )
+                page.snack_bar.open = True
+                page.update()
             except Exception as exc:
                 dev_log(ctx.config, "Payment failed", exc=exc, context={"liability": liability.id})
                 show_error_dialog(page, "Payment failed", str(exc))
@@ -488,6 +507,13 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         wrap=True,
     )
 
+    payoff_summary = ft.Text(
+        "Snowball: smallest balance first. Avalanche: highest APR first. Payment mode adds surplus toward the current focus debt.",
+        size=12,
+        color=ft.Colors.ON_SURFACE_VARIANT,
+        selectable=True,
+    )
+
     content = ft.Column(
         controls=[
             ft.Row(
@@ -503,6 +529,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             summary,
             ft.Container(height=24),
             strategy_row,
+            payoff_summary,
             ft.Card(content=ft.Container(content=table, padding=12), expand=True),
             ft.ResponsiveRow(
                 controls=[
