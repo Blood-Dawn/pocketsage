@@ -2,7 +2,7 @@
 
 Implements CRUD for habits with validation:
 - Create new habit
-- Edit existing habit  
+- Edit existing habit
 - Validate form inputs (name required, time format)
 """
 

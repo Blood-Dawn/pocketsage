@@ -188,8 +188,11 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 # Clear form
                 amount_field.value = ""
                 description_field.value = ""
-                amount_field.update()
-                description_field.update()
+                # Only update if fields are attached to page (avoid assertion errors in tests)
+                for fld in (amount_field, description_field):
+                    if getattr(fld, "page", None):
+                        with suppress(AssertionError):
+                            fld.update()
             except Exception as exc:
                 notify_error("Create transaction", exc)
         def _clear_transaction_form():
@@ -502,10 +505,11 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 shares_field.value = ""
                 cost_basis_field.value = ""
                 market_price_field.value = ""
-                ticker_field.update()
-                shares_field.update()
-                cost_basis_field.update()
-                market_price_field.update()
+                # Only update if fields are attached to page (avoid assertion errors in tests)
+                for fld in (ticker_field, shares_field, cost_basis_field, market_price_field):
+                    if getattr(fld, "page", None):
+                        with suppress(AssertionError):
+                            fld.update()
             except Exception as exc:
                 notify_error("Create holding", exc)
 
