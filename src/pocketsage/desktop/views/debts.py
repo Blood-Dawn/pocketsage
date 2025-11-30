@@ -24,6 +24,7 @@ from ...models.liability import Liability
 from ...services.debts import DebtAccount, avalanche_schedule, schedule_summary, snowball_schedule
 from ...services.liabilities import build_payment_transaction
 from ..charts import debt_payoff_chart_png
+from ..components import build_app_bar, build_main_layout, show_confirm_dialog, show_error_dialog
 from ..components import (
     build_app_bar,
     build_main_layout,
@@ -66,8 +67,28 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
     table_ref = ft.Ref[ft.DataTable]()
     schedule_ref = ft.Ref[ft.Column]()
     payoff_chart_ref = ft.Ref[ft.Image]()
+    payoff_chart_card_ref = ft.Ref[ft.Container]()
     empty_state_ref = ft.Ref[ft.Container]()
     main_content_ref = ft.Ref[ft.Column]()
+
+    def _log_debts_state(prefix: str, liabilities: list[Liability], schedule: list[dict]):
+        """Log diagnostics for debugging payoff rendering issues."""
+        logger.info(
+            "%s: debts=%s schedule_len=%s",
+            prefix,
+            [
+                {
+                    "id": li.id,
+                    "name": li.name,
+                    "balance": li.balance,
+                    "apr": li.apr,
+                    "min_payment": li.minimum_payment,
+                    "due_day": getattr(li, "due_day", None),
+                }
+                for li in liabilities
+            ],
+            len(schedule),
+        )
 
     def _to_accounts(liabilities: list[Liability]) -> list[DebtAccount]:
         return [
@@ -210,6 +231,15 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 if not has_liabilities or not schedule:
                     payoff_chart_ref.current.visible = False
                     payoff_chart_ref.current.src = ""
+                    payoff_chart_ref.current.height = 0
+                    if payoff_chart_card_ref.current:
+                        payoff_chart_card_ref.current.visible = False
+                        _safe_update(payoff_chart_card_ref.current)
+                    logger.info(
+                        "Payoff chart hidden (has_liabilities=%s, schedule_len=%s)",
+                        has_liabilities,
+                        len(schedule),
+                    )
                     _safe_update(payoff_chart_ref.current)
                     return
 
@@ -219,22 +249,45 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             payoff_chart_ref.current.src = str(chart_path)
                             payoff_chart_ref.current.visible = True
                             payoff_chart_ref.current.fit = ft.ImageFit.CONTAIN
+                            payoff_chart_ref.current.height = 240
+                            if payoff_chart_card_ref.current:
+                                payoff_chart_card_ref.current.visible = True
+                                _safe_update(payoff_chart_card_ref.current)
+                            logger.info("Payoff chart shown at %s", chart_path)
                         else:
                             payoff_chart_ref.current.src = ""
                             payoff_chart_ref.current.visible = False
+                            payoff_chart_ref.current.height = 0
+                            if payoff_chart_card_ref.current:
+                                payoff_chart_card_ref.current.visible = False
+                            logger.warning("Chart path missing or not found: %s", chart_path)
                     except Exception as path_exc:
                         logger.warning("Chart path check failed: %s", path_exc)
                         payoff_chart_ref.current.visible = False
+                        payoff_chart_ref.current.height = 0
+                        if payoff_chart_card_ref.current:
+                            payoff_chart_card_ref.current.visible = False
                 else:
                     payoff_chart_ref.current.src = ""
                     payoff_chart_ref.current.visible = False
+                    payoff_chart_ref.current.height = 0
+                    if payoff_chart_card_ref.current:
+                        payoff_chart_card_ref.current.visible = False
+                    logger.info("No chart path produced; chart hidden")
 
             except Exception as exc:
                 logger.warning("Chart update failed: %s", exc)
                 try:
                     payoff_chart_ref.current.visible = False
+                    payoff_chart_ref.current.height = 0
                 except Exception:
                     pass
+                if payoff_chart_card_ref.current:
+                    try:
+                        payoff_chart_card_ref.current.visible = False
+                    except Exception:
+                        pass
+                logger.exception("Chart update failed with exception")
 
             _safe_update(payoff_chart_ref.current)
 
@@ -315,6 +368,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             schedule, payoff, total_interest, months, chart_path = _run_projection(
                 liabilities, mode=strategy_state.get("mode", "balanced")
             )
+            _log_debts_state("After projection", liabilities, schedule)
             _update_schedule(
                 schedule,
                 payoff,
@@ -679,17 +733,18 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             strategy_row,
             payoff_summary,
             ft.Card(content=ft.Container(content=table, padding=12), expand=True),
-            ft.ResponsiveRow(
+            ft.Column(
                 controls=[
-                    ft.Container(content=schedule_card, col={"sm": 12, "md": 6}),
+                    ft.Container(content=schedule_card),
                     ft.Container(
+                        ref=payoff_chart_card_ref,
                         content=ft.Card(
                             content=ft.Container(
                                 padding=12,
                                 content=ft.Column(
                                     controls=[
                                         ft.Text("Payoff chart", weight=ft.FontWeight.BOLD),
-                                        ft.Image(ref=payoff_chart_ref, height=240),
+                                        ft.Image(ref=payoff_chart_ref, height=0, visible=False),
                                         ft.Text(
                                             "Line chart shows projected remaining balance over time.",
                                             color=ft.Colors.ON_SURFACE_VARIANT,
@@ -700,11 +755,10 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 ),
                             )
                         ),
-                        col={"sm": 12, "md": 6},
+                        visible=False,
                     ),
                 ],
                 spacing=12,
-                run_spacing=12,
             ),
         ],
         spacing=0,
