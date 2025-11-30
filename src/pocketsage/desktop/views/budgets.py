@@ -451,16 +451,10 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 tooltip="Next month",
                                 on_click=lambda _: _shift_month(1),
                             ),
-                            ft.FilledButton(
-                                "Add line",
-                                icon=ft.Icons.ADD,
-                                on_click=handle_add_line,
-                            ),
                             ft.TextButton(
-                                "Create budget", on_click=lambda _: show_create_budget_dialog()
-                            ),
-                            ft.TextButton(
-                                "Copy previous month", on_click=lambda _: copy_previous_month()
+                                "Copy previous month",
+                                icon=ft.Icons.CONTENT_COPY,
+                                on_click=lambda _: copy_previous_month(),
                             ),
                         ],
                         spacing=8,
