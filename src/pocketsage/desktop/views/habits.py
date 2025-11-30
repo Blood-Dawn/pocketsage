@@ -323,7 +323,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     show_archived_checkbox.on_change = lambda _e: refresh_habit_list(show_archived_checkbox.value)
 
-    habit_list = ft.Column(ref=habit_list_ref, spacing=8, expand=True)
+    habit_list = ft.Column(ref=habit_list_ref, spacing=8, scroll=ft.ScrollMode.AUTO)
     habit_list_ref.current = habit_list
     archived_list = ft.Column(ref=archived_list_ref, spacing=4)
 
@@ -510,8 +510,10 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         spacing=8,
                     ),
                     archived_list,
+                    ft.Container(height=24),  # Add bottom padding buffer
                 ],
                 expand=True,
+                scroll=ft.ScrollMode.AUTO,  # Make entire left column scrollable
             ),
             ft.VerticalDivider(width=1),
             ft.Container(content=detail_panel, width=320, padding=12),

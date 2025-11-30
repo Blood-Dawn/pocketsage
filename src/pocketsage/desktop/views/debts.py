@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -226,14 +227,28 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             _safe_update(schedule_ref.current)
 
         # Update payoff chart with comprehensive error handling
+        # Wrap ALL property assignments in try-except to prevent unmounted control errors
         if payoff_chart_ref.current is not None:
             try:
                 if not has_liabilities or not schedule:
-                    payoff_chart_ref.current.visible = False
-                    payoff_chart_ref.current.src = ""
-                    payoff_chart_ref.current.height = 0
+                    # Hide chart - wrap each property assignment individually
+                    try:
+                        payoff_chart_ref.current.visible = False
+                    except Exception:
+                        pass
+                    try:
+                        payoff_chart_ref.current.src = ""
+                    except Exception:
+                        pass
+                    try:
+                        payoff_chart_ref.current.height = 0
+                    except Exception:
+                        pass
                     if payoff_chart_card_ref.current:
-                        payoff_chart_card_ref.current.visible = False
+                        try:
+                            payoff_chart_card_ref.current.visible = False
+                        except Exception:
+                            pass
                         _safe_update(payoff_chart_card_ref.current)
                     logger.info(
                         "Payoff chart hidden (has_liabilities=%s, schedule_len=%s)",
@@ -246,39 +261,93 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 if chart_path is not None:
                     try:
                         if hasattr(chart_path, 'exists') and chart_path.exists():
-                            payoff_chart_ref.current.src = str(chart_path)
-                            payoff_chart_ref.current.visible = True
-                            payoff_chart_ref.current.fit = ft.ImageFit.CONTAIN
-                            payoff_chart_ref.current.height = 240
+                            # Show chart - wrap each property assignment individually
+                            try:
+                                payoff_chart_ref.current.src = str(chart_path)
+                            except Exception:
+                                pass
+                            try:
+                                payoff_chart_ref.current.visible = True
+                            except Exception:
+                                pass
+                            try:
+                                payoff_chart_ref.current.fit = ft.ImageFit.CONTAIN
+                            except Exception:
+                                pass
+                            try:
+                                payoff_chart_ref.current.height = 240
+                            except Exception:
+                                pass
                             if payoff_chart_card_ref.current:
-                                payoff_chart_card_ref.current.visible = True
+                                try:
+                                    payoff_chart_card_ref.current.visible = True
+                                except Exception:
+                                    pass
                                 _safe_update(payoff_chart_card_ref.current)
                             logger.info("Payoff chart shown at %s", chart_path)
                         else:
-                            payoff_chart_ref.current.src = ""
-                            payoff_chart_ref.current.visible = False
-                            payoff_chart_ref.current.height = 0
+                            # Hide chart if file doesn't exist
+                            try:
+                                payoff_chart_ref.current.src = ""
+                            except Exception:
+                                pass
+                            try:
+                                payoff_chart_ref.current.visible = False
+                            except Exception:
+                                pass
+                            try:
+                                payoff_chart_ref.current.height = 0
+                            except Exception:
+                                pass
                             if payoff_chart_card_ref.current:
-                                payoff_chart_card_ref.current.visible = False
+                                try:
+                                    payoff_chart_card_ref.current.visible = False
+                                except Exception:
+                                    pass
                             logger.warning("Chart path missing or not found: %s", chart_path)
                     except Exception as path_exc:
                         logger.warning("Chart path check failed: %s", path_exc)
-                        payoff_chart_ref.current.visible = False
-                        payoff_chart_ref.current.height = 0
+                        try:
+                            payoff_chart_ref.current.visible = False
+                        except Exception:
+                            pass
+                        try:
+                            payoff_chart_ref.current.height = 0
+                        except Exception:
+                            pass
                         if payoff_chart_card_ref.current:
-                            payoff_chart_card_ref.current.visible = False
+                            try:
+                                payoff_chart_card_ref.current.visible = False
+                            except Exception:
+                                pass
                 else:
-                    payoff_chart_ref.current.src = ""
-                    payoff_chart_ref.current.visible = False
-                    payoff_chart_ref.current.height = 0
+                    # No chart path - hide chart
+                    try:
+                        payoff_chart_ref.current.src = ""
+                    except Exception:
+                        pass
+                    try:
+                        payoff_chart_ref.current.visible = False
+                    except Exception:
+                        pass
+                    try:
+                        payoff_chart_ref.current.height = 0
+                    except Exception:
+                        pass
                     if payoff_chart_card_ref.current:
-                        payoff_chart_card_ref.current.visible = False
+                        try:
+                            payoff_chart_card_ref.current.visible = False
+                        except Exception:
+                            pass
                     logger.info("No chart path produced; chart hidden")
 
             except Exception as exc:
                 logger.warning("Chart update failed: %s", exc)
                 try:
                     payoff_chart_ref.current.visible = False
+                except Exception:
+                    pass
+                try:
                     payoff_chart_ref.current.height = 0
                 except Exception:
                     pass
@@ -287,7 +356,6 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         payoff_chart_card_ref.current.visible = False
                     except Exception:
                         pass
-                logger.exception("Chart update failed with exception")
 
             _safe_update(payoff_chart_ref.current)
 
@@ -720,7 +788,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         ),
         alignment=ft.alignment.center,
         expand=True,
-        visible=not liabilities,
+        visible=True,  # Start visible - will be hidden by _refresh() if there are liabilities
         padding=ft.padding.all(32),
     )
 
@@ -732,7 +800,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.Container(height=24),
             strategy_row,
             payoff_summary,
-            ft.Card(content=ft.Container(content=table, padding=12), expand=True),
+            ft.Card(content=ft.Container(content=table, padding=12)),
             ft.Column(
                 controls=[
                     ft.Container(content=schedule_card),
@@ -764,7 +832,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         spacing=0,
         scroll=ft.ScrollMode.AUTO,
         expand=True,
-        visible=bool(liabilities),
+        visible=False,  # Start hidden - will be shown by _refresh() after mount
     )
 
     content = ft.Column(
@@ -793,7 +861,18 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
     app_bar = build_app_bar(ctx, "Debts", page)
     main_layout = build_main_layout(ctx, page, "/debts", content, use_menu_bar=True)
 
-    _refresh()
+    # Defer the initial refresh until after view is mounted
+    def _delayed_refresh():
+        import time
+        time.sleep(0.5)  # Give Flet time to mount the view
+        try:
+            logger.info("Starting deferred refresh for debts view")
+            _refresh()
+            logger.info("Deferred refresh completed successfully")
+        except Exception as exc:
+            logger.warning("Delayed refresh failed: %s", exc, exc_info=True)
+
+    threading.Thread(target=_delayed_refresh, daemon=True).start()
 
     return ft.View(
         route="/debts",
