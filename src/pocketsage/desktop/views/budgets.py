@@ -268,17 +268,28 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     page.snack_bar.open = True
                     page.update()
 
+            # Capture line for closure
+            def make_edit_handler(captured_line):
+                return lambda _e: edit_line(_e, line=captured_line)
+
+            def make_delete_handler(captured_line_id):
+                return lambda _e: delete_line(_e, line_id=captured_line_id)
+
             budget_rows.append(
                 ft.Container(
                     content=ft.Row(
                         controls=[
                             ft.Container(content=progress, expand=True),
-                            ft.IconButton(icon=ft.Icons.EDIT, tooltip="Edit", on_click=edit_line),
+                            ft.IconButton(
+                                icon=ft.Icons.EDIT,
+                                tooltip="Edit",
+                                on_click=make_edit_handler(line),
+                            ),
                             ft.IconButton(
                                 icon=ft.Icons.DELETE_OUTLINE,
                                 tooltip="Delete",
                                 icon_color=ft.Colors.RED,
-                                on_click=delete_line,
+                                on_click=make_delete_handler(line.id),
                             ),
                         ]
                     ),
@@ -286,7 +297,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     border=ft.border.only(
                         bottom=ft.border.BorderSide(1, ft.Colors.OUTLINE_VARIANT)
                     ),
-                    on_click=lambda _e, l=line: edit_line(_e, line=l),
+                    on_click=make_edit_handler(line),
                 )
             )
 
