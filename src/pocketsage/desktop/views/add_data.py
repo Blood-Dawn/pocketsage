@@ -12,6 +12,7 @@ import flet as ft
 
 from ...devtools import dev_log
 from ..components import build_main_layout
+from ..constants import DEFAULT_INCOME_CATEGORY_NAMES, HABIT_CADENCE_OPTIONS, TRANSACTION_TYPE_OPTIONS
 
 if TYPE_CHECKING:
     from ..context import AppContext
@@ -133,13 +134,47 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
         )
         if not account_dd.options:
             account_dd.options = [ft.dropdown.Option("0", "Default")]
+
+        # Transaction type dropdown
+        transaction_type_dd = ft.Dropdown(
+            label="Type *",
+            options=[ft.dropdown.Option(key, label) for key, label in TRANSACTION_TYPE_OPTIONS],
+            value="expense",
+            width=150,
+        )
+
+        # Category dropdown (will be filtered based on transaction type)
+        def get_filtered_categories(txn_type: str):
+            """Filter categories based on transaction type."""
+            if txn_type == "income":
+                return [c for c in categories if c.name in DEFAULT_INCOME_CATEGORY_NAMES]
+            elif txn_type == "expense":
+                return [c for c in categories if c.name not in DEFAULT_INCOME_CATEGORY_NAMES]
+            else:  # transfer
+                return [c for c in categories if "Transfer" in c.name]
+
         category_dd = ft.Dropdown(
             label="Category *",
-            options=[ft.dropdown.Option(str(c.id), c.name) for c in categories if c.id],
+            options=[ft.dropdown.Option(str(c.id), c.name) for c in get_filtered_categories("expense") if c.id],
             width=300,
         )
         if not category_dd.options:
             category_dd.options = [ft.dropdown.Option("0", "General")]
+
+        def on_type_change(e):
+            """Update category options when transaction type changes."""
+            txn_type = transaction_type_dd.value or "expense"
+            filtered = get_filtered_categories(txn_type)
+            category_dd.options = [ft.dropdown.Option(str(c.id), c.name) for c in filtered if c.id]
+            if not category_dd.options:
+                if txn_type == "transfer":
+                    category_dd.options = [ft.dropdown.Option("0", "Transfer")]
+                else:
+                    category_dd.options = [ft.dropdown.Option("0", "General")]
+            category_dd.value = None  # Clear selection
+            safe_update_fields(category_dd)
+
+        transaction_type_dd.on_change = on_type_change
         amount_field = ft.TextField(
             label="Amount *",
             hint_text="0.00",
@@ -217,7 +252,7 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 controls=[
                     ft.Text("New Transaction", size=20, weight=ft.FontWeight.BOLD),
                     ft.Divider(),
-                    ft.Row([account_dd, category_dd]),
+                    ft.Row([account_dd, transaction_type_dd, category_dd], spacing=10),
                     ft.Row([amount_field, date_field]),
                     description_field,
                     ft.Row(
@@ -324,9 +359,9 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
         desc_field = ft.TextField(label="Description", width=320)
         cadence_dd = ft.Dropdown(
             label="Cadence",
-            options=[ft.dropdown.Option("daily", "Daily")],
+            options=[ft.dropdown.Option(key, label) for key, label in HABIT_CADENCE_OPTIONS],
             value="daily",
-            width=160,
+            width=200,
         )
 
         def save_habit(_):
