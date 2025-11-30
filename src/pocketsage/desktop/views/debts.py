@@ -67,6 +67,8 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
     interest_text = ft.Ref[ft.Text]()
     table_ref = ft.Ref[ft.DataTable]()
     schedule_ref = ft.Ref[ft.Column]()
+    schedule_page_ref = ft.Ref[ft.Text]()
+    schedule_state = {"current_page": 0, "page_size": 12, "total_rows": 0}
     payoff_chart_ref = ft.Ref[ft.Image]()
     payoff_chart_card_ref = ft.Ref[ft.Container]()
     empty_state_ref = ft.Ref[ft.Container]()
@@ -197,15 +199,16 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         if interest_text.current:
             interest_text.current.value = f"Projected interest: ${total_interest:,.2f}"
             _safe_update(interest_text.current)
-        rows: list[ft.Control] = []
-        # Show complete payoff schedule until all debts are paid off
+
+        # Build all rows first
+        all_rows: list[ft.Control] = []
         for entry in schedule:
             payments = entry.get("payments", {}) if isinstance(entry, dict) else {}
             remaining = sum(
                 float(p.get("remaining_balance", 0.0) or 0.0) for p in payments.values()
             )
             total_payment = sum(float(p.get("payment_amount", 0.0) or 0.0) for p in payments.values())
-            rows.append(
+            all_rows.append(
                 ft.Row(
                     [
                         ft.Text(str(entry.get("date", "")), width=110),
@@ -215,9 +218,24 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 )
             )
+
+        # Update pagination state
+        schedule_state["total_rows"] = len(all_rows)
+        total_pages = max(1, (len(all_rows) + schedule_state["page_size"] - 1) // schedule_state["page_size"])
+
+        # Ensure current page is valid
+        if schedule_state["current_page"] >= total_pages:
+            schedule_state["current_page"] = max(0, total_pages - 1)
+
+        # Get rows for current page
+        start_idx = schedule_state["current_page"] * schedule_state["page_size"]
+        end_idx = min(start_idx + schedule_state["page_size"], len(all_rows))
+        page_rows = all_rows[start_idx:end_idx] if all_rows else []
+
+        # Update schedule display
         if schedule_ref.current is not None:
-            if rows:
-                schedule_ref.current.controls = rows
+            if page_rows:
+                schedule_ref.current.controls = page_rows
             else:
                 schedule_ref.current.controls = [
                     ft.Text(
@@ -225,6 +243,14 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     )
                 ]
             _safe_update(schedule_ref.current)
+
+        # Update page indicator
+        if schedule_page_ref.current and all_rows:
+            schedule_page_ref.current.value = (
+                f"Page {schedule_state['current_page'] + 1} of {total_pages} "
+                f"(showing {start_idx + 1}-{end_idx} of {len(all_rows)} months)"
+            )
+            _safe_update(schedule_page_ref.current)
 
         # Update payoff chart with comprehensive error handling
         # Wrap ALL property assignments in try-except to prevent unmounted control errors
@@ -636,6 +662,11 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         strategy_state["mode"] = mode
         _refresh()
 
+    # Calculate initial values to prevent grey boxes
+    initial_total_debt = sum(li.balance for li in liabilities) if liabilities else 0.0
+    initial_weighted_apr = ctx.liability_repo.get_weighted_apr(user_id=uid) if liabilities else 0.0
+    initial_min_payment = sum(li.minimum_payment for li in liabilities) if liabilities else 0.0
+
     summary = ft.Row(
         [
             ft.Card(
@@ -643,7 +674,12 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     content=ft.Column(
                         [
                             ft.Text("Total Debt", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
-                            ft.Text("", size=28, weight=ft.FontWeight.BOLD, ref=total_debt_text),
+                            ft.Text(
+                                f"${initial_total_debt:,.2f}",
+                                size=28,
+                                weight=ft.FontWeight.BOLD,
+                                ref=total_debt_text
+                            ),
                         ],
                     ),
                     padding=20,
@@ -655,7 +691,12 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     content=ft.Column(
                         [
                             ft.Text("Weighted APR", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
-                            ft.Text("", size=28, weight=ft.FontWeight.BOLD, ref=weighted_apr_text),
+                            ft.Text(
+                                f"{initial_weighted_apr:.2f}%",
+                                size=28,
+                                weight=ft.FontWeight.BOLD,
+                                ref=weighted_apr_text
+                            ),
                         ],
                     ),
                     padding=20,
@@ -667,7 +708,12 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     content=ft.Column(
                         [
                             ft.Text("Min. Payment", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
-                            ft.Text("", size=28, weight=ft.FontWeight.BOLD, ref=min_payment_text),
+                            ft.Text(
+                                f"${initial_min_payment:,.2f}",
+                                size=28,
+                                weight=ft.FontWeight.BOLD,
+                                ref=min_payment_text
+                            ),
                         ],
                     ),
                     padding=20,
@@ -683,7 +729,12 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 size=14,
                                 color=ft.Colors.ON_SURFACE_VARIANT,
                             ),
-                            ft.Text("", size=28, weight=ft.FontWeight.BOLD, ref=interest_text),
+                            ft.Text(
+                                "$0.00",
+                                size=28,
+                                weight=ft.FontWeight.BOLD,
+                                ref=interest_text
+                            ),
                         ],
                     ),
                     padding=20,
@@ -708,11 +759,30 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         expand=True,
     )
 
+    def _schedule_prev_page(_):
+        """Go to previous page of schedule."""
+        if schedule_state["current_page"] > 0:
+            schedule_state["current_page"] -= 1
+            _refresh()
+
+    def _schedule_next_page(_):
+        """Go to next page of schedule."""
+        total_pages = max(1, (schedule_state["total_rows"] + schedule_state["page_size"] - 1) // schedule_state["page_size"])
+        if schedule_state["current_page"] < total_pages - 1:
+            schedule_state["current_page"] += 1
+            _refresh()
+
     schedule_card = ft.Card(
         content=ft.Container(
             content=ft.Column(
                 [
-                    ft.Text("Payoff schedule", weight=ft.FontWeight.BOLD),
+                    ft.Row(
+                        [
+                            ft.Text("Payoff schedule", weight=ft.FontWeight.BOLD, expand=True),
+                            ft.Text("", ref=schedule_page_ref, size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+                        ],
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    ),
                     ft.Row(
                         [
                             ft.Text("Month", width=110, color=ft.Colors.ON_SURFACE_VARIANT),
@@ -722,6 +792,21 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     ),
                     ft.Column(controls=[], ref=schedule_ref, spacing=6),
+                    ft.Row(
+                        [
+                            ft.IconButton(
+                                icon=ft.Icons.CHEVRON_LEFT,
+                                tooltip="Previous page",
+                                on_click=_schedule_prev_page,
+                            ),
+                            ft.IconButton(
+                                icon=ft.Icons.CHEVRON_RIGHT,
+                                tooltip="Next page",
+                                on_click=_schedule_next_page,
+                            ),
+                        ],
+                        alignment=ft.MainAxisAlignment.CENTER,
+                    ),
                 ],
                 spacing=8,
             ),

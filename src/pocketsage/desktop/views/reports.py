@@ -862,43 +862,40 @@ def _chart_card(
             pass
 
         if path_exists:
-            image_stack = ft.Stack(
-                controls=[
-                    ft.Image(
-                        src=str(image_path),
-                        height=200,
-                        fit=ft.ImageFit.CONTAIN,
-                    ),
-                    ft.Container(
-                        content=ft.Row(
+            image_container = ft.Container(
+                content=ft.Column(
+                    controls=[
+                        ft.Image(
+                            src=str(image_path),
+                            height=200,
+                            fit=ft.ImageFit.CONTAIN,
+                        ),
+                        ft.Row(
                             controls=[
                                 ft.Icon(
                                     ft.Icons.ZOOM_IN,
                                     size=16,
-                                    color=ft.Colors.WHITE,
+                                    color=ft.Colors.PRIMARY,
                                 ),
                                 ft.Text(
                                     "Click to expand",
-                                    size=10,
-                                    color=ft.Colors.WHITE,
+                                    size=12,
+                                    color=ft.Colors.PRIMARY,
                                 ),
                             ],
                             spacing=4,
+                            alignment=ft.MainAxisAlignment.CENTER,
                         ),
-                        bgcolor=ft.Colors.with_opacity(0.7, ft.Colors.BLACK),
-                        border_radius=4,
-                        padding=ft.padding.symmetric(horizontal=8, vertical=4),
-                        right=5,
-                        bottom=5,
-                    ),
-                ],
-            )
-
-            image_container = ft.Container(
-                content=image_stack,
+                    ],
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    spacing=4,
+                ),
                 on_click=_show_expanded_image,
                 ink=True,
                 border_radius=8,
+                tooltip="Click to expand chart",
+                border=ft.border.all(1, ft.Colors.OUTLINE),
+                padding=8,
             )
             content_controls.append(image_container)
         else:
