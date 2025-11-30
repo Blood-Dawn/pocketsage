@@ -12,12 +12,14 @@
 
 from __future__ import annotations
 
+import base64
 from typing import TYPE_CHECKING
 
 import flet as ft
 
 from .. import controllers
 from ...devtools import dev_log
+from ...logging_config import get_logger
 from ...models.liability import Liability
 from ...services.debts import DebtAccount, avalanche_schedule, schedule_summary, snowball_schedule
 from ...services.liabilities import build_payment_transaction
@@ -33,11 +35,14 @@ if TYPE_CHECKING:
     from ..context import AppContext
 
 
+logger = get_logger(__name__)
+
 def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Build the debts/liabilities view."""
 
     uid = ctx.require_user_id()
-    strategy_state = {"value": "snowball"}
+    strategy_state = {"value": "snowball", "mode": "balanced"}
+    liabilities: list[Liability] = ctx.liability_repo.list_all(user_id=uid)
 
     total_debt_text = ft.Ref[ft.Text]()
     weighted_apr_text = ft.Ref[ft.Text]()
@@ -47,6 +52,17 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
     table_ref = ft.Ref[ft.DataTable]()
     schedule_ref = ft.Ref[ft.Column]()
     payoff_chart_ref = ft.Ref[ft.Image]()
+    empty_state_ref = ft.Ref[ft.Container]()
+    main_content_ref = ft.Ref[ft.Column]()
+
+    def _safe_update(control: ft.Control | None) -> None:
+        if control is None:
+            return
+        try:
+            control.update()
+        except AssertionError:
+            # Control not mounted yet; safe to ignore
+            pass
 
     def _to_accounts(liabilities: list[Liability]) -> list[DebtAccount]:
         return [
@@ -66,13 +82,14 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         debts = _to_accounts(liabilities)
         if not debts:
             return [], None, 0.0, 0
+        total_debt = sum(d.balance for d in debts)
+        if total_debt <= 0:
+            return [], None, 0.0, 0
         surplus = 0.0
         if mode == "aggressive":
             surplus = 150.0
-        elif mode == "lazy":
-            surplus = 0.0
         else:
-            surplus = 50.0
+            surplus = 0.0 if mode in {"lazy", "minimum"} else 50.0
         if strategy_state["value"] == "avalanche":
             sched = avalanche_schedule(debts=debts, surplus=surplus)
         else:
@@ -81,14 +98,21 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         return sched, payoff, total_interest, months
 
     def _update_schedule(
-        schedule: list[dict], payoff: str | None, total_interest: float, months: int
+        schedule: list[dict],
+        payoff: str | None,
+        total_interest: float,
+        months: int,
+        *,
+        has_liabilities: bool,
     ) -> None:
         if payoff_text.current:
             payoff_text.current.value = (
                 f"Projected payoff: {payoff or 'N/A'} ({months} months)" if schedule else "Projected payoff: N/A"
             )
+            _safe_update(payoff_text.current)
         if interest_text.current:
             interest_text.current.value = f"Projected interest: ${total_interest:,.2f}"
+            _safe_update(interest_text.current)
         rows: list[ft.Control] = []
         # Show complete payoff schedule until all debts are paid off
         for entry in schedule:
@@ -116,29 +140,50 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         "Add a liability to see payoff steps.", color=ft.Colors.ON_SURFACE_VARIANT
                     )
                 ]
+            _safe_update(schedule_ref.current)
 
         if payoff_chart_ref.current is not None:
             try:
+                if not has_liabilities or not schedule:
+                    payoff_chart_ref.current.visible = False
+                    _safe_update(payoff_chart_ref.current)
+                    return
                 chart_path = debt_payoff_chart_png(schedule) if schedule else None
-                payoff_chart_ref.current.src = str(chart_path) if chart_path else ""
-                payoff_chart_ref.current.visible = bool(chart_path)
+                chart_bytes = chart_path.read_bytes() if chart_path else b""
+                payoff_chart_ref.current.src_base64 = (
+                    base64.b64encode(chart_bytes).decode() if chart_bytes else ""
+                )
+                payoff_chart_ref.current.visible = bool(chart_bytes)
                 payoff_chart_ref.current.fit = ft.ImageFit.CONTAIN
             except Exception as exc:
-                dev_log(ctx.config, "Payoff chart render failed", exc=exc)
+                logger.error("Payoff chart render failed", exc_info=exc)
                 payoff_chart_ref.current.visible = False
+            _safe_update(payoff_chart_ref.current)
 
     def _refresh() -> None:
+        nonlocal liabilities
         liabilities = ctx.liability_repo.list_all(user_id=uid)
+        has_liabilities = bool(liabilities)
         total_debt = ctx.liability_repo.get_total_debt(user_id=uid)
         weighted_apr = ctx.liability_repo.get_weighted_apr(user_id=uid)
         total_min_payment = sum(li.minimum_payment for li in liabilities)
 
+        if empty_state_ref.current:
+            empty_state_ref.current.visible = not has_liabilities
+            _safe_update(empty_state_ref.current)
+        if main_content_ref.current:
+            main_content_ref.current.visible = has_liabilities
+            _safe_update(main_content_ref.current)
+
         if total_debt_text.current:
             total_debt_text.current.value = f"${total_debt:,.2f}"
+            _safe_update(total_debt_text.current)
         if weighted_apr_text.current:
             weighted_apr_text.current.value = f"{weighted_apr:.2f}%"
+            _safe_update(weighted_apr_text.current)
         if min_payment_text.current:
             min_payment_text.current.value = f"${total_min_payment:,.2f}"
+            _safe_update(min_payment_text.current)
 
         rows: list[ft.DataRow] = []
         for liab in liabilities:
@@ -186,15 +231,25 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         if table_ref.current:
             table_ref.current.rows = rows
+            _safe_update(table_ref.current)
 
         try:
             schedule, payoff, total_interest, months = _run_projection(
                 liabilities, mode=strategy_state.get("mode", "balanced")
             )
-            _update_schedule(schedule, payoff, total_interest, months)
+            _update_schedule(
+                schedule,
+                payoff,
+                total_interest,
+                months,
+                has_liabilities=has_liabilities,
+            )
         except ValueError as exc:
             show_error_dialog(page, "Payoff calculation failed", str(exc))
-        page.update()
+        try:
+            page.update()
+        except AssertionError:
+            pass
 
     def _open_edit_dialog(liability: Liability | None = None) -> None:
         editing = liability is not None
@@ -295,7 +350,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 payment = float(amount_field.value or 0)
                 if payment <= 0:
                     amount_field.error_text = "Payment must be greater than 0"
-                    amount_field.update()
+                    _safe_update(amount_field)
                     return
                 current = ctx.liability_repo.get_by_id(liability.id or 0, user_id=uid)
                 if current is None:
@@ -327,14 +382,20 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     show_close_icon=True,
                 )
                 page.snack_bar.open = True
-                page.update()
+                try:
+                    page.update()
+                except AssertionError:
+                    pass
             except Exception as exc:
                 dev_log(ctx.config, "Payment failed", exc=exc, context={"liability": liability.id})
                 show_error_dialog(page, "Payment failed", str(exc))
 
         def _cancel_payment(_e):
             payment_dialog.open = False
-            page.update()
+            try:
+                page.update()
+            except AssertionError:
+                pass
 
         payment_dialog = ft.AlertDialog(
             title=ft.Text(f"Record payment for {liability.name}"),
@@ -469,15 +530,16 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 [
                     ft.Text("Payoff strategy", weight=ft.FontWeight.BOLD),
                     ft.Dropdown(
+                        label="Payoff Strategy",
                         width=320,
                         value=f"{strategy_state.get('value', 'snowball')}_{strategy_state.get('mode', 'balanced')}",
                         options=[
-                            ft.dropdown.Option("snowball_lazy", "Snowball + Minimums only"),
-                            ft.dropdown.Option("snowball_balanced", "Snowball + Balanced (+$50/mo)"),
-                            ft.dropdown.Option("snowball_aggressive", "Snowball + Aggressive (+$150/mo)"),
-                            ft.dropdown.Option("avalanche_lazy", "Avalanche + Minimums only"),
-                            ft.dropdown.Option("avalanche_balanced", "Avalanche + Balanced (+$50/mo)"),
-                            ft.dropdown.Option("avalanche_aggressive", "Avalanche + Aggressive (+$150/mo)"),
+                            ft.dropdown.Option("snowball_aggressive", "Snowball - Aggressive"),
+                            ft.dropdown.Option("snowball_balanced", "Snowball - Balanced"),
+                            ft.dropdown.Option("snowball_minimum", "Snowball - Minimum Only"),
+                            ft.dropdown.Option("avalanche_aggressive", "Avalanche - Aggressive"),
+                            ft.dropdown.Option("avalanche_balanced", "Avalanche - Balanced"),
+                            ft.dropdown.Option("avalanche_minimum", "Avalanche - Minimum Only"),
                         ],
                         on_change=_on_strategy_change,
                     ),
@@ -507,17 +569,31 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         selectable=True,
     )
 
-    content = ft.Column(
+    empty_state = ft.Container(
+        ref=empty_state_ref,
+        content=ft.Column(
+            [
+                ft.Icon(ft.Icons.CREDIT_CARD_OFF, size=64, color=ft.Colors.OUTLINE),
+                ft.Text("No debts tracked yet", size=20, weight=ft.FontWeight.BOLD),
+                ft.Text("Add a debt to see payoff projections and strategies."),
+                ft.FilledButton(
+                    "Add Debt",
+                    icon=ft.Icons.ADD,
+                    on_click=lambda _: _open_edit_dialog(None),
+                ),
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=16,
+        ),
+        alignment=ft.alignment.center,
+        expand=True,
+        visible=not liabilities,
+        padding=ft.padding.all(32),
+    )
+
+    main_section = ft.Column(
+        ref=main_content_ref,
         controls=[
-            ft.Row(
-                controls=[
-                    ft.Text("Debts & Liabilities", size=24, weight=ft.FontWeight.BOLD),
-                    ft.FilledButton("Add liability", icon=ft.Icons.ADD, on_click=lambda _: controllers.navigate(page, '/add-data')),
-                ],
-                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                wrap=True,
-                run_spacing=8,
-            ),
             ft.Container(height=16),
             summary,
             ft.Container(height=24),
@@ -553,6 +629,30 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ),
         ],
         spacing=0,
+        scroll=ft.ScrollMode.AUTO,
+        expand=True,
+        visible=bool(liabilities),
+    )
+
+    content = ft.Column(
+        controls=[
+            ft.Row(
+                controls=[
+                    ft.Text("Debts & Liabilities", size=24, weight=ft.FontWeight.BOLD),
+                    ft.FilledButton(
+                        "Add liability",
+                        icon=ft.Icons.ADD,
+                        on_click=lambda _: controllers.navigate(page, "/add-data"),
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                wrap=True,
+                run_spacing=8,
+            ),
+            empty_state,
+            main_section,
+        ],
+        spacing=12,
         scroll=ft.ScrollMode.AUTO,
         expand=True,
     )

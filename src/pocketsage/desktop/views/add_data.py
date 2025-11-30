@@ -123,8 +123,12 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     def notify(message: str):
         snack = ft.SnackBar(content=ft.Text(message), open=True)
-        page.overlay.append(snack)
-        page.update()
+        if page and hasattr(page, "overlay"):
+            page.overlay.append(snack)
+        try:
+            page.update()
+        except AssertionError:
+            pass
 
     def notify_error(context: str, exc: Exception):
         trace = traceback.format_exc()
@@ -133,8 +137,12 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
             content=ft.Text(f"Error: {context}: {exc}"),
             open=True,
         )
-        page.overlay.append(snack)
-        page.update()
+        if page and hasattr(page, "overlay"):
+            page.overlay.append(snack)
+        try:
+            page.update()
+        except AssertionError:
+            pass
 
     def go_back():
         page.go("/dashboard")
@@ -245,21 +253,28 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 # Extract date from datetime object
                 selected_date = e.control.value.date() if hasattr(e.control.value, 'date') else e.control.value
                 date_field.value = str(selected_date)
-                date_field.update()
+                safe_update_fields(date_field)
 
         date_picker = ft.DatePicker(
             on_change=on_date_selected,
         )
-        page.overlay.append(date_picker)
+        if page and hasattr(page, "overlay"):
+            page.overlay.append(date_picker)
+
+        def _open_date_picker(_):
+            setattr(date_picker, "open", True)
+            if page:
+                try:
+                    page.update()
+                except AssertionError:
+                    pass
+
         date_field = ft.TextField(
             label="Date *",
             value=str(date.today()),
             width=200,
             read_only=True,
-            on_click=lambda _: (
-                setattr(date_picker, "open", True),
-                page.update(),
-            ),
+            on_click=_open_date_picker,
         )
 
         def save_transaction(_):
@@ -366,7 +381,10 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 # Allow skipping if it's not a buy/sell transaction
                 if skip_holding.value:
                     dialog.open = False
-                    page.update()
+                    try:
+                        page.update()
+                    except AssertionError:
+                        pass
                     notify("Transaction saved (portfolio not updated)")
                     # Clear form
                     amount_field.value = ""
@@ -414,7 +432,10 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 # Sold all shares, delete holding
                                 ctx.holding_repo.delete(existing.id, user_id=uid)
                                 dialog.open = False
-                                page.update()
+                                try:
+                                    page.update()
+                                except AssertionError:
+                                    pass
                                 notify("Transaction and portfolio updated (holding removed)")
                                 amount_field.value = ""
                                 description_field.value = ""
@@ -440,7 +461,10 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             notify("Warning: Cannot sell shares you don't own. Transaction saved but portfolio not updated.")
 
                     dialog.open = False
-                    page.update()
+                    try:
+                        page.update()
+                    except AssertionError:
+                        pass
                     notify("Transaction and portfolio updated successfully!")
                     # Clear form
                     amount_field.value = ""
@@ -451,7 +475,10 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
             def close_dialog(_):
                 dialog.open = False
-                page.update()
+                try:
+                    page.update()
+                except AssertionError:
+                    pass
                 # Still clear the form even if they cancel
                 amount_field.value = ""
                 description_field.value = ""
@@ -487,9 +514,14 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.FilledButton("Save to Portfolio", on_click=save_holding),
                 ],
             )
-            page.dialog = dialog
-            dialog.open = True
-            page.update()
+            if page:
+                page.dialog = dialog
+                if page.dialog:
+                    page.dialog.open = True
+                try:
+                    page.update()
+                except AssertionError:
+                    pass
         def _clear_transaction_form():
             """Clear transaction form fields."""
             amount_field.value = ""
