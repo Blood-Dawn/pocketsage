@@ -803,16 +803,21 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     toolbar = ft.Row(
         controls=[
-            ft.Row(
-                controls=[
-                    ft.TextButton(
-                        "Import CSV",
-                        on_click=lambda _: controllers.start_ledger_import(ctx, page),
-                    ),
-                    ft.TextButton("Export CSV", on_click=_export_csv),
-                    ft.TextButton("CSV Help", on_click=lambda _: controllers.go_to_help(page)),
-                ],
-                spacing=8,
+                    ft.Row(
+                        controls=[
+                            ft.TextButton(
+                                "Import CSV",
+                                on_click=lambda _: (
+                                    controllers.attach_file_picker(ctx, page)
+                                    if ctx.file_picker is None
+                                    else None,
+                                    controllers.start_ledger_import(ctx, page),
+                                ),
+                            ),
+                            ft.TextButton("Export CSV", on_click=_export_csv),
+                            ft.TextButton("CSV Help", on_click=lambda _: controllers.go_to_help(page)),
+                        ],
+                        spacing=8,
             ),
             ft.Row(
                 controls=[

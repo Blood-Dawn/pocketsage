@@ -403,7 +403,12 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.TextButton(
                 "Import CSV",
                 icon=ft.Icons.UPLOAD_FILE,
-                on_click=lambda _: controllers.start_portfolio_import(ctx, page),
+                on_click=lambda _: (
+                    controllers.attach_file_picker(ctx, page)
+                    if ctx.file_picker is None
+                    else None,
+                    controllers.start_portfolio_import(ctx, page),
+                ),
             ),
             ft.TextButton("Export CSV", icon=ft.Icons.DOWNLOAD, on_click=_export_csv),
         ],
