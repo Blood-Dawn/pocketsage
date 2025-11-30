@@ -12,7 +12,7 @@
 
 from __future__ import annotations
 
-import base64
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import flet as ft
@@ -37,6 +37,20 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+
+def _safe_update(control: ft.Control | None) -> None:
+    """Safely update a control, ignoring errors if not mounted."""
+    if control is None:
+        return
+    try:
+        if hasattr(control, "page") and control.page:
+            control.update()
+    except AssertionError:
+        pass  # Control not mounted to page
+    except Exception:
+        pass  # Other update errors
+
+
 def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Build the debts/liabilities view."""
 
@@ -55,15 +69,6 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
     empty_state_ref = ft.Ref[ft.Container]()
     main_content_ref = ft.Ref[ft.Column]()
 
-    def _safe_update(control: ft.Control | None) -> None:
-        if control is None:
-            return
-        try:
-            control.update()
-        except AssertionError:
-            # Control not mounted yet; safe to ignore
-            pass
-
     def _to_accounts(liabilities: list[Liability]) -> list[DebtAccount]:
         return [
             DebtAccount(
@@ -74,28 +79,43 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 statement_due_day=getattr(lb, "due_day", 1) or 1,
             )
             for lb in liabilities
-        ]
+    ]
 
     def _run_projection(
         liabilities: list[Liability], *, mode: str = "balanced"
-    ) -> tuple[list[dict], str | None, float, int]:
+    ) -> tuple[list[dict], str | None, float, int, Path | None]:
         debts = _to_accounts(liabilities)
         if not debts:
-            return [], None, 0.0, 0
+            return [], None, 0.0, 0, None
         total_debt = sum(d.balance for d in debts)
         if total_debt <= 0:
-            return [], None, 0.0, 0
+            return [], None, 0.0, 0, None
         surplus = 0.0
         if mode == "aggressive":
             surplus = 150.0
         else:
             surplus = 0.0 if mode in {"lazy", "minimum"} else 50.0
-        if strategy_state["value"] == "avalanche":
-            sched = avalanche_schedule(debts=debts, surplus=surplus)
-        else:
-            sched = snowball_schedule(debts=debts, surplus=surplus)
-        payoff, total_interest, months = schedule_summary(sched)
-        return sched, payoff, total_interest, months
+        sched: list[dict] = []
+        payoff: str | None = None
+        total_interest = 0.0
+        months = 0
+        chart_path: Path | None = None
+        try:
+            if strategy_state["value"] == "avalanche":
+                sched = avalanche_schedule(debts=debts, surplus=surplus)
+            else:
+                sched = snowball_schedule(debts=debts, surplus=surplus)
+            if sched:
+                payoff, total_interest, months = schedule_summary(sched)
+                chart_path = debt_payoff_chart_png(sched)
+        except Exception as exc:
+            logger.warning("Payoff schedule generation failed: %s", exc)
+            sched = []
+            chart_path = None
+            payoff = None
+            total_interest = 0.0
+            months = 0
+        return sched, payoff, total_interest, months, chart_path
 
     def _update_schedule(
         schedule: list[dict],
@@ -104,6 +124,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         months: int,
         *,
         has_liabilities: bool,
+        chart_path: Path | None,
     ) -> None:
         if payoff_text.current:
             payoff_text.current.value = (
@@ -148,15 +169,15 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     payoff_chart_ref.current.visible = False
                     _safe_update(payoff_chart_ref.current)
                     return
-                chart_path = debt_payoff_chart_png(schedule) if schedule else None
-                chart_bytes = chart_path.read_bytes() if chart_path else b""
-                payoff_chart_ref.current.src_base64 = (
-                    base64.b64encode(chart_bytes).decode() if chart_bytes else ""
-                )
-                payoff_chart_ref.current.visible = bool(chart_bytes)
-                payoff_chart_ref.current.fit = ft.ImageFit.CONTAIN
+                if chart_path and chart_path.exists():
+                    payoff_chart_ref.current.src = str(chart_path)
+                    payoff_chart_ref.current.visible = True
+                    payoff_chart_ref.current.fit = ft.ImageFit.CONTAIN
+                else:
+                    payoff_chart_ref.current.src = ""
+                    payoff_chart_ref.current.visible = False
             except Exception as exc:
-                logger.error("Payoff chart render failed", exc_info=exc)
+                logger.warning("Chart update failed: %s", exc)
                 payoff_chart_ref.current.visible = False
             _safe_update(payoff_chart_ref.current)
 
@@ -234,7 +255,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             _safe_update(table_ref.current)
 
         try:
-            schedule, payoff, total_interest, months = _run_projection(
+            schedule, payoff, total_interest, months, chart_path = _run_projection(
                 liabilities, mode=strategy_state.get("mode", "balanced")
             )
             _update_schedule(
@@ -243,6 +264,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 total_interest,
                 months,
                 has_liabilities=has_liabilities,
+                chart_path=chart_path,
             )
         except ValueError as exc:
             show_error_dialog(page, "Payoff calculation failed", str(exc))

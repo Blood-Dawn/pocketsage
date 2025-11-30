@@ -49,7 +49,7 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
             on_save_callback=refresh_view,
         )
 
-    def copy_previous_month():
+    def _copy_previous_month():
         prev_month = today.month - 1 or 12
         prev_year = today.year - 1 if today.month == 1 else today.year
         prev_budget = ctx.budget_repo.get_for_month(prev_year, prev_month, user_id=uid)
@@ -428,39 +428,46 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
             padding=40,
         )
 
+    header_row = ft.Row(
+        controls=[
+            ft.IconButton(
+                icon=ft.Icons.CHEVRON_LEFT,
+                tooltip="Previous month",
+                on_click=lambda _: _shift_month(-1),
+            ),
+            ft.Container(
+                content=ft.Text(
+                    f"{ctx.current_month.strftime('%B %Y')}",
+                    size=20,
+                    weight=ft.FontWeight.W_600,
+                ),
+                padding=ft.padding.symmetric(horizontal=16),
+            ),
+            ft.IconButton(
+                icon=ft.Icons.CHEVRON_RIGHT,
+                tooltip="Next month",
+                on_click=lambda _: _shift_month(1),
+            ),
+            ft.Container(width=20),
+            ft.TextButton(
+                "Copy previous month",
+                icon=ft.Icons.CONTENT_COPY,
+                on_click=lambda _: _copy_previous_month(),
+                tooltip="Copy budget from previous month",
+            ),
+        ],
+        alignment=ft.MainAxisAlignment.START,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        spacing=4,
+    )
+
     # Build content
     content = ft.Column(
         controls=[
             ft.Row(
                 controls=[
                     ft.Text("Budgets", size=24, weight=ft.FontWeight.BOLD),
-                    ft.Row(
-                        controls=[
-                            ft.IconButton(
-                                icon=ft.Icons.CHEVRON_LEFT,
-                                tooltip="Previous month",
-                                on_click=lambda _: _shift_month(-1),
-                            ),
-                            ft.Text(
-                                f"{today.strftime('%B %Y')}",
-                                size=18,
-                                color=ft.Colors.ON_SURFACE_VARIANT,
-                            ),
-                            ft.IconButton(
-                                icon=ft.Icons.CHEVRON_RIGHT,
-                                tooltip="Next month",
-                                on_click=lambda _: _shift_month(1),
-                            ),
-                            ft.TextButton(
-                                "Copy previous month",
-                                icon=ft.Icons.CONTENT_COPY,
-                                on_click=lambda _: copy_previous_month(),
-                            ),
-                        ],
-                        spacing=8,
-                        wrap=True,
-                        run_spacing=8,
-                    ),
+                    header_row,
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 wrap=True,

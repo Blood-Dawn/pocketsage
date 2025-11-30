@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 import random
+import time
 from calendar import monthrange
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
@@ -39,6 +40,14 @@ from .reports import export_spending_png
 SessionFactory = Callable[[], AbstractContextManager[Session]]
 
 _ENGINE = None
+
+# Seed randomness initialization
+def _initialize_random_seed() -> int:
+    """Initialize random with true randomness from multiple entropy sources."""
+    # Combine time, process ID, and object ID for entropy
+    entropy = int(time.time() * 1000000) ^ os.getpid() ^ id(object())
+    random.seed(entropy)
+    return entropy
 
 
 @dataclass(frozen=True)
@@ -295,193 +304,365 @@ def _seed_transactions(
 def _heavy_transactions_seed(session: Session, user_id: int, accounts: dict[str, Account]) -> None:
     """Generate a randomized but realistic transaction dataset for testing (5 years)."""
 
-    YEARS_BACK = 5
+    # Initialize with fresh randomness each run
+    seed_value = _initialize_random_seed()
 
-    # Get categories for this user
-    categories = {
-        cat.slug: cat for cat in session.exec(
-            select(Category).where(Category.user_id == user_id)
-        ).all()
+    # Get category map
+    categories = session.exec(
+        select(Category).where(Category.user_id == user_id)
+    ).all()
+    category_map = {c.slug: c for c in categories}
+
+    # Find primary accounts
+    checking = (
+        accounts.get("Primary Checking")
+        or accounts.get("Joint Checking")
+        or accounts.get("Everyday Checking")
+        or next((a for a in accounts.values() if "check" in a.name.lower()), None)
+    )
+    credit_card = (
+        accounts.get("Travel Rewards Card")
+        or accounts.get("Cashback Card")
+        or next((a for a in accounts.values() if "card" in a.name.lower() or "credit" in a.name.lower()), None)
+    )
+    savings = (
+        accounts.get("Emergency Savings")
+        or accounts.get("High-Yield Savings")
+        or next((a for a in accounts.values() if "saving" in a.name.lower()), None)
+    )
+
+    if not checking:
+        checking = next(iter(accounts.values()), None)
+    if not checking:
+        return
+
+    # Date range: 5 years back to today
+    today = date.today()
+    start_date = date(today.year - 5, 1, 1)
+
+    # =========================================
+    # SPENDING PATTERNS (Amount ranges and frequencies)
+    # =========================================
+
+    SPENDING_PATTERNS = {
+        # Essential expenses (negative amounts)
+        "groceries": {"min": 25, "max": 250, "typical": 85, "per_month": (8, 12)},
+        "rent": {"min": 1200, "max": 2800, "typical": 1950, "per_month": (1, 1)},
+        "utilities": {"min": 80, "max": 350, "typical": 175, "per_month": (1, 1)},
+        "gas": {"min": 30, "max": 75, "typical": 48, "per_month": (4, 8)},
+        "insurance": {"min": 100, "max": 400, "typical": 225, "per_month": (1, 1)},
+
+        # Lifestyle expenses
+        "dining-out": {"min": 12, "max": 120, "typical": 42, "per_month": (6, 15)},
+        "coffee": {"min": 4, "max": 15, "typical": 7, "per_month": (8, 20)},
+        "entertainment": {"min": 10, "max": 150, "typical": 45, "per_month": (3, 8)},
+        "shopping": {"min": 15, "max": 300, "typical": 65, "per_month": (2, 6)},
+        "subscriptions": {"min": 8, "max": 50, "typical": 18, "per_month": (3, 6)},
+
+        # Periodic expenses
+        "medical": {"min": 25, "max": 500, "typical": 120, "per_month": (0, 2)},
+        "travel": {"min": 150, "max": 2500, "typical": 650, "per_month": (0, 1)},
+        "education": {"min": 30, "max": 500, "typical": 125, "per_month": (0, 2)},
+        "personal-care": {"min": 15, "max": 150, "typical": 55, "per_month": (1, 3)},
+        "gifts": {"min": 25, "max": 300, "typical": 75, "per_month": (0, 2)},
+        "home-maintenance": {"min": 50, "max": 800, "typical": 200, "per_month": (0, 1)},
+        "clothing": {"min": 30, "max": 250, "typical": 80, "per_month": (1, 3)},
+        "pets": {"min": 20, "max": 200, "typical": 65, "per_month": (1, 2)},
+        "fitness": {"min": 30, "max": 120, "typical": 55, "per_month": (1, 1)},
+
+        # Income (positive amounts)
+        "salary": {"min": 3500, "max": 8500, "typical": 5200, "per_month": (2, 2)},
+        "bonus": {"min": 1000, "max": 15000, "typical": 4500, "per_month": (0, 0)},  # Handled separately
+        "interest": {"min": 5, "max": 150, "typical": 35, "per_month": (1, 1)},
+        "dividends": {"min": 25, "max": 800, "typical": 150, "per_month": (0, 1)},
+        "freelance": {"min": 200, "max": 3000, "typical": 800, "per_month": (0, 2)},
+        "refund": {"min": 15, "max": 500, "typical": 85, "per_month": (0, 1)},
+
+        # Transfers
+        "transfer-in": {"min": 100, "max": 2000, "typical": 500, "per_month": (1, 3)},
+        "transfer-out": {"min": 100, "max": 2000, "typical": 500, "per_month": (1, 3)},
     }
 
-    # Primary accounts for different transaction types
-    checking = accounts.get("Primary Checking") or accounts.get("Everyday Checking") or next(iter(accounts.values()), None)
-    savings = accounts.get("Emergency Fund") or accounts.get("Rainy Day Savings")
-    credit_card = accounts.get("Chase Sapphire") or accounts.get("Travel Card")
+    # Memo templates for realism
+    MEMO_TEMPLATES = {
+        "groceries": ["Grocery Run", "Weekly Groceries", "Costco", "Trader Joe's", "Whole Foods", "Publix", "Kroger", "Aldi", "Safeway", "Target Groceries"],
+        "rent": ["Monthly Rent", "Rent Payment", "Apartment Rent"],
+        "utilities": ["Electric Bill", "Gas Bill", "Water & Sewer", "Utilities Payment", "Power Company"],
+        "gas": ["Gas Station", "Shell", "Chevron", "BP", "Exxon", "Fuel", "Gas Fill-up"],
+        "dining-out": ["Restaurant", "Dinner Out", "Lunch", "Brunch", "Pizza Night", "Thai Food", "Sushi", "Mexican Restaurant", "Italian Dinner", "Burger Joint"],
+        "coffee": ["Coffee Shop", "Starbucks", "Dunkin", "Local Cafe", "Morning Coffee", "Espresso"],
+        "entertainment": ["Movie Night", "Concert Tickets", "Streaming", "Gaming", "Netflix", "Spotify", "Event Tickets", "Bowling", "Mini Golf"],
+        "shopping": ["Amazon", "Target", "Walmart", "Online Shopping", "Home Goods", "Electronics", "General Shopping"],
+        "subscriptions": ["Netflix", "Spotify", "Amazon Prime", "Gym Membership", "News Subscription", "Software License", "Cloud Storage"],
+        "medical": ["Doctor Visit", "Pharmacy", "Medical Copay", "Prescription", "Dental Checkup", "Vision Care", "Lab Work"],
+        "travel": ["Flight Booking", "Hotel Stay", "Vacation", "Road Trip", "Airbnb", "Rental Car", "Travel Expenses"],
+        "salary": ["Paycheck", "Salary Deposit", "Direct Deposit", "Bi-weekly Pay"],
+        "bonus": ["Annual Bonus", "Performance Bonus", "Holiday Bonus", "Quarterly Bonus"],
+        "interest": ["Savings Interest", "Bank Interest", "Interest Earned"],
+        "dividends": ["Dividend Payment", "Stock Dividends", "Investment Income"],
+        "insurance": ["Car Insurance", "Health Insurance", "Renters Insurance", "Life Insurance"],
+        "personal-care": ["Haircut", "Salon", "Spa", "Beauty Products", "Skincare"],
+        "gifts": ["Birthday Gift", "Holiday Gift", "Wedding Gift", "Gift Purchase"],
+        "home-maintenance": ["Home Repair", "Plumbing", "Electrical", "HVAC Service", "Lawn Care", "Cleaning Supplies"],
+        "education": ["Online Course", "Books", "Tuition", "Workshop", "Training"],
+        "clothing": ["Clothes Shopping", "New Shoes", "Work Clothes", "Seasonal Clothes"],
+        "pets": ["Pet Food", "Vet Visit", "Pet Supplies", "Grooming"],
+        "fitness": ["Gym Membership", "Fitness Class", "Sports Equipment"],
+        "transfer-in": ["Transfer from Savings", "Account Transfer", "Funds Transfer"],
+        "transfer-out": ["Transfer to Savings", "Investment Transfer", "Account Transfer"],
+        "freelance": ["Freelance Payment", "Side Gig Income", "Contract Work"],
+        "refund": ["Return Refund", "Reimbursement", "Cashback", "Refund Received"],
+    }
 
-    today = date.today()
-    start_date = today.replace(year=today.year - YEARS_BACK, month=1, day=1)
+    def generate_amount(slug: str, is_expense: bool) -> float:
+        """Generate realistic amount using triangular distribution."""
+        pattern = SPENDING_PATTERNS.get(slug, {"min": 10, "max": 100, "typical": 50})
 
-    transactions_to_add = []
+        # Triangular distribution clusters around typical value
+        amount = random.triangular(
+            pattern["min"],
+            pattern["max"],
+            pattern["typical"]
+        )
 
-    # RECURRING MONTHLY TRANSACTIONS
-    # These happen every month on specific days
-    recurring_monthly = [
-        {"day": 1, "category": "rent", "amount_range": (-1850, -2100), "memo": "Monthly Rent", "account": checking},
-        {"day": 1, "category": "mortgage", "amount_range": (-1950, -1950), "memo": "Mortgage Payment", "account": checking},
-        {"day": 5, "category": "utilities", "amount_range": (-95, -180), "memo": "Electric Bill", "account": checking},
-        {"day": 8, "category": "internet", "amount_range": (-79, -89), "memo": "Internet Service", "account": checking},
-        {"day": 10, "category": "phone", "amount_range": (-85, -125), "memo": "Phone Bill", "account": checking},
-        {"day": 12, "category": "insurance", "amount_range": (-145, -165), "memo": "Auto Insurance", "account": checking},
-        {"day": 15, "category": "subscriptions", "amount_range": (-15, -15), "memo": "Netflix", "account": credit_card},
-        {"day": 18, "category": "subscriptions", "amount_range": (-11, -11), "memo": "Spotify", "account": credit_card},
-        {"day": 20, "category": "subscriptions", "amount_range": (-14, -14), "memo": "iCloud Storage", "account": credit_card},
-        {"day": 22, "category": "utilities", "amount_range": (-45, -85), "memo": "Water Bill", "account": checking},
-    ]
+        # Add slight noise for variety
+        noise = random.uniform(0.92, 1.08)
+        amount = amount * noise
 
-    # BI-WEEKLY INCOME (1st and 15th, or every other Friday)
-    # Salary arrives twice a month
-    income_patterns = [
-        {"days": [1, 15], "category": "salary", "amount_range": (2800, 3500), "memo": "Paycheck - Direct Deposit", "account": checking},
-    ]
+        # Round to realistic cents
+        amount = round(amount, 2)
 
-    # WEEKLY PATTERNS (approximate - not exactly every week)
-    weekly_patterns = [
-        {"category": "groceries", "times_per_month": (4, 5), "amount_range": (-85, -220), "memo_options": ["Grocery Run", "Weekly Groceries", "Food Shopping", "Costco Run", "Trader Joe's"], "prefer_weekend": True},
-        {"category": "gas", "times_per_month": (2, 4), "amount_range": (-35, -65), "memo_options": ["Gas Station", "Fill Up", "Shell", "Chevron", "Costco Gas"], "prefer_weekend": False},
-    ]
+        return -amount if is_expense else amount
 
-    # VARIABLE FREQUENCY PATTERNS
-    variable_patterns = [
-        {"category": "dining-out", "times_per_month": (6, 12), "amount_range": (-15, -85), "memo_options": ["Lunch", "Dinner Out", "Restaurant", "Takeout", "Food Delivery", "Coffee Shop", "Brunch"], "prefer_weekend": True},
-        {"category": "coffee", "times_per_month": (8, 20), "amount_range": (-4, -8), "memo_options": ["Starbucks", "Coffee", "Morning Coffee", "Dunkin", "Local Cafe"], "prefer_weekend": False},
-        {"category": "entertainment", "times_per_month": (2, 5), "amount_range": (-12, -75), "memo_options": ["Movie Tickets", "Concert", "Streaming Rental", "Event Tickets", "Arcade"], "prefer_weekend": True},
-        {"category": "transit", "times_per_month": (4, 12), "amount_range": (-3, -25), "memo_options": ["Uber", "Lyft", "Metro Card", "Parking", "Toll"], "prefer_weekend": False},
-        {"category": "household", "times_per_month": (1, 3), "amount_range": (-25, -150), "memo_options": ["Target", "Amazon", "Home Depot", "Cleaning Supplies", "Home Goods"], "prefer_weekend": True},
-        {"category": "clothing", "times_per_month": (0, 2), "amount_range": (-35, -200), "memo_options": ["Clothes Shopping", "Shoes", "Amazon Fashion", "Nordstrom", "TJ Maxx"], "prefer_weekend": True},
-        {"category": "medical", "times_per_month": (0, 1), "amount_range": (-25, -250), "memo_options": ["Pharmacy", "Doctor Copay", "Prescription", "CVS", "Urgent Care"], "prefer_weekend": False},
-        {"category": "pets", "times_per_month": (1, 2), "amount_range": (-30, -120), "memo_options": ["Pet Food", "Vet Visit", "Pet Supplies", "Chewy.com"], "prefer_weekend": False},
-        {"category": "gifts", "times_per_month": (0, 1), "amount_range": (-25, -150), "memo_options": ["Birthday Gift", "Present", "Gift Card", "Amazon Gift"], "prefer_weekend": True},
-        {"category": "wellness", "times_per_month": (2, 4), "amount_range": (-15, -50), "memo_options": ["Gym", "Yoga Class", "Fitness App", "Vitamins"], "prefer_weekend": False},
-    ]
-
-    # OCCASIONAL/SEASONAL (not every month)
-    occasional_patterns = [
-        {"category": "travel", "times_per_year": (2, 5), "amount_range": (-200, -1500), "memo_options": ["Flight", "Hotel", "Airbnb", "Vacation", "Road Trip"], "months": [3, 6, 7, 8, 11, 12]},
-        {"category": "education", "times_per_year": (1, 4), "amount_range": (-50, -500), "memo_options": ["Online Course", "Books", "Udemy", "Certification"], "months": [1, 2, 9, 10]},
-        {"category": "charity", "times_per_year": (2, 6), "amount_range": (-25, -200), "memo_options": ["Donation", "Charity", "GoFundMe", "Non-profit"], "months": [4, 11, 12]},
-    ]
-
-    # OCCASIONAL INCOME (not every month)
-    occasional_income = [
-        {"category": "bonus", "times_per_year": (1, 2), "amount_range": (1000, 5000), "memo_options": ["Annual Bonus", "Performance Bonus", "Holiday Bonus"], "months": [3, 12]},
-        {"category": "dividends", "times_per_year": (4, 4), "amount_range": (50, 350), "memo_options": ["Dividend Payment", "Quarterly Dividend"], "months": [3, 6, 9, 12]},
-        {"category": "interest", "times_per_year": (12, 12), "amount_range": (5, 45), "memo_options": ["Savings Interest", "Interest Payment"], "months": list(range(1, 13))},
-        {"category": "refund", "times_per_year": (2, 5), "amount_range": (15, 500), "memo_options": ["Tax Refund", "Return Refund", "Rebate", "Reimbursement"], "months": [2, 3, 4, 5]},
-        {"category": "side-hustle", "times_per_year": (3, 10), "amount_range": (100, 800), "memo_options": ["Freelance Work", "Side Project", "Consulting", "Gig Income"], "months": list(range(1, 13))},
-    ]
-
-    def get_random_day(year: int, month: int, prefer_weekend: bool = False) -> int:
-        """Get a random day in the month, optionally preferring weekends."""
+    def get_random_day(year: int, month: int, prefer_end: bool = False) -> int:
+        """Get a random day in the given month."""
         last_day = monthrange(year, month)[1]
-
-        if prefer_weekend:
-            # 60% chance of weekend, 40% chance of weekday
-            if random.random() < 0.6:
-                # Find weekend days in this month
-                weekend_days = []
-                for day in range(1, last_day + 1):
-                    if date(year, month, day).weekday() >= 5:  # Saturday=5, Sunday=6
-                        weekend_days.append(day)
-                if weekend_days:
-                    return random.choice(weekend_days)
-
+        if prefer_end:
+            # Prefer later in month (bills, rent)
+            return random.randint(max(1, last_day - 7), last_day)
         return random.randint(1, last_day)
 
-    def add_transaction(occurred_at: datetime, amount: float, memo: str, category_slug: str, account: Account):
-        """Helper to create a transaction dict."""
-        cat = categories.get(category_slug)
-        if not cat or not account:
-            return
+    def get_memo(slug: str) -> str:
+        """Get a random memo for the category."""
+        templates = MEMO_TEMPLATES.get(slug, [slug.replace("-", " ").title()])
+        return random.choice(templates)
 
-        external_id = f"seed-{category_slug}-{occurred_at.isoformat()}-{random.randint(1000, 9999)}"
+    # =========================================
+    # GENERATE TRANSACTIONS
+    # =========================================
+
+    transactions_to_add: list[dict] = []
+    external_id_counter = 0
+
+    def add_transaction(occurred: datetime, amount: float, memo: str, category_slug: str, account: Account | None):
+        nonlocal external_id_counter
+        external_id_counter += 1
+
+        category = category_map.get(category_slug)
+        if category is None:
+            return
 
         transactions_to_add.append({
             "user_id": user_id,
-            "external_id": external_id,
-            "occurred_at": occurred_at,
+            "external_id": f"seed-heavy-{seed_value}-{external_id_counter:06d}",
+            "occurred_at": occurred,
             "amount": round(amount, 2),
             "memo": memo,
-            "category_id": cat.id,
-            "account_id": account.id,
-            "currency": account.currency or "USD",
+            "category_id": category.id,
+            "account_id": account.id if account else checking.id,
+            "currency": account.currency if account else "USD",
         })
 
-    # Generate transactions for each month
     current = start_date
+
     while current <= today:
-        year, month = current.year, current.month
+        year = current.year
+        month = current.month
         last_day = monthrange(year, month)[1]
 
-        # 1. RECURRING MONTHLY
-        for pattern in recurring_monthly:
-            day = min(pattern["day"], last_day)
-            occurred = datetime(year, month, day, random.randint(8, 20), random.randint(0, 59))
-            amount = random.uniform(*pattern["amount_range"]) if pattern["amount_range"][0] != pattern["amount_range"][1] else pattern["amount_range"][0]
-            if pattern.get("account"):
-                add_transaction(occurred, amount, pattern["memo"], pattern["category"], pattern["account"])
+        # =========================
+        # FIXED MONTHLY EXPENSES
+        # =========================
 
-        # 2. BI-WEEKLY INCOME
-        for pattern in income_patterns:
-            for day in pattern["days"]:
-                if day <= last_day:
-                    occurred = datetime(year, month, day, 6, 0)  # Early morning deposit
-                    amount = random.uniform(*pattern["amount_range"])
-                    add_transaction(occurred, amount, pattern["memo"], pattern["category"], pattern["account"])
+        # Rent (1st-5th of month)
+        if "rent" in category_map:
+            rent_day = random.randint(1, 5)
+            rent_amount = generate_amount("rent", is_expense=True)
+            add_transaction(
+                datetime(year, month, rent_day, 9, 0),
+                rent_amount,
+                get_memo("rent"),
+                "rent",
+                checking
+            )
 
-        # 3. WEEKLY PATTERNS
-        for pattern in weekly_patterns:
-            times = random.randint(*pattern["times_per_month"])
-            used_days = set()
-            for _ in range(times):
-                day = get_random_day(year, month, pattern.get("prefer_weekend", False))
-                # Avoid duplicate days for same category
-                attempts = 0
-                while day in used_days and attempts < 10:
-                    day = get_random_day(year, month, pattern.get("prefer_weekend", False))
-                    attempts += 1
-                used_days.add(day)
+        # Utilities (varies by month - higher in summer/winter)
+        if "utilities" in category_map:
+            util_day = random.randint(10, 20)
+            base_util = generate_amount("utilities", is_expense=True)
+            # Seasonal adjustment
+            if month in [1, 2, 7, 8, 12]:  # Hot/cold months
+                base_util *= random.uniform(1.2, 1.5)
+            add_transaction(
+                datetime(year, month, util_day, 14, 0),
+                round(base_util, 2),
+                get_memo("utilities"),
+                "utilities",
+                checking
+            )
 
-                occurred = datetime(year, month, day, random.randint(9, 21), random.randint(0, 59))
-                amount = random.uniform(*pattern["amount_range"])
-                memo = random.choice(pattern["memo_options"])
-                account = credit_card if random.random() < 0.4 else checking
-                add_transaction(occurred, amount, memo, pattern["category"], account or checking)
+        # Insurance (monthly)
+        if "insurance" in category_map:
+            ins_day = random.randint(1, 10)
+            add_transaction(
+                datetime(year, month, ins_day, 10, 0),
+                generate_amount("insurance", is_expense=True),
+                get_memo("insurance"),
+                "insurance",
+                checking
+            )
 
-        # 4. VARIABLE PATTERNS
-        for pattern in variable_patterns:
-            times = random.randint(*pattern["times_per_month"])
-            for _ in range(times):
-                day = get_random_day(year, month, pattern.get("prefer_weekend", False))
-                occurred = datetime(year, month, day, random.randint(7, 22), random.randint(0, 59))
-                amount = random.uniform(*pattern["amount_range"])
-                memo = random.choice(pattern["memo_options"])
-                # Mix of credit card and checking
-                account = credit_card if random.random() < 0.5 else checking
-                add_transaction(occurred, amount, memo, pattern["category"], account or checking)
+        # =========================
+        # INCOME (Salary bi-weekly)
+        # =========================
 
-        # 5. OCCASIONAL/SEASONAL
-        for pattern in occasional_patterns:
-            if month in pattern.get("months", []):
-                # Random chance based on times per year
-                chance = pattern["times_per_year"][1] / len(pattern["months"])
-                if random.random() < chance:
-                    day = get_random_day(year, month, True)
-                    occurred = datetime(year, month, day, random.randint(10, 18), random.randint(0, 59))
-                    amount = random.uniform(*pattern["amount_range"])
-                    memo = random.choice(pattern["memo_options"])
-                    add_transaction(occurred, amount, memo, pattern["category"], credit_card or checking)
+        if "salary" in category_map:
+            # Two paychecks per month (around 15th and end of month)
+            salary_amount = generate_amount("salary", is_expense=False)
 
-        # 6. OCCASIONAL INCOME
-        for pattern in occasional_income:
-            if month in pattern.get("months", []):
-                chance = pattern["times_per_year"][1] / len(pattern["months"])
-                if random.random() < chance:
-                    day = random.randint(1, min(15, last_day))
-                    occurred = datetime(year, month, day, random.randint(8, 12), random.randint(0, 59))
-                    amount = random.uniform(*pattern["amount_range"])
-                    memo = random.choice(pattern["memo_options"])
-                    add_transaction(occurred, amount, memo, pattern["category"], checking or next(iter(accounts.values()), None))
+            # First paycheck
+            pay_day_1 = random.randint(13, 16)
+            add_transaction(
+                datetime(year, month, pay_day_1, 8, 0),
+                salary_amount,
+                get_memo("salary"),
+                "salary",
+                checking
+            )
+
+            # Second paycheck
+            pay_day_2 = random.randint(max(28, last_day - 3), last_day)
+            add_transaction(
+                datetime(year, month, pay_day_2, 8, 0),
+                salary_amount * random.uniform(0.98, 1.02),  # Slight variation
+                get_memo("salary"),
+                "salary",
+                checking
+            )
+
+        # Interest income (monthly on savings)
+        if "interest" in category_map and savings:
+            interest_day = random.randint(last_day - 3, last_day)
+            add_transaction(
+                datetime(year, month, interest_day, 23, 59),
+                generate_amount("interest", is_expense=False),
+                get_memo("interest"),
+                "interest",
+                savings
+            )
+
+        # =========================
+        # VARIABLE FREQUENCY EXPENSES
+        # =========================
+
+        for slug, pattern in SPENDING_PATTERNS.items():
+            if slug in ["rent", "utilities", "insurance", "salary", "interest", "bonus"]:
+                continue  # Already handled above
+
+            category = category_map.get(slug)
+            if not category:
+                continue
+
+            # Determine if expense or income
+            is_expense = category.category_type == "expense" or slug not in ["dividends", "freelance", "refund", "transfer-in"]
+
+            # Get frequency range
+            min_freq, max_freq = pattern.get("per_month", (1, 3))
+            num_transactions = random.randint(min_freq, max_freq)
+
+            # Generate transactions for this category this month
+            for _ in range(num_transactions):
+                # Random day
+                prefer_weekend = slug in ["dining-out", "entertainment", "shopping", "travel"]
+                tx_day = get_random_day(year, month, prefer_end=False)
+
+                # Adjust for weekends for certain categories
+                if prefer_weekend:
+                    # Push towards Friday-Sunday
+                    day_date = date(year, month, tx_day)
+                    if day_date.weekday() < 4 and random.random() < 0.6:
+                        # Move to weekend
+                        days_to_friday = 4 - day_date.weekday()
+                        tx_day = min(tx_day + days_to_friday + random.randint(0, 2), last_day)
+
+                # Random time
+                hour = random.randint(7, 22)
+                minute = random.randint(0, 59)
+
+                # Generate amount
+                amount = generate_amount(slug, is_expense)
+
+                # Choose account
+                if is_expense and credit_card and random.random() < 0.6:
+                    account = credit_card
+                elif slug.startswith("transfer"):
+                    account = savings if random.random() < 0.5 else checking
+                else:
+                    account = checking
+
+                add_transaction(
+                    datetime(year, month, tx_day, hour, minute),
+                    amount,
+                    get_memo(slug),
+                    slug,
+                    account
+                )
+
+        # =========================
+        # SPECIAL: Annual Bonus (December or June)
+        # =========================
+
+        if "bonus" in category_map and month in [6, 12]:
+            if random.random() < 0.8:  # 80% chance each eligible month
+                bonus_day = random.randint(10, 20)
+                add_transaction(
+                    datetime(year, month, bonus_day, 9, 0),
+                    generate_amount("bonus", is_expense=False),
+                    get_memo("bonus"),
+                    "bonus",
+                    checking
+                )
+
+        # =========================
+        # SPECIAL: Dividends (Quarterly)
+        # =========================
+
+        if "dividends" in category_map and month in [3, 6, 9, 12]:
+            if random.random() < 0.7:
+                div_day = random.randint(15, last_day)
+                add_transaction(
+                    datetime(year, month, div_day, 10, 0),
+                    generate_amount("dividends", is_expense=False),
+                    get_memo("dividends"),
+                    "dividends",
+                    checking
+                )
+
+        # =========================
+        # SPECIAL: Travel (Seasonal peaks)
+        # =========================
+
+        if "travel" in category_map and month in [3, 6, 7, 8, 11, 12]:
+            if random.random() < 0.35:  # 35% chance in travel months
+                for _ in range(random.randint(1, 4)):  # Multiple travel expenses
+                    travel_day = random.randint(1, last_day)
+                    add_transaction(
+                        datetime(year, month, travel_day, random.randint(6, 22), random.randint(0, 59)),
+                        generate_amount("travel", is_expense=True),
+                        get_memo("travel"),
+                        "travel",
+                        credit_card or checking
+                    )
 
         # Move to next month
         if month == 12:
@@ -489,7 +670,10 @@ def _heavy_transactions_seed(session: Session, user_id: int, accounts: dict[str,
         else:
             current = date(year, month + 1, 1)
 
-    # Batch insert all transactions
+    # =========================================
+    # BATCH INSERT ALL TRANSACTIONS
+    # =========================================
+
     for tx_data in transactions_to_add:
         # Check for existing by external_id
         existing = session.exec(
@@ -529,6 +713,80 @@ def _seed_habits(session: Session, user_id: int) -> None:
             session.add(Habit(user_id=user_id, **spec))
 
     session.flush()
+
+
+def _seed_habit_entries(session: Session, user_id: int, days_back: int = 365 * 2) -> None:
+    """Seed realistic habit completion patterns over 2 years."""
+
+    conditions = [Habit.user_id == user_id]
+    archived_column = getattr(Habit, "archived", None)
+    if archived_column is not None:
+        conditions.append(archived_column == False)  # type: ignore[operator]
+    elif hasattr(Habit, "is_active"):
+        conditions.append(Habit.is_active == True)  # noqa: E712
+
+    habits = session.exec(select(Habit).where(*conditions)).all()
+
+    if not habits:
+        return
+
+    today = date.today()
+
+    for habit in habits:
+        # Each habit has different consistency (40-85%)
+        base_consistency = random.uniform(0.40, 0.85)
+
+        # Some habits have weekly patterns (workout MWF, etc.)
+        has_weekly_pattern = random.random() < 0.4
+        if has_weekly_pattern:
+            weekly_days = set(random.sample(range(7), k=random.randint(3, 5)))
+        else:
+            weekly_days = None
+
+        streak_bonus = 0.0  # Increases when on a streak
+
+        for day_offset in range(days_back, -1, -1):
+            check_date = today - timedelta(days=day_offset)
+
+            # Skip if entry exists
+            existing = session.exec(
+                select(HabitEntry).where(
+                    HabitEntry.habit_id == habit.id,
+                    HabitEntry.occurred_on == check_date,
+                )
+            ).first()
+            if existing:
+                if existing.value > 0:
+                    streak_bonus = min(streak_bonus + 0.05, 0.25)  # Build streak momentum
+                else:
+                    streak_bonus = 0
+                continue
+
+            # Determine if completed
+            effective_consistency = base_consistency + streak_bonus
+
+            if weekly_days is not None:
+                # Weekly pattern - higher consistency on designated days
+                if check_date.weekday() in weekly_days:
+                    completed = random.random() < (effective_consistency + 0.15)
+                else:
+                    completed = random.random() < (effective_consistency * 0.3)  # Much lower on off-days
+            else:
+                completed = random.random() < effective_consistency
+
+            if completed:
+                entry = HabitEntry(
+                    habit_id=habit.id,
+                    occurred_on=check_date,
+                    value=1,
+                    user_id=user_id,
+                )
+                session.add(entry)
+                streak_bonus = min(streak_bonus + 0.05, 0.25)
+            else:
+                streak_bonus = 0
+
+        session.flush()
 
 
 def _seed_liabilities(session: Session, user_id: int) -> list[Liability]:
@@ -642,132 +900,233 @@ def _seed_liability_transactions(
 
 
 def _seed_holdings(session: Session, accounts: dict[str, Account], user_id: int) -> None:
-    """Seed a diversified portfolio with holdings across multiple accounts."""
-    brokerage = accounts.get("Fidelity Brokerage") or accounts.get("Brokerage")
-    retirement = accounts.get("Vanguard IRA") or accounts.get("Company 401(k)")
-    robinhood = accounts.get("Robinhood")
-    coinbase = accounts.get("Coinbase")
+    """Seed a diverse, realistic investment portfolio."""
 
-    # Create default brokerage if none exists
-    if brokerage is None:
-        brokerage = Account(
-            user_id=user_id, name="Brokerage", account_type="brokerage", currency="USD", balance=45000
-        )
-        session.add(brokerage)
-        session.flush()
-        accounts["Brokerage"] = brokerage
+    # Initialize randomness
+    _initialize_random_seed()
 
-    holdings_by_account = [
-        (
-            brokerage,
-            [
-                {"symbol": "VTI", "quantity": 45, "avg_price": 215.00, "market_price": 242.50},    # Total Stock Market
-                {"symbol": "VXUS", "quantity": 30, "avg_price": 55.00, "market_price": 58.75},     # International
-                {"symbol": "BND", "quantity": 25, "avg_price": 78.00, "market_price": 73.25},      # Bonds
-                {"symbol": "AAPL", "quantity": 15, "avg_price": 145.00, "market_price": 178.50},   # Individual stock
-                {"symbol": "MSFT", "quantity": 10, "avg_price": 285.00, "market_price": 378.00},   # Individual stock
-                {"symbol": "GOOGL", "quantity": 8, "avg_price": 125.00, "market_price": 142.00},   # Individual stock
-            ],
-        ),
-        (
-            retirement,
-            [
-                {"symbol": "VFFVX", "quantity": 150, "avg_price": 42.00, "market_price": 48.50},   # Target Date 2055
-                {"symbol": "VFIAX", "quantity": 35, "avg_price": 410.00, "market_price": 445.00},  # S&P 500 Index
-            ] if retirement else [],
-        ),
-        (
-            robinhood,
-            [
-                {"symbol": "TSLA", "quantity": 5, "avg_price": 210.00, "market_price": 248.00},
-                {"symbol": "NVDA", "quantity": 8, "avg_price": 450.00, "market_price": 875.00},
-                {"symbol": "AMD", "quantity": 20, "avg_price": 95.00, "market_price": 125.00},
-            ] if robinhood else [],
-        ),
-        (
-            coinbase,
-            [
-                {"symbol": "BTC", "quantity": 0.15, "avg_price": 35000.00, "market_price": 42000.00},
-                {"symbol": "ETH", "quantity": 2.5, "avg_price": 2200.00, "market_price": 2650.00},
-                {"symbol": "SOL", "quantity": 25, "avg_price": 85.00, "market_price": 125.00},
-            ] if coinbase else [],
-        ),
+    # Define realistic portfolio with various asset classes
+    HOLDINGS_TEMPLATE = [
+        # US Total Market / Large Cap ETFs (35%)
+        {"symbol": "VTI", "name": "Vanguard Total Stock Market ETF", "target_pct": 0.18, "price_range": (220, 290)},
+        {"symbol": "VOO", "name": "Vanguard S&P 500 ETF", "target_pct": 0.10, "price_range": (420, 520)},
+        {"symbol": "QQQ", "name": "Invesco QQQ Trust", "target_pct": 0.07, "price_range": (380, 480)},
+
+        # Individual Stocks (15%)
+        {"symbol": "AAPL", "name": "Apple Inc.", "target_pct": 0.04, "price_range": (165, 210)},
+        {"symbol": "MSFT", "name": "Microsoft Corp.", "target_pct": 0.04, "price_range": (380, 450)},
+        {"symbol": "GOOGL", "name": "Alphabet Inc.", "target_pct": 0.03, "price_range": (140, 185)},
+        {"symbol": "NVDA", "name": "NVIDIA Corp.", "target_pct": 0.02, "price_range": (450, 950)},
+        {"symbol": "AMZN", "name": "Amazon.com Inc.", "target_pct": 0.02, "price_range": (160, 210)},
+
+        # International (12%)
+        {"symbol": "VXUS", "name": "Vanguard Total International", "target_pct": 0.08, "price_range": (56, 68)},
+        {"symbol": "VEA", "name": "Vanguard FTSE Developed Markets", "target_pct": 0.04, "price_range": (46, 54)},
+
+        # Bonds (18%)
+        {"symbol": "BND", "name": "Vanguard Total Bond Market", "target_pct": 0.12, "price_range": (72, 82)},
+        {"symbol": "VTIP", "name": "Vanguard Short-Term Inflation-Protected", "target_pct": 0.03, "price_range": (48, 53)},
+        {"symbol": "TLT", "name": "iShares 20+ Year Treasury Bond", "target_pct": 0.03, "price_range": (88, 110)},
+
+        # Real Estate (8%)
+        {"symbol": "VNQ", "name": "Vanguard Real Estate ETF", "target_pct": 0.05, "price_range": (82, 105)},
+        {"symbol": "O", "name": "Realty Income Corp.", "target_pct": 0.03, "price_range": (52, 68)},
+
+        # Crypto (5%)
+        {"symbol": "BTC", "name": "Bitcoin", "target_pct": 0.03, "price_range": (42000, 75000)},
+        {"symbol": "ETH", "name": "Ethereum", "target_pct": 0.02, "price_range": (2200, 4200)},
+
+        # Commodities / Other (7%)
+        {"symbol": "GLD", "name": "SPDR Gold Shares", "target_pct": 0.04, "price_range": (175, 220)},
+        {"symbol": "VIG", "name": "Vanguard Dividend Appreciation", "target_pct": 0.03, "price_range": (165, 195)},
     ]
 
-    for account, holdings in holdings_by_account:
-        if account is None:
+    # Random total portfolio value ($75k - $750k range)
+    total_portfolio = random.uniform(75000, 750000)
+
+    # Find or create investment accounts
+    investment_accounts = [
+        acc for name, acc in accounts.items()
+        if any(t in name.lower() for t in ["brokerage", "ira", "401", "investment", "robinhood", "fidelity", "schwab", "vanguard"])
+    ]
+
+    if not investment_accounts:
+        # Use first available account
+        investment_accounts = list(accounts.values())[:1]
+
+    if not investment_accounts:
+        return
+
+    for template in HOLDINGS_TEMPLATE:
+        # Randomly skip some holdings (not everyone owns everything)
+        if random.random() < 0.15:  # 15% chance to skip
             continue
-        for payload in holdings:
-            symbol = payload["symbol"]
-            existing = session.exec(
-                select(Holding).where(
-                    Holding.symbol == symbol,
-                    Holding.account_id == account.id,
-                    Holding.user_id == user_id
-                )
-            ).first()
-            if existing:
-                existing.quantity = payload["quantity"]
-                existing.avg_price = payload["avg_price"]
-                existing.market_price = payload["market_price"]
-            else:
-                session.add(
-                    Holding(
-                        user_id=user_id,
-                        account_id=account.id,
-                        symbol=symbol,
-                        quantity=payload["quantity"],
-                        avg_price=payload["avg_price"],
-                        market_price=payload["market_price"],
-                        currency="USD",
-                    )
-                )
+
+        # Random account assignment
+        account = random.choice(investment_accounts)
+
+        # Calculate target value with variance (+/- 30%)
+        target_value = total_portfolio * template["target_pct"]
+        target_value *= random.uniform(0.7, 1.3)
+
+        # Skip if value too small
+        if target_value < 100:
+            continue
+
+        # Generate prices with gain/loss variance
+        avg_price = random.uniform(*template["price_range"])
+
+        # Market price: can be -25% to +40% from avg (simulating gains/losses)
+        gain_loss = random.uniform(0.75, 1.40)
+        market_price = avg_price * gain_loss
+
+        # Calculate shares
+        shares = target_value / avg_price
+
+        # Round shares appropriately
+        if template["symbol"] in ["BTC", "ETH"]:
+            shares = round(shares, 6)  # Crypto allows fractional
+        elif shares < 1:
+            shares = round(shares, 4)  # Fractional shares
+        else:
+            shares = round(shares, 2)
+
+        # Random acquisition date (30 days to 5 years ago)
+        days_ago = random.randint(30, 5 * 365)
+        acquired_at = datetime.now() - timedelta(days=days_ago)
+
+        # Check for existing holding
+        existing = session.exec(
+            select(Holding).where(
+                Holding.user_id == user_id,
+                Holding.symbol == template["symbol"],
+                Holding.account_id == account.id,
+            )
+        ).first()
+
+        if existing:
+            # Update existing
+            existing.quantity = shares
+            existing.avg_price = round(avg_price, 2)
+            existing.market_price = round(market_price, 2)
+            existing.acquired_at = acquired_at
+        else:
+            # Create new
+            holding = Holding(
+                user_id=user_id,
+                symbol=template["symbol"],
+                quantity=shares,
+                avg_price=round(avg_price, 2),
+                market_price=round(market_price, 2),
+                account_id=account.id,
+                acquired_at=acquired_at,
+                currency="USD",
+            )
+            session.add(holding)
+
+    session.flush()
 
 
 def _seed_budget(session: Session, categories: dict[str, Category], user_id: int) -> None:
+    """Generate realistic budgets based on actual transaction patterns over 5 years."""
+
     today = date.today()
-    first_of_month = today.replace(day=1)
-    last_day = monthrange(today.year, today.month)[1]
-    end_of_month = today.replace(day=last_day)
+    start_year = today.year - 4  # 5 years of budgets
 
-    existing_budget = session.exec(
-        select(Budget).where(
-            Budget.user_id == user_id,
-            Budget.period_start == first_of_month,
-            Budget.period_end == end_of_month,
-        )
-    ).one_or_none()
+    # Categories that tend to go over budget sometimes
+    OVERSPEND_PRONE = ["entertainment", "dining-out", "shopping", "travel", "coffee", "gifts"]
 
-    if existing_budget is None:
-        existing_budget = Budget(
-            user_id=user_id,
-            period_start=first_of_month,
-            period_end=end_of_month,
-            label=f"{today.strftime('%B %Y')} Budget",
-        )
-        session.add(existing_budget)
-        session.flush()
+    for year in range(start_year, today.year + 1):
+        for month in range(1, 13):
+            # Don't create future budgets
+            if year == today.year and month > today.month:
+                break
 
-    expense_slugs = ["rent", "utilities", "groceries", "dining-out", "transit", "coffee"]
-    lines = session.exec(
-        select(BudgetLine).where(BudgetLine.budget_id == existing_budget.id, BudgetLine.user_id == user_id)
-    ).all()
-    if not lines:
-        payloads: list[BudgetLine] = []
-        for slug in expense_slugs:
-            cat = categories.get(slug)
-            if cat is None:
-                continue
-            payloads.append(
-                BudgetLine(
-                    user_id=user_id,
-                    budget_id=existing_budget.id,
-                    category_id=cat.id,
-                    planned_amount=200.0 if slug != "rent" else 1200.0,
-                    rollover_enabled=False,
+            period_start = date(year, month, 1)
+            period_end = date(year, month, monthrange(year, month)[1])
+
+            # Skip if budget already exists
+            existing = session.exec(
+                select(Budget).where(
+                    Budget.period_start == period_start,
+                    Budget.user_id == user_id,
                 )
+            ).first()
+            if existing:
+                continue
+
+            # Calculate actual spending by category for this month
+            month_start = datetime.combine(period_start, datetime.min.time())
+            month_end = datetime.combine(period_end, datetime.max.time())
+
+            category_spending: dict[int, float] = {}
+
+            for category in categories.values():
+                if category.category_type != "expense":
+                    continue
+                if category.id is None:
+                    continue
+
+                txns = session.exec(
+                    select(Transaction).where(
+                        Transaction.user_id == user_id,
+                        Transaction.category_id == category.id,
+                        Transaction.occurred_at >= month_start,
+                        Transaction.occurred_at <= month_end,
+                        Transaction.amount < 0,
+                    )
+                ).all()
+
+                total_spent = sum(abs(t.amount) for t in txns)
+                if total_spent > 0:
+                    category_spending[category.id] = total_spent
+
+            if not category_spending:
+                continue
+
+            # Create budget
+            budget = Budget(
+                period_start=period_start,
+                period_end=period_end,
+                label=f"{period_start.strftime('%B %Y')} Budget",
+                user_id=user_id,
             )
-        session.add_all(payloads)
+            session.add(budget)
+            session.flush()
+
+            # Create budget lines with realistic variance
+            for category_id, actual_spent in category_spending.items():
+                category = session.get(Category, category_id)
+
+                # Determine budget amount relative to actual spending
+                if category and category.slug in OVERSPEND_PRONE:
+                    # These categories often go over budget
+                    if random.random() < 0.35:  # 35% chance of overspending
+                        # Budget less than actual (will show as over budget)
+                        variance = random.uniform(0.65, 0.90)
+                    else:
+                        variance = random.uniform(0.95, 1.15)
+                else:
+                    # Regular categories - usually on or under budget
+                    variance = random.uniform(0.90, 1.20)
+
+                planned = round(actual_spent * variance, 2)
+
+                # Minimum budget amounts for realism
+                planned = max(planned, 25.0)
+
+                line = BudgetLine(
+                    budget_id=budget.id,
+                    category_id=category_id,
+                    planned_amount=planned,
+                    rollover_enabled=random.random() < 0.25,  # 25% have rollover
+                    user_id=user_id,
+                )
+                session.add(line)
+
+            session.flush()
+
+
 def reset_demo_database(
     user_id: int, session_factory: Optional[SessionFactory] = None, reseed: bool = True
 ) -> SeedSummary:
@@ -847,6 +1206,7 @@ def run_demo_seed(
             ]
             session.add_all(sample)
         _seed_habits(session, user_id=user_id)
+        _seed_habit_entries(session, user_id=user_id)
         liabilities = _seed_liabilities(session, user_id=user_id)
         _seed_budget(session, categories, user_id=user_id)
         _seed_holdings(session, accounts, user_id=user_id)
