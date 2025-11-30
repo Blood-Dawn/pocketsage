@@ -517,6 +517,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 tight=True,
                 spacing=8,
             ),
+            modal=True,
             actions=[
                 ft.TextButton("Cancel", on_click=_cancel),
                 ft.FilledButton("Save", on_click=_save),
@@ -607,6 +608,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         payment_dialog = ft.AlertDialog(
             title=ft.Text(f"Record payment for {liability.name}"),
             content=ft.Column(controls=[amount_field, account_dd, category_dd, reconcile_switch], spacing=8),
+            modal=True,
             actions=[
                 ft.TextButton("Cancel", on_click=_cancel_payment),
                 ft.FilledButton("Apply", on_click=_apply),
@@ -651,7 +653,6 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.DataColumn(ft.Text("Actions")),
         ],
         rows=[],
-        expand=True,
     )
 
     def _schedule_prev_page(_):

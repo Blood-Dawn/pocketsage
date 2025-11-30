@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Callable, Optional
 
 import flet as ft
@@ -48,6 +48,9 @@ class AppContext:
     theme_mode: ft.ThemeMode
     current_account_id: Optional[int]
     current_month: date
+    budget_filter_start: Optional[datetime] = None
+    budget_filter_end: Optional[datetime] = None
+    budget_filter_quick_range: str = "this_month"
 
     # Page reference (set after initialization)
     page: Optional[ft.Page] = None
@@ -124,5 +127,8 @@ def create_app_context(config: Optional[BaseConfig] = None) -> AppContext:
         theme_mode=ft.ThemeMode.DARK,
         current_account_id=None,
         current_month=current_date.replace(day=1),
+        budget_filter_start=None,
+        budget_filter_end=None,
+        budget_filter_quick_range="this_month",
         current_user=None,  # Start with no user logged in
     )

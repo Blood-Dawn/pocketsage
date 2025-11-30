@@ -759,12 +759,17 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
     except Exception:
         pass
 
+    charts_section = _build_charts()
+
     content_controls = [
         ft.Text("Reports & Exports", size=24, weight=ft.FontWeight.BOLD),
         ft.Text(
             "Generate CSVs/ZIPs for archives or sharing.", color=ft.Colors.ON_SURFACE_VARIANT
         ),
         ft.Container(height=12),
+        ft.Text("Overview", size=18, weight=ft.FontWeight.BOLD),
+        charts_section,
+        ft.Container(height=16),
     ]
 
     # Add debt summary if available
