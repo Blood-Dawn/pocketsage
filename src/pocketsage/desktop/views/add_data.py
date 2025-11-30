@@ -13,6 +13,7 @@ import flet as ft
 from ...devtools import dev_log
 from ..components import build_main_layout
 from ..constants import (
+    ACCOUNT_TYPE_OPTIONS,
     DEFAULT_INCOME_CATEGORY_NAMES,
     HABIT_CADENCE_OPTIONS,
     TRANSACTION_TYPE_OPTIONS,
@@ -75,6 +76,51 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
         "Wellness",
     ]
 
+    ACCOUNT_TEMPLATE_PREFIX = "account-type:"
+    PORTFOLIO_ACCOUNT_TYPE_EXTRAS = [
+        ("brokerage", "Brokerage"),
+        ("retirement", "Retirement"),
+        ("401k", "401(k)"),
+        ("403b", "403(b)"),
+        ("ira", "Traditional IRA"),
+        ("roth-ira", "Roth IRA"),
+        ("hsa", "HSA"),
+        ("529", "529"),
+    ]
+    INVESTMENT_ACCOUNT_TYPES = {
+        "investment",
+        "brokerage",
+        "retirement",
+        "401k",
+        "403b",
+        "ira",
+        "roth-ira",
+        "hsa",
+        "529",
+        "crypto",
+    }
+
+    def build_account_options(accounts, option_pairs):
+        """Combine existing accounts with quick-add account type templates."""
+        normalized_pairs = []
+        seen_keys = set()
+        for key, label in option_pairs:
+            if key in seen_keys:
+                continue
+            normalized_pairs.append((key, label))
+            seen_keys.add(key)
+
+        existing_types = {
+            getattr(a, "account_type", None) for a in accounts if getattr(a, "account_type", None)
+        }
+        options = [ft.dropdown.Option(str(a.id), a.name) for a in accounts if a.id]
+        for key, label in normalized_pairs:
+            if key not in existing_types:
+                options.append(ft.dropdown.Option(f"{ACCOUNT_TEMPLATE_PREFIX}{key}", f"{label} (new account)"))
+        if not options:
+            options.append(ft.dropdown.Option("0", "Default"))
+        return options, {key: label for key, label in normalized_pairs}
+
     def notify(message: str):
         snack = ft.SnackBar(content=ft.Text(message), open=True)
         page.overlay.append(snack)
@@ -131,11 +177,14 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
             )
             accounts = [default_acct]
 
+        account_options, account_type_lookup = build_account_options(accounts, ACCOUNT_TYPE_OPTIONS)
         account_dd = ft.Dropdown(
             label="Account *",
-            options=[ft.dropdown.Option(str(a.id), a.name) for a in accounts if a.id],
+            options=account_options,
             width=300,
         )
+        if account_dd.options:
+            account_dd.value = account_dd.options[0].key
         if not account_dd.options:
             account_dd.options = [ft.dropdown.Option("0", "Default")]
 
@@ -219,16 +268,42 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
             try:
                 from ...models.transaction import Transaction
 
+                selected_key = str(account_dd.value or "")
+                new_account = None
+                if selected_key.startswith(ACCOUNT_TEMPLATE_PREFIX):
+                    from ...models.account import Account
+
+                    selected_type = selected_key.replace(ACCOUNT_TEMPLATE_PREFIX, "", 1)
+                    account_name = account_type_lookup.get(selected_type, selected_type.title())
+                    new_account = ctx.account_repo.create(
+                        Account(
+                            name=account_name,
+                            account_type=selected_type,
+                            balance=0.0,
+                            user_id=uid,
+                        ),
+                        user_id=uid,
+                    )
+                    accounts.append(new_account)
+                    account_dd.options, _ = build_account_options(accounts, ACCOUNT_TYPE_OPTIONS)
+                    account_dd.value = str(new_account.id or 0)
+                    safe_update_fields(account_dd)
+
                 # Parse date and convert to datetime
                 date_str = date_field.value or str(date.today())
                 parsed_date = date.fromisoformat(date_str)
                 occurred_datetime = datetime.combine(parsed_date, datetime.min.time())
 
+                account_id = (
+                    int(account_dd.value or 0)
+                    if not new_account
+                    else int(new_account.id or 0)
+                )
                 # Get the selected account to check if it's an investment account
-                selected_account = next((a for a in accounts if a.id == int(account_dd.value or 0)), None)
+                selected_account = new_account or next((a for a in accounts if a.id == account_id), None)
 
                 txn = Transaction(
-                    account_id=int(account_dd.value or 0),
+                    account_id=account_id,
                     category_id=int(category_dd.value or 0),
                     amount=float(amount_field.value),
                     memo=description_field.value or "",
@@ -243,7 +318,7 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 )
 
                 # Check if this is an investment account - if so, prompt for holding details
-                if selected_account and selected_account.account_type in ("investment", "brokerage", "retirement"):
+                if selected_account and selected_account.account_type in INVESTMENT_ACCOUNT_TYPES:
                     show_investment_details_dialog(created_txn, selected_account)
                 else:
                     notify("Transaction created successfully!")
@@ -641,9 +716,11 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
             )
             accounts = [default_acct]
 
+        holding_option_pairs = ACCOUNT_TYPE_OPTIONS + PORTFOLIO_ACCOUNT_TYPE_EXTRAS
+        account_options, holding_account_type_lookup = build_account_options(accounts, holding_option_pairs)
         account_dd = ft.Dropdown(
             label="Account *",
-            options=[ft.dropdown.Option(str(a.id), a.name) for a in accounts if a.id],
+            options=account_options,
             width=300,
         )
         if account_dd.options:
@@ -680,8 +757,31 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
             try:
                 from ...models.portfolio import Holding
 
+                selected_key = str(account_dd.value or "")
+                if selected_key.startswith(ACCOUNT_TEMPLATE_PREFIX):
+                    from ...models.account import Account
+
+                    selected_type = selected_key.replace(ACCOUNT_TEMPLATE_PREFIX, "", 1)
+                    account_name = holding_account_type_lookup.get(selected_type, selected_type.title())
+                    new_account = ctx.account_repo.create(
+                        Account(
+                            name=account_name,
+                            account_type=selected_type,
+                            balance=0.0,
+                            user_id=uid,
+                        ),
+                        user_id=uid,
+                    )
+                    accounts.append(new_account)
+                    account_dd.options, holding_account_type_lookup = build_account_options(accounts, holding_option_pairs)
+                    account_dd.value = str(new_account.id or 0)
+                    safe_update_fields(account_dd)
+                    account_id = int(new_account.id or 0)
+                else:
+                    account_id = int(account_dd.value or 0)
+
                 holding = Holding(
-                    account_id=int(account_dd.value or 0),
+                    account_id=account_id,
                     symbol=(ticker_field.value or "").upper(),
                     quantity=float(shares_field.value or "0.0"),
                     avg_price=float(cost_basis_field.value or "0.0"),
@@ -729,13 +829,8 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
         name_field = ft.TextField(label="Account Name *", width=300)
         type_dd = ft.Dropdown(
             label="Account Type *",
-            options=[
-                ft.dropdown.Option("checking", "Checking"),
-                ft.dropdown.Option("savings", "Savings"),
-                ft.dropdown.Option("credit", "Credit Card"),
-                ft.dropdown.Option("investment", "Investment"),
-                ft.dropdown.Option("cash", "Cash"),
-            ],
+            value=ACCOUNT_TYPE_OPTIONS[0][0],
+            options=[ft.dropdown.Option(key, label) for key, label in ACCOUNT_TYPE_OPTIONS],
             width=200,
         )
         balance_field = ft.TextField(
