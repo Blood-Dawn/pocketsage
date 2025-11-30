@@ -957,7 +957,12 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     if getattr(ctx, "pending_refresh_route", None) == "/ledger":
         ctx.pending_refresh_route = None
-    _load_transactions()
+        # Reset filters to show everything after imports
+        quick_range.value = "all_time"
+        _set_quick_range("all_time")
+        _load_transactions(1)
+    else:
+        _load_transactions()
     if getattr(ctx, "pending_new_transaction", False):
         ctx.pending_new_transaction = False
         open_transaction_dialog(None)
