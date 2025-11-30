@@ -16,6 +16,7 @@ from .admin_tasks import (
     _seed_accounts,
     _seed_categories,
     _seed_habits,
+    _seed_habit_entries,
     _seed_liabilities,
     _seed_liability_transactions,
     _seed_budget,
@@ -40,6 +41,7 @@ def run_heavy_seed(
         session.flush()
         _heavy_transactions_seed(session, user_id, accounts)
         _seed_habits(session, user_id=user_id)
+        _seed_habit_entries(session, user_id=user_id)
         liabilities = _seed_liabilities(session, user_id=user_id)
         _seed_budget(session, categories, user_id=user_id)
         _seed_holdings(session, accounts, user_id=user_id)
