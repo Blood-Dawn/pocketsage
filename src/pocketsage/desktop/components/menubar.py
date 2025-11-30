@@ -3,7 +3,7 @@
 Implements a clean top menu bar similar to HomeBank's UI with dropdown menus:
 - File: New, Open, Save, Import, Export, Backup, Restore, Quit
 - View: Dashboard, Ledger, Budgets, Admin
-- Manage: Transactions, Habits, Debts, Portfolio, Budgets
+- Manage: Ledger, Habits, Debts, Portfolio, Budgets
 - Reports: All Reports
 - Settings: App Settings
 - Help: CSV Help, About
@@ -119,7 +119,7 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
         content=ft.Text("Manage"),
         controls=[
             ft.MenuItemButton(
-                content=ft.Text("Transactions  Ctrl+1"),
+                content=ft.Text("Ledger  Ctrl+1"),
                 leading=ft.Icon(ft.Icons.RECEIPT_LONG),
                 on_click=lambda _: controllers.navigate(page, "/ledger"),
             ),

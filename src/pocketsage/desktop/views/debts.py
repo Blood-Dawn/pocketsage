@@ -90,7 +90,8 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         if interest_text.current:
             interest_text.current.value = f"Projected interest: ${total_interest:,.2f}"
         rows: list[ft.Control] = []
-        for entry in schedule[:6]:
+        # Show complete payoff schedule until all debts are paid off
+        for entry in schedule:
             payments = entry.get("payments", {}) if isinstance(entry, dict) else {}
             remaining = sum(
                 float(p.get("remaining_balance", 0.0) or 0.0) for p in payments.values()
@@ -359,7 +360,14 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         show_confirm_dialog(page, "Delete liability", "Are you sure?", _delete)
 
     def _on_strategy_change(e):
-        strategy_state["value"] = e.control.value
+        """Parse combined strategy value like 'snowball_balanced' into strategy and mode."""
+        combined = e.control.value or "snowball_balanced"
+        parts = combined.split("_", 1)
+        strategy = parts[0] if len(parts) > 0 else "snowball"
+        mode = parts[1] if len(parts) > 1 else "balanced"
+
+        strategy_state["value"] = strategy
+        strategy_state["mode"] = mode
         _refresh()
 
     summary = ft.Row(
@@ -438,7 +446,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         content=ft.Container(
             content=ft.Column(
                 [
-                    ft.Text("Payoff schedule (first 6 months)", weight=ft.FontWeight.BOLD),
+                    ft.Text("Payoff schedule", weight=ft.FontWeight.BOLD),
                     ft.Row(
                         [
                             ft.Text("Month", width=110, color=ft.Colors.ON_SURFACE_VARIANT),
@@ -459,47 +467,32 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         [
             ft.Column(
                 [
-                    ft.Text("Strategy", weight=ft.FontWeight.BOLD),
-                    ft.RadioGroup(
-                        content=ft.Row(
-                            controls=[
-                                ft.Radio(value="snowball", label="Snowball"),
-                                ft.Radio(value="avalanche", label="Avalanche"),
-                            ]
-                        ),
-                        value=strategy_state["value"],
+                    ft.Text("Payoff strategy", weight=ft.FontWeight.BOLD),
+                    ft.Dropdown(
+                        width=320,
+                        value=f"{strategy_state.get('value', 'snowball')}_{strategy_state.get('mode', 'balanced')}",
+                        options=[
+                            ft.dropdown.Option("snowball_lazy", "Snowball + Minimums only"),
+                            ft.dropdown.Option("snowball_balanced", "Snowball + Balanced (+$50/mo)"),
+                            ft.dropdown.Option("snowball_aggressive", "Snowball + Aggressive (+$150/mo)"),
+                            ft.dropdown.Option("avalanche_lazy", "Avalanche + Minimums only"),
+                            ft.dropdown.Option("avalanche_balanced", "Avalanche + Balanced (+$50/mo)"),
+                            ft.dropdown.Option("avalanche_aggressive", "Avalanche + Aggressive (+$150/mo)"),
+                        ],
                         on_change=_on_strategy_change,
                     ),
-                ]
-            ),
-            ft.Column(
-                [
-                    ft.Text("Payment mode", weight=ft.FontWeight.BOLD),
-                    ft.Dropdown(
-                        width=200,
-                        value=strategy_state.get("mode", "balanced"),
-                        options=[
-                            ft.dropdown.Option("aggressive", "Aggressive (+$150/mo)"),
-                            ft.dropdown.Option("balanced", "Balanced (+$50/mo)"),
-                            ft.dropdown.Option("lazy", "Lazy (minimums only)"),
-                        ],
-                        on_change=lambda e: (
-                            strategy_state.update({"mode": e.control.value or "balanced"}),
-                            _refresh(),
-                        ),
+                    ft.Text(
+                        "Snowball: pay smallest balance first. Avalanche: pay highest APR first.",
+                        size=12,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
                 ]
             ),
             ft.Column(
                 [
                     ft.Text("", ref=payoff_text),
-                    ft.Text(
-                        "Snowball: smallest balance first. Avalanche: highest APR first. Payment mode adds surplus toward the current focus debt.",
-                        size=12,
-                        color=ft.Colors.ON_SURFACE_VARIANT,
-                    ),
                 ],
-                width=320,
+                expand=True,
             ),
         ],
         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
