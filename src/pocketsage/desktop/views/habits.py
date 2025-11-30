@@ -22,6 +22,7 @@ from ...models.habit import Habit, HabitEntry
 from ...services.habits import reminder_placeholder
 from ..components import build_app_bar, build_main_layout
 from ..components.dialogs import show_habit_dialog
+from ..constants import HABIT_CADENCE_OPTIONS
 
 if TYPE_CHECKING:
     from ..context import AppContext
@@ -394,10 +395,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         )
         cadence_field = ft.Dropdown(
             label="Cadence",
-            options=[
-                ft.dropdown.Option("daily", "Daily"),
-                ft.dropdown.Option("weekly", "Weekly"),
-            ],
+            options=[ft.dropdown.Option(key, label) for key, label in HABIT_CADENCE_OPTIONS],
             value=habit.cadence if habit else "daily",
             width=200,
         )

@@ -177,10 +177,24 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
     result_text = ft.Ref[ft.Text]()
     result_image = ft.Ref[ft.Image]()
+    progress_ring = ft.Ref[ft.ProgressRing]()
+    progress_text = ft.Ref[ft.Text]()
+    generate_button = ft.Ref[ft.FilledButton]()
 
     def _generate_report(_=None):
         rtype = report_type_dd.value or "spending"
         stamp = datetime.now().strftime("%Y%m%d%H%M%S")
+
+        # Show progress indicator
+        if progress_ring.current:
+            progress_ring.current.visible = True
+        if progress_text.current:
+            progress_text.current.visible = True
+            progress_text.current.value = "Generating report..."
+        if generate_button.current:
+            generate_button.current.disabled = True
+        page.update()
+
         try:
             if rtype == "spending":
                 month = ctx.current_month
@@ -253,8 +267,24 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     result_image.current.visible = True
                 if result_text.current:
                     result_text.current.value = f"Allocation chart saved to {chart_path}"
+
+            # Show success in progress text
+            if progress_text.current:
+                progress_text.current.value = "Report generated successfully!"
+            page.update()
+
         except Exception as exc:
             notify(f"Report generation failed: {exc}")
+            if progress_text.current:
+                progress_text.current.value = f"Error: {exc}"
+            page.update()
+        finally:
+            # Hide progress indicator and re-enable button
+            if progress_ring.current:
+                progress_ring.current.visible = False
+            if generate_button.current:
+                generate_button.current.disabled = False
+            page.update()
 
     def _exports_dir() -> Path:
         out = Path(ctx.config.DATA_DIR) / "exports"
@@ -590,11 +620,19 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.Row(
                         controls=[
                             report_type_dd,
-                            ft.FilledButton("Generate", icon=ft.Icons.PLAY_ARROW, on_click=_generate_report),
+                            ft.FilledButton(
+                                "Generate",
+                                icon=ft.Icons.PLAY_ARROW,
+                                on_click=_generate_report,
+                                ref=generate_button,
+                            ),
+                            ft.ProgressRing(width=20, height=20, stroke_width=2, visible=False, ref=progress_ring),
                         ],
                         spacing=8,
                         wrap=True,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
+                    ft.Text("", ref=progress_text, color=ft.Colors.PRIMARY, italic=True, visible=False),
                     ft.Text("", ref=result_text, color=ft.Colors.ON_SURFACE_VARIANT),
                     ft.Image(ref=result_image, height=220, visible=False),
                 ],

@@ -14,6 +14,7 @@ import flet as ft
 
 from ....logging_config import get_logger
 from ....models.habit import Habit
+from ...constants import HABIT_CADENCE_OPTIONS
 
 if TYPE_CHECKING:
     from ...context import AppContext
@@ -67,10 +68,7 @@ def show_habit_dialog(
 
     cadence_field = ft.Dropdown(
         label="Frequency",
-        options=[
-            ft.dropdown.Option("daily", "Daily"),
-            # Future: weekly, custom
-        ],
+        options=[ft.dropdown.Option(key, label) for key, label in HABIT_CADENCE_OPTIONS],
         value=habit.cadence if habit else "daily",
         width=200,
     )

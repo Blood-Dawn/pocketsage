@@ -12,6 +12,7 @@ import flet as ft
 
 from ...devtools import dev_log
 from ..components import build_main_layout
+from ..constants import DEFAULT_INCOME_CATEGORY_NAMES, HABIT_CADENCE_OPTIONS, TRANSACTION_TYPE_OPTIONS
 
 if TYPE_CHECKING:
     from ..context import AppContext
@@ -133,13 +134,47 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
         )
         if not account_dd.options:
             account_dd.options = [ft.dropdown.Option("0", "Default")]
+
+        # Transaction type dropdown
+        transaction_type_dd = ft.Dropdown(
+            label="Type *",
+            options=[ft.dropdown.Option(key, label) for key, label in TRANSACTION_TYPE_OPTIONS],
+            value="expense",
+            width=150,
+        )
+
+        # Category dropdown (will be filtered based on transaction type)
+        def get_filtered_categories(txn_type: str):
+            """Filter categories based on transaction type."""
+            if txn_type == "income":
+                return [c for c in categories if c.name in DEFAULT_INCOME_CATEGORY_NAMES]
+            elif txn_type == "expense":
+                return [c for c in categories if c.name not in DEFAULT_INCOME_CATEGORY_NAMES]
+            else:  # transfer
+                return [c for c in categories if "Transfer" in c.name]
+
         category_dd = ft.Dropdown(
             label="Category *",
-            options=[ft.dropdown.Option(str(c.id), c.name) for c in categories if c.id],
+            options=[ft.dropdown.Option(str(c.id), c.name) for c in get_filtered_categories("expense") if c.id],
             width=300,
         )
         if not category_dd.options:
             category_dd.options = [ft.dropdown.Option("0", "General")]
+
+        def on_type_change(e):
+            """Update category options when transaction type changes."""
+            txn_type = transaction_type_dd.value or "expense"
+            filtered = get_filtered_categories(txn_type)
+            category_dd.options = [ft.dropdown.Option(str(c.id), c.name) for c in filtered if c.id]
+            if not category_dd.options:
+                if txn_type == "transfer":
+                    category_dd.options = [ft.dropdown.Option("0", "Transfer")]
+                else:
+                    category_dd.options = [ft.dropdown.Option("0", "General")]
+            category_dd.value = None  # Clear selection
+            safe_update_fields(category_dd)
+
+        transaction_type_dd.on_change = on_type_change
         amount_field = ft.TextField(
             label="Amount *",
             hint_text="0.00",
@@ -185,6 +220,9 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 parsed_date = date.fromisoformat(date_str)
                 occurred_datetime = datetime.combine(parsed_date, datetime.min.time())
 
+                # Get the selected account to check if it's an investment account
+                selected_account = next((a for a in accounts if a.id == int(account_dd.value or 0)), None)
+
                 txn = Transaction(
                     account_id=int(account_dd.value or 0),
                     category_id=int(category_dd.value or 0),
@@ -193,19 +231,172 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     occurred_at=occurred_datetime,
                     user_id=uid,
                 )
-                ctx.transaction_repo.create(txn, user_id=uid)
+                created_txn = ctx.transaction_repo.create(txn, user_id=uid)
                 dev_log(
                     ctx.config,
                     "Transaction saved",
                     context={"amount": txn.amount, "memo": txn.memo},
                 )
-                notify("Transaction created successfully!")
-                # Clear form
+
+                # Check if this is an investment account - if so, prompt for holding details
+                if selected_account and selected_account.account_type in ("investment", "brokerage", "retirement"):
+                    show_investment_details_dialog(created_txn, selected_account)
+                else:
+                    notify("Transaction created successfully!")
+                    # Clear form
+                    amount_field.value = ""
+                    description_field.value = ""
+                    safe_update_fields(amount_field, description_field)
+            except Exception as exc:
+                notify_error("Create transaction", exc)
+
+        def show_investment_details_dialog(transaction, account):
+            """Show dialog to capture investment-specific details for portfolio sync."""
+            symbol_field = ft.TextField(
+                label="Stock Symbol *",
+                hint_text="e.g., AAPL, TSLA, SPY",
+                width=150,
+                autofocus=True,
+            )
+            shares_field = ft.TextField(
+                label="Number of Shares *",
+                hint_text="e.g., 10",
+                width=150,
+                keyboard_type=ft.KeyboardType.NUMBER,
+            )
+            skip_holding = ft.Checkbox(
+                label="Skip portfolio sync (transfer/dividend/etc.)",
+                value=False,
+            )
+
+            def save_holding(_):
+                # Allow skipping if it's not a buy/sell transaction
+                if skip_holding.value:
+                    dialog.open = False
+                    page.update()
+                    notify("Transaction saved (portfolio not updated)")
+                    # Clear form
+                    amount_field.value = ""
+                    description_field.value = ""
+                    safe_update_fields(amount_field, description_field)
+                    return
+
+                if not symbol_field.value or not shares_field.value:
+                    notify("Please enter stock symbol and number of shares")
+                    return
+
+                try:
+                    from ...models.portfolio import Holding
+
+                    symbol = symbol_field.value.strip().upper()
+                    shares = float(shares_field.value)
+                    transaction_amount = abs(float(transaction.amount))
+
+                    # Check if holding exists for this symbol
+                    existing_holdings = ctx.holding_repo.list_all(user_id=uid)
+                    existing = next(
+                        (h for h in existing_holdings if h.symbol == symbol and h.account_id == account.id),
+                        None
+                    )
+
+                    # Determine if this is a buy (expense) or sell (income)
+                    txn_type = transaction_type_dd.value or "expense"
+                    is_buy = txn_type == "expense" or transaction.amount < 0
+
+                    if existing:
+                        # Update existing holding
+                        if is_buy:
+                            # Buy: increase shares and update avg price
+                            old_total_cost = existing.quantity * existing.avg_price
+                            new_total_cost = old_total_cost + transaction_amount
+                            new_quantity = existing.quantity + shares
+                            existing.quantity = new_quantity
+                            existing.avg_price = new_total_cost / new_quantity if new_quantity > 0 else 0
+                        else:
+                            # Sell: decrease shares
+                            new_quantity = existing.quantity - shares
+                            if new_quantity > 0:
+                                existing.quantity = new_quantity
+                            else:
+                                # Sold all shares, delete holding
+                                ctx.holding_repo.delete(existing.id, user_id=uid)
+                                dialog.open = False
+                                page.update()
+                                notify("Transaction and portfolio updated (holding removed)")
+                                amount_field.value = ""
+                                description_field.value = ""
+                                safe_update_fields(amount_field, description_field)
+                                return
+
+                        ctx.holding_repo.update(existing, user_id=uid)
+                    else:
+                        # Create new holding (only for buys)
+                        if is_buy:
+                            price_per_share = transaction_amount / shares if shares > 0 else 0
+                            holding = Holding(
+                                user_id=uid,
+                                symbol=symbol,
+                                quantity=shares,
+                                avg_price=price_per_share,
+                                market_price=price_per_share,
+                                account_id=account.id,
+                                acquired_at=transaction.occurred_at,
+                            )
+                            ctx.holding_repo.create(holding, user_id=uid)
+                        else:
+                            notify("Warning: Cannot sell shares you don't own. Transaction saved but portfolio not updated.")
+
+                    dialog.open = False
+                    page.update()
+                    notify("Transaction and portfolio updated successfully!")
+                    # Clear form
+                    amount_field.value = ""
+                    description_field.value = ""
+                    safe_update_fields(amount_field, description_field)
+                except Exception as exc:
+                    notify_error("Update portfolio", exc)
+
+            def close_dialog(_):
+                dialog.open = False
+                page.update()
+                # Still clear the form even if they cancel
                 amount_field.value = ""
                 description_field.value = ""
                 safe_update_fields(amount_field, description_field)
-            except Exception as exc:
-                notify_error("Create transaction", exc)
+
+            dialog = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Investment Details"),
+                content=ft.Column(
+                    controls=[
+                        ft.Text(
+                            f"Transaction: ${abs(transaction.amount):.2f} in {account.name}",
+                            size=14,
+                            weight=ft.FontWeight.W_500,
+                        ),
+                        ft.Text(
+                            "Add stock details to sync with portfolio:",
+                            size=12,
+                            color=ft.Colors.ON_SURFACE_VARIANT,
+                        ),
+                        ft.Container(height=8),
+                        symbol_field,
+                        shares_field,
+                        ft.Container(height=8),
+                        skip_holding,
+                    ],
+                    tight=True,
+                    spacing=8,
+                    width=350,
+                ),
+                actions=[
+                    ft.TextButton("Skip", on_click=close_dialog),
+                    ft.FilledButton("Save to Portfolio", on_click=save_holding),
+                ],
+            )
+            page.dialog = dialog
+            dialog.open = True
+            page.update()
         def _clear_transaction_form():
             """Clear transaction form fields."""
             amount_field.value = ""
@@ -217,7 +408,7 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 controls=[
                     ft.Text("New Transaction", size=20, weight=ft.FontWeight.BOLD),
                     ft.Divider(),
-                    ft.Row([account_dd, category_dd]),
+                    ft.Row([account_dd, transaction_type_dd, category_dd], spacing=10),
                     ft.Row([amount_field, date_field]),
                     description_field,
                     ft.Row(
@@ -324,9 +515,9 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
         desc_field = ft.TextField(label="Description", width=320)
         cadence_dd = ft.Dropdown(
             label="Cadence",
-            options=[ft.dropdown.Option("daily", "Daily")],
+            options=[ft.dropdown.Option(key, label) for key, label in HABIT_CADENCE_OPTIONS],
             value="daily",
-            width=160,
+            width=200,
         )
 
         def save_habit(_):

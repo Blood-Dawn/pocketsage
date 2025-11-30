@@ -61,3 +61,23 @@ DEFAULT_CATEGORY_SEED = [
 
 # Lookup for default income names to avoid duplicating logic in forms.
 DEFAULT_INCOME_CATEGORY_NAMES = {c["name"] for c in DEFAULT_CATEGORY_SEED if c["category_type"] == "income"}
+
+# Transaction type options for add data forms
+TRANSACTION_TYPE_OPTIONS: list[tuple[str, str]] = [
+    ("expense", "Expense"),
+    ("income", "Income"),
+    ("transfer", "Transfer"),
+]
+
+# Habit cadence options for habit tracking
+HABIT_CADENCE_OPTIONS: list[tuple[str, str]] = [
+    ("daily", "Daily"),
+    ("every-other-day", "Every Other Day"),
+    ("twice-weekly", "Twice a Week"),
+    ("thrice-weekly", "Three Times a Week"),
+    ("weekly", "Weekly"),
+    ("biweekly", "Bi-Weekly"),
+    ("monthly", "Monthly"),
+    ("quarterly", "Quarterly"),
+    ("yearly", "Yearly"),
+]
