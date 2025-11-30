@@ -42,6 +42,20 @@ def spending_chart_png(
 
 def cashflow_trend_png(transactions: Iterable[Transaction], months: int = 6) -> Path:
     """Render a simple cashflow line chart for the last ``months`` months."""
+    txs = list(transactions)
+
+    # Show placeholder if no transactions
+    if not txs:
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.text(0.5, 0.5, "No transaction data yet\nAdd transactions to see your cashflow",
+                ha="center", va="center", fontsize=12, color="#999")
+        ax.axis("off")
+        with NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+            fig.savefig(tmp.name, bbox_inches="tight")
+            path = Path(tmp.name)
+        plt.close(fig)
+        return path
+
     today = date.today()
     month_keys: list[tuple[int, int]] = []
     for offset in range(months - 1, -1, -1):
@@ -50,12 +64,12 @@ def cashflow_trend_png(transactions: Iterable[Transaction], months: int = 6) -> 
         month_keys.append((year, month))
 
     totals = defaultdict(lambda: {"income": 0.0, "expense": 0.0})
-    for tx in transactions:
+    for tx in txs:
         dt = getattr(tx, "occurred_at", None)
         if dt is None:
             continue
         key = (dt.year, dt.month)
-        if key not in totals:
+        if key not in month_keys:
             continue
         amt = float(getattr(tx, "amount", 0.0) or 0.0)
         if amt >= 0:

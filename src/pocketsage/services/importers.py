@@ -29,6 +29,7 @@ _DEFAULT_LEDGER_MAPPING = ColumnMapping(
     account_name="account",
     currency="currency",
     external_id="transaction_id",
+    transaction_type="transaction_type",
 )
 
 
@@ -57,6 +58,18 @@ def import_ledger_transactions(
 
             amount_val = float(amount)
             memo = str(row.get("memo") or "").strip()
+
+            # Handle transaction type to determine amount sign
+            # Transaction model uses: positive for income, negative for expense
+            transaction_type = str(row.get("transaction_type") or "").strip().lower()
+            if transaction_type:
+                # If type is specified, ensure amount has correct sign
+                if transaction_type in ("expense", "debit", "withdrawal", "payment"):
+                    amount_val = -abs(amount_val)
+                elif transaction_type in ("income", "credit", "deposit"):
+                    amount_val = abs(amount_val)
+                # Otherwise keep amount as-is (might be transfer or other type)
+            # If no type specified, keep amount sign from CSV (existing behavior)
 
             external_id = str(row.get("external_id") or "").strip()
             if not external_id:
