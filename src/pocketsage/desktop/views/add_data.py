@@ -12,7 +12,11 @@ import flet as ft
 
 from ...devtools import dev_log
 from ..components import build_main_layout
-from ..constants import DEFAULT_INCOME_CATEGORY_NAMES, HABIT_CADENCE_OPTIONS, TRANSACTION_TYPE_OPTIONS
+from ..constants import (
+    DEFAULT_INCOME_CATEGORY_NAMES,
+    HABIT_CADENCE_OPTIONS,
+    TRANSACTION_TYPE_OPTIONS,
+)
 
 if TYPE_CHECKING:
     from ..context import AppContext
