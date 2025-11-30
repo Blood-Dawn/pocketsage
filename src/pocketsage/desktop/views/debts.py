@@ -381,16 +381,14 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         liabilities = ctx.liability_repo.list_all(user_id=uid)
         has_liabilities = bool(liabilities)
 
-        # Dynamically update content list based on whether we have liabilities
-        if content_ref.current and len(content_ref.current.controls) == 2:
-            # Remove the temporary spacer and add the actual content
-            content_ref.current.controls.pop()  # Remove spacer
-            if has_liabilities:
-                content_ref.current.controls.append(main_section)
-                main_content_ref.current.visible = True
-            else:
-                content_ref.current.controls.append(empty_state)
-                empty_state_ref.current.visible = True
+        # Simply toggle visibility - no content swapping needed
+        if empty_state_ref.current:
+            empty_state_ref.current.visible = not has_liabilities
+            _safe_update(empty_state_ref.current)
+
+        if main_content_ref.current:
+            main_content_ref.current.visible = has_liabilities
+            _safe_update(main_content_ref.current)
 
         rows: list[ft.DataRow] = []
         for liab in liabilities:
@@ -756,6 +754,9 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         selectable=True,
     )
 
+    # Determine initial visibility based on existing liabilities
+    initial_has_liabilities = bool(liabilities)
+
     empty_state = ft.Container(
         ref=empty_state_ref,
         content=ft.Column(
@@ -774,7 +775,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         ),
         alignment=ft.alignment.center,
         expand=True,
-        visible=False,  # Will be set to True by _refresh() if needed
+        visible=not initial_has_liabilities,  # Show if NO liabilities
         padding=ft.padding.all(32),
     )
 
@@ -816,7 +817,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         spacing=0,
         scroll=ft.ScrollMode.AUTO,
         expand=True,
-        visible=False,  # Start hidden - will be shown by _refresh() after mount
+        visible=initial_has_liabilities,  # Show if HAS liabilities
     )
 
     content_ref = ft.Ref[ft.Column]()
@@ -837,7 +838,8 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 wrap=True,
                 run_spacing=8,
             ),
-            ft.Container(height=200),  # Temporary spacer - will be replaced
+            empty_state,      # Include directly with initial visibility
+            main_section,     # Include directly with initial visibility
         ],
         spacing=12,
         scroll=ft.ScrollMode.AUTO,

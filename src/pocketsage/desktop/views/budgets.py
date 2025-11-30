@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import flet as ft
 
+from ...logging_config import get_logger
 from ...models.budget import Budget, BudgetLine
 from ...models.category import Category
 from ..components import build_app_bar, build_main_layout, build_progress_bar
@@ -16,6 +17,8 @@ from ..components.dialogs import show_budget_dialog
 if TYPE_CHECKING:
     from ..context import AppContext
 
+logger = get_logger(__name__)
+
 
 def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Build the budgets view."""
@@ -23,13 +26,21 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
     uid = ctx.require_user_id()
     # Get current month's budget
     today = ctx.current_month
+    logger.info(f"build_budgets_view: ctx.current_month = {today}")
     budget = ctx.budget_repo.get_for_month(today.year, today.month, user_id=uid)
 
     def _shift_month(delta: int):
         current = ctx.current_month
+        logger.info(f"_shift_month called: current={current}, delta={delta}")
+
         next_month = (current.month - 1 + delta) % 12 + 1
         next_year = current.year + ((current.month - 1 + delta) // 12)
-        ctx.current_month = date(next_year, next_month, 1)
+        new_date = date(next_year, next_month, 1)
+
+        logger.info(f"_shift_month: new_date={new_date}")
+        ctx.current_month = new_date
+
+        logger.info(f"_shift_month: ctx.current_month now = {ctx.current_month}")
         page.go("/budgets")
 
     def refresh_view():
