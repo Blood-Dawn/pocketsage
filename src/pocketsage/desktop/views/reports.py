@@ -667,21 +667,122 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
         )
     )
 
+    # Build debt summary cards
+    debt_summary_row = None
+    try:
+        all_liabilities = ctx.liability_repo.list_all(user_id=uid)
+        if all_liabilities:
+            total_debt = sum(li.balance for li in all_liabilities)
+            weighted_apr = ctx.liability_repo.get_weighted_apr(user_id=uid)
+            total_min_payment = sum(li.minimum_payment for li in all_liabilities)
+
+            # Calculate projected interest
+            projected_interest = 0.0
+            projected_months = 0
+            try:
+                debts = [
+                    DebtAccount(
+                        id=lb.id or 0,
+                        balance=float(lb.balance) if lb.balance else 0.0,
+                        apr=float(lb.apr) if lb.apr else 0.0,
+                        minimum_payment=float(lb.minimum_payment) if lb.minimum_payment else 0.0,
+                        statement_due_day=getattr(lb, "due_day", 1) or 1,
+                    )
+                    for lb in all_liabilities
+                    if lb.balance and lb.balance > 0
+                ]
+                if debts:
+                    from ...services.debts import schedule_summary
+                    schedule = snowball_schedule(debts=debts, surplus=50.0)
+                    if schedule:
+                        _, projected_interest, projected_months = schedule_summary(schedule)
+            except Exception:
+                pass
+
+            debt_summary_row = ft.ResponsiveRow(
+                controls=[
+                    ft.Card(
+                        content=ft.Container(
+                            content=ft.Column(
+                                [
+                                    ft.Text("Total Debt", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
+                                    ft.Text(f"${total_debt:,.2f}", size=28, weight=ft.FontWeight.BOLD),
+                                ],
+                            ),
+                            padding=20,
+                        ),
+                        col={"sm": 12, "md": 6, "lg": 3},
+                    ),
+                    ft.Card(
+                        content=ft.Container(
+                            content=ft.Column(
+                                [
+                                    ft.Text("Weighted APR", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
+                                    ft.Text(f"{weighted_apr:.2f}%", size=28, weight=ft.FontWeight.BOLD),
+                                ],
+                            ),
+                            padding=20,
+                        ),
+                        col={"sm": 12, "md": 6, "lg": 3},
+                    ),
+                    ft.Card(
+                        content=ft.Container(
+                            content=ft.Column(
+                                [
+                                    ft.Text("Min. Payment", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
+                                    ft.Text(f"${total_min_payment:,.2f}", size=28, weight=ft.FontWeight.BOLD),
+                                ],
+                            ),
+                            padding=20,
+                        ),
+                        col={"sm": 12, "md": 6, "lg": 3},
+                    ),
+                    ft.Card(
+                        content=ft.Container(
+                            content=ft.Column(
+                                [
+                                    ft.Text("Projected Interest", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
+                                    ft.Text(f"${projected_interest:,.2f}", size=28, weight=ft.FontWeight.BOLD),
+                                    ft.Text(
+                                        f"({projected_months} months)" if projected_months > 0 else "",
+                                        size=12,
+                                        color=ft.Colors.ON_SURFACE_VARIANT,
+                                    ),
+                                ],
+                            ),
+                            padding=20,
+                        ),
+                        col={"sm": 12, "md": 6, "lg": 3},
+                    ),
+                ]
+            )
+    except Exception:
+        pass
+
+    content_controls = [
+        ft.Text("Reports & Exports", size=24, weight=ft.FontWeight.BOLD),
+        ft.Text(
+            "Generate CSVs/ZIPs for archives or sharing.", color=ft.Colors.ON_SURFACE_VARIANT
+        ),
+        ft.Container(height=12),
+    ]
+
+    # Add debt summary if available
+    if debt_summary_row:
+        content_controls.append(ft.Text("Debt Summary", size=18, weight=ft.FontWeight.BOLD))
+        content_controls.append(debt_summary_row)
+        content_controls.append(ft.Container(height=16))
+
+    content_controls.extend([
+        cards,
+        ft.Container(height=16),
+        generator_card,
+        ft.Container(height=16),
+        empty_state("More reports coming soon."),
+    ])
+
     content = ft.Column(
-        controls=[
-            ft.Text("Reports & Exports", size=24, weight=ft.FontWeight.BOLD),
-            ft.Text(
-                "Generate CSVs/ZIPs for archives or sharing.", color=ft.Colors.ON_SURFACE_VARIANT
-            ),
-            ft.Container(height=12),
-            _build_charts(),
-            ft.Container(height=16),
-            cards,
-            ft.Container(height=16),
-            generator_card,
-            ft.Container(height=16),
-            empty_state("More reports coming soon."),
-        ],
+        controls=content_controls,
         expand=True,
         scroll=ft.ScrollMode.AUTO,
     )

@@ -60,9 +60,6 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
     strategy_state = {"value": "snowball", "mode": "balanced"}
     liabilities: list[Liability] = ctx.liability_repo.list_all(user_id=uid)
 
-    total_debt_text = ft.Ref[ft.Text]()
-    weighted_apr_text = ft.Ref[ft.Text]()
-    min_payment_text = ft.Ref[ft.Text]()
     payoff_text = ft.Ref[ft.Text]()
     interest_text = ft.Ref[ft.Text]()
     table_ref = ft.Ref[ft.DataTable]()
@@ -389,9 +386,6 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         nonlocal liabilities
         liabilities = ctx.liability_repo.list_all(user_id=uid)
         has_liabilities = bool(liabilities)
-        total_debt = ctx.liability_repo.get_total_debt(user_id=uid)
-        weighted_apr = ctx.liability_repo.get_weighted_apr(user_id=uid)
-        total_min_payment = sum(li.minimum_payment for li in liabilities)
 
         # Dynamically update content list based on whether we have liabilities
         if content_ref.current and len(content_ref.current.controls) == 2:
@@ -403,16 +397,6 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             else:
                 content_ref.current.controls.append(empty_state)
                 empty_state_ref.current.visible = True
-
-        if total_debt_text.current:
-            total_debt_text.current.value = f"${total_debt:,.2f}"
-            _safe_update(total_debt_text.current)
-        if weighted_apr_text.current:
-            weighted_apr_text.current.value = f"{weighted_apr:.2f}%"
-            _safe_update(weighted_apr_text.current)
-        if min_payment_text.current:
-            min_payment_text.current.value = f"${total_min_payment:,.2f}"
-            _safe_update(min_payment_text.current)
 
         rows: list[ft.DataRow] = []
         for liab in liabilities:
@@ -662,88 +646,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         strategy_state["mode"] = mode
         _refresh()
 
-    # Calculate initial values to prevent grey boxes
-    initial_total_debt = sum(li.balance for li in liabilities) if liabilities else 0.0
-    initial_weighted_apr = ctx.liability_repo.get_weighted_apr(user_id=uid) if liabilities else 0.0
-    initial_min_payment = sum(li.minimum_payment for li in liabilities) if liabilities else 0.0
-
-    summary = ft.Row(
-        [
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column(
-                        [
-                            ft.Text("Total Debt", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
-                            ft.Text(
-                                f"${initial_total_debt:,.2f}",
-                                size=28,
-                                weight=ft.FontWeight.BOLD,
-                                ref=total_debt_text
-                            ),
-                        ],
-                    ),
-                    padding=20,
-                ),
-                expand=True,
-            ),
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column(
-                        [
-                            ft.Text("Weighted APR", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
-                            ft.Text(
-                                f"{initial_weighted_apr:.2f}%",
-                                size=28,
-                                weight=ft.FontWeight.BOLD,
-                                ref=weighted_apr_text
-                            ),
-                        ],
-                    ),
-                    padding=20,
-                ),
-                expand=True,
-            ),
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column(
-                        [
-                            ft.Text("Min. Payment", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
-                            ft.Text(
-                                f"${initial_min_payment:,.2f}",
-                                size=28,
-                                weight=ft.FontWeight.BOLD,
-                                ref=min_payment_text
-                            ),
-                        ],
-                    ),
-                    padding=20,
-                ),
-                expand=True,
-            ),
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column(
-                        [
-                            ft.Text(
-                                "Projected Interest",
-                                size=14,
-                                color=ft.Colors.ON_SURFACE_VARIANT,
-                            ),
-                            ft.Text(
-                                "$0.00",
-                                size=28,
-                                weight=ft.FontWeight.BOLD,
-                                ref=interest_text
-                            ),
-                        ],
-                    ),
-                    padding=20,
-                ),
-                expand=True,
-            ),
-        ],
-        spacing=16,
-    )
+    # Summary cards removed - moved to reports page
 
     table = ft.DataTable(
         ref=table_ref,
@@ -885,8 +788,6 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         ref=main_content_ref,
         controls=[
             ft.Container(height=16),
-            summary,
-            ft.Container(height=24),
             strategy_row,
             payoff_summary,
             ft.Card(content=ft.Container(content=table, padding=12)),
