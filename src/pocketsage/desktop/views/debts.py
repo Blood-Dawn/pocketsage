@@ -18,20 +18,14 @@ from typing import TYPE_CHECKING
 
 import flet as ft
 
-from .. import controllers
 from ...devtools import dev_log
 from ...logging_config import get_logger
 from ...models.liability import Liability
 from ...services.debts import DebtAccount, avalanche_schedule, schedule_summary, snowball_schedule
 from ...services.liabilities import build_payment_transaction
+from .. import controllers
 from ..charts import debt_payoff_chart_png
 from ..components import build_app_bar, build_main_layout, show_confirm_dialog, show_error_dialog
-from ..components import (
-    build_app_bar,
-    build_main_layout,
-    show_confirm_dialog,
-    show_error_dialog,
-)
 
 if TYPE_CHECKING:
     from ..context import AppContext
