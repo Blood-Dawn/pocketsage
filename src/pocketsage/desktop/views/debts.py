@@ -84,30 +84,70 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
     def _run_projection(
         liabilities: list[Liability], *, mode: str = "balanced"
     ) -> tuple[list[dict], str | None, float, int, Path | None]:
-        debts = _to_accounts(liabilities)
+        """Run payoff projection with full error handling."""
+
+        # Early return for empty input
+        if not liabilities:
+            return [], None, 0.0, 0, None
+
+        # Convert to DebtAccount objects with validation
+        debts = []
+        for lb in liabilities:
+            try:
+                balance = float(lb.balance) if lb.balance else 0.0
+                apr = float(lb.apr) if lb.apr else 0.0
+                min_payment = float(lb.minimum_payment) if lb.minimum_payment else 0.0
+
+                # Skip invalid entries
+                if balance <= 0 or min_payment <= 0:
+                    continue
+
+                debts.append(DebtAccount(
+                    id=lb.id or 0,
+                    balance=balance,
+                    apr=apr,
+                    minimum_payment=min_payment,
+                    statement_due_day=getattr(lb, "due_day", 1) or 1,
+                ))
+            except (TypeError, ValueError) as e:
+                logger.warning(f"Skipping invalid liability: {e}")
+                continue
+
         if not debts:
             return [], None, 0.0, 0, None
+
         total_debt = sum(d.balance for d in debts)
         if total_debt <= 0:
             return [], None, 0.0, 0, None
+
+        # Determine surplus based on mode
         surplus = 0.0
         if mode == "aggressive":
             surplus = 150.0
-        else:
-            surplus = 0.0 if mode in {"lazy", "minimum"} else 50.0
+        elif mode == "balanced":
+            surplus = 50.0
+
+        # Initialize return values
         sched: list[dict] = []
         payoff: str | None = None
         total_interest = 0.0
         months = 0
         chart_path: Path | None = None
+
         try:
             if strategy_state["value"] == "avalanche":
                 sched = avalanche_schedule(debts=debts, surplus=surplus)
             else:
                 sched = snowball_schedule(debts=debts, surplus=surplus)
-            if sched:
+
+            if sched and len(sched) > 0:
                 payoff, total_interest, months = schedule_summary(sched)
-                chart_path = debt_payoff_chart_png(sched)
+                try:
+                    chart_path = debt_payoff_chart_png(sched)
+                except Exception as chart_exc:
+                    logger.warning("Chart generation failed: %s", chart_exc)
+                    chart_path = None
+
         except Exception as exc:
             logger.warning("Payoff schedule generation failed: %s", exc)
             sched = []
@@ -115,6 +155,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             payoff = None
             total_interest = 0.0
             months = 0
+
         return sched, payoff, total_interest, months, chart_path
 
     def _update_schedule(
@@ -163,22 +204,38 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 ]
             _safe_update(schedule_ref.current)
 
+        # Update payoff chart with comprehensive error handling
         if payoff_chart_ref.current is not None:
             try:
                 if not has_liabilities or not schedule:
                     payoff_chart_ref.current.visible = False
+                    payoff_chart_ref.current.src = ""
                     _safe_update(payoff_chart_ref.current)
                     return
-                if chart_path and chart_path.exists():
-                    payoff_chart_ref.current.src = str(chart_path)
-                    payoff_chart_ref.current.visible = True
-                    payoff_chart_ref.current.fit = ft.ImageFit.CONTAIN
+
+                if chart_path is not None:
+                    try:
+                        if hasattr(chart_path, 'exists') and chart_path.exists():
+                            payoff_chart_ref.current.src = str(chart_path)
+                            payoff_chart_ref.current.visible = True
+                            payoff_chart_ref.current.fit = ft.ImageFit.CONTAIN
+                        else:
+                            payoff_chart_ref.current.src = ""
+                            payoff_chart_ref.current.visible = False
+                    except Exception as path_exc:
+                        logger.warning("Chart path check failed: %s", path_exc)
+                        payoff_chart_ref.current.visible = False
                 else:
                     payoff_chart_ref.current.src = ""
                     payoff_chart_ref.current.visible = False
+
             except Exception as exc:
                 logger.warning("Chart update failed: %s", exc)
-                payoff_chart_ref.current.visible = False
+                try:
+                    payoff_chart_ref.current.visible = False
+                except Exception:
+                    pass
+
             _safe_update(payoff_chart_ref.current)
 
     def _refresh() -> None:

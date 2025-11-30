@@ -121,19 +121,30 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
         if not habit_rows:
             habit_rows.append(ft.Text("No habits yet", color=ft.Colors.ON_SURFACE_VARIANT))
 
-        # Debt payoff chart snapshot
-        liabilities = ctx.liability_repo.list_all(user_id=uid)
-        debts = [
-            DebtAccount(
-                id=lb.id or 0,
-                balance=lb.balance,
-                apr=lb.apr,
-                minimum_payment=lb.minimum_payment,
-                statement_due_day=getattr(lb, "due_day", 1) or 1,
-            )
-            for lb in liabilities
-        ]
-        payoff_png = debt_payoff_chart_png(snowball_schedule(debts=debts, surplus=0.0)) if debts else None
+        # Debt payoff chart snapshot - with comprehensive error guards
+        payoff_png = None
+        try:
+            liabilities = ctx.liability_repo.list_all(user_id=uid)
+            if liabilities:
+                debts = [
+                    DebtAccount(
+                        id=lb.id or 0,
+                        balance=float(lb.balance) if lb.balance else 0.0,
+                        apr=float(lb.apr) if lb.apr else 0.0,
+                        minimum_payment=float(lb.minimum_payment) if lb.minimum_payment else 0.0,
+                        statement_due_day=getattr(lb, "due_day", 1) or 1,
+                    )
+                    for lb in liabilities
+                    if lb.balance and lb.balance > 0
+                ]
+                if debts:
+                    schedule = snowball_schedule(debts=debts, surplus=0.0)
+                    if schedule and len(schedule) > 0:
+                        payoff_png = debt_payoff_chart_png(schedule)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Debt payoff chart generation failed: {e}")
+            payoff_png = None
 
         # Portfolio allocation snapshot
         holdings = ctx.holding_repo.list_all(user_id=uid) if hasattr(ctx, "holding_repo") else []
@@ -246,9 +257,24 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 if not debts:
                     notify("No debts to report on.")
                     return
+
+                # Generate payoff schedule
                 schedule = snowball_schedule(debts=debts, surplus=0.0)
+                if not schedule:
+                    notify("Could not generate payoff schedule. Check that debts have valid balances and minimum payments.")
+                    return
+
+                # Generate chart to temp file, then copy to destination
                 out = _exports_dir() / f"debt_{stamp}.png"
-                chart_path = debt_payoff_chart_png(schedule, output_path=out)
+                try:
+                    temp_chart_path = debt_payoff_chart_png(schedule)
+                    shutil.copy(temp_chart_path, out)
+                    chart_path = out
+                except Exception as chart_exc:
+                    notify(f"Chart generation failed: {chart_exc}")
+                    return
+
+                # Display the chart in the UI
                 if result_image.current:
                     result_image.current.src = str(chart_path)
                     result_image.current.visible = True
@@ -733,38 +759,197 @@ def _open_chart_dialog(
 
 def _chart_card(
     title: str,
-    image_path: Path | str | None,
-    content: ft.Control | None = None,
-    page: ft.Page | None = None,
+    image_path: Path | None,
+    extra_content: ft.Control | None = None,
+    *,
+    page: ft.Page,
     drill_route: str | None = None,
-):
-    body: ft.Control
-    if image_path:
-        body = ft.Image(src=str(image_path), height=200, fit=ft.ImageFit.CONTAIN)
-    elif content is not None:
-        body = content
-    else:
-        body = ft.Text("No data", color=ft.Colors.ON_SURFACE_VARIANT)
+) -> ft.Container:
+    """Create a chart card with click-to-expand functionality."""
 
-    on_click = (
-        (lambda _: _open_chart_dialog(page, title, image_path, content, drill_route))
-        if page is not None and (image_path or content is not None)
-        else None
-    )
+    def _show_expanded_image(e):
+        """Show the image in a full-screen modal dialog."""
+        if not image_path:
+            return
 
-    return ft.Container(
-        col={"sm": 12, "md": 6},
-        on_click=on_click,
-        content=ft.Card(
+        try:
+            if not image_path.exists():
+                return
+        except Exception:
+            return
+
+        def close_dialog(e):
+            expand_dialog.open = False
+            try:
+                page.update()
+            except AssertionError:
+                pass
+
+        def _open_in_viewer():
+            """Open the image file in the system's default image viewer."""
+            try:
+                import os
+                import subprocess
+                import sys
+
+                if sys.platform == "win32":
+                    os.startfile(str(image_path))
+                elif sys.platform == "darwin":
+                    subprocess.run(["open", str(image_path)])
+                else:
+                    subprocess.run(["xdg-open", str(image_path)])
+            except Exception:
+                pass
+
+        expand_dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Row(
+                controls=[
+                    ft.Icon(ft.Icons.ZOOM_IN, color=ft.Colors.PRIMARY),
+                    ft.Text(title, size=20, weight=ft.FontWeight.BOLD),
+                ],
+                spacing=10,
+            ),
             content=ft.Container(
-                padding=12,
                 content=ft.Column(
                     controls=[
-                        ft.Text(title, weight=ft.FontWeight.BOLD),
-                        body,
+                        ft.Image(
+                            src=str(image_path),
+                            fit=ft.ImageFit.CONTAIN,
+                            width=900,
+                            height=650,
+                        ),
                     ],
-                    spacing=8,
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    scroll=ft.ScrollMode.AUTO,
                 ),
+                padding=10,
+                width=920,
+                height=700,
+            ),
+            actions=[
+                ft.TextButton(
+                    "Open in Viewer",
+                    icon=ft.Icons.OPEN_IN_NEW,
+                    on_click=lambda _: _open_in_viewer(),
+                ),
+                ft.FilledButton(
+                    "Close",
+                    icon=ft.Icons.CLOSE,
+                    on_click=close_dialog,
+                ),
+            ],
+            actions_alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+        )
+
+        page.dialog = expand_dialog
+        expand_dialog.open = True
+        try:
+            page.update()
+        except AssertionError:
+            pass
+
+    # Build the card content
+    content_controls: list[ft.Control] = [
+        ft.Text(title, weight=ft.FontWeight.BOLD, size=14),
+    ]
+
+    if image_path:
+        path_exists = False
+        try:
+            path_exists = image_path.exists()
+        except Exception:
+            pass
+
+        if path_exists:
+            image_stack = ft.Stack(
+                controls=[
+                    ft.Image(
+                        src=str(image_path),
+                        height=200,
+                        fit=ft.ImageFit.CONTAIN,
+                    ),
+                    ft.Container(
+                        content=ft.Row(
+                            controls=[
+                                ft.Icon(
+                                    ft.Icons.ZOOM_IN,
+                                    size=16,
+                                    color=ft.Colors.WHITE,
+                                ),
+                                ft.Text(
+                                    "Click to expand",
+                                    size=10,
+                                    color=ft.Colors.WHITE,
+                                ),
+                            ],
+                            spacing=4,
+                        ),
+                        bgcolor=ft.Colors.with_opacity(0.7, ft.Colors.BLACK),
+                        border_radius=4,
+                        padding=ft.padding.symmetric(horizontal=8, vertical=4),
+                        right=5,
+                        bottom=5,
+                    ),
+                ],
             )
+
+            image_container = ft.Container(
+                content=image_stack,
+                on_click=_show_expanded_image,
+                ink=True,
+                border_radius=8,
+            )
+            content_controls.append(image_container)
+        else:
+            content_controls.append(
+                ft.Container(
+                    content=ft.Column(
+                        controls=[
+                            ft.Icon(ft.Icons.IMAGE_NOT_SUPPORTED, size=40, color=ft.Colors.OUTLINE),
+                            ft.Text("Chart not available", color=ft.Colors.ON_SURFACE_VARIANT, size=12),
+                        ],
+                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                        alignment=ft.MainAxisAlignment.CENTER,
+                    ),
+                    height=200,
+                    alignment=ft.alignment.center,
+                )
+            )
+    elif extra_content:
+        content_controls.append(extra_content)
+    else:
+        content_controls.append(
+            ft.Container(
+                content=ft.Text("No data available", color=ft.Colors.ON_SURFACE_VARIANT),
+                height=200,
+                alignment=ft.alignment.center,
+            )
+        )
+
+    if drill_route:
+        content_controls.append(
+            ft.Container(
+                content=ft.TextButton(
+                    "View details",
+                    icon=ft.Icons.ARROW_FORWARD,
+                    on_click=lambda _: page.go(drill_route),
+                ),
+                alignment=ft.alignment.center_right,
+            )
+        )
+
+    return ft.Container(
+        content=ft.Card(
+            content=ft.Container(
+                content=ft.Column(
+                    controls=content_controls,
+                    spacing=8,
+                    horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
+                ),
+                padding=12,
+            ),
+            elevation=2,
         ),
+        col={"sm": 12, "md": 6, "lg": 4},
     )

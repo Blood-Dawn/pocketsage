@@ -3,23 +3,268 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
+import logging
 import math
 import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, ContextManager, Optional, cast
 
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from ..models import Account, Category, Transaction
 from ..models.portfolio import Holding
 from .import_csv import ColumnMapping, load_transactions_from_csv, normalize_frame
 
+logger = logging.getLogger(__name__)
+
 SessionFactory = Callable[[], ContextManager[Session]]
 ACCOUNT_ID_COLUMN = cast(Any, Account.id)
 ACCOUNT_NAME_COLUMN = cast(Any, Account.name)
 HOLDING_ACCOUNT_COLUMN = cast(Any, Holding.account_id)
+
+
+from dataclasses import dataclass
+
+
+@dataclass
+class ImportResult:
+    """Result of an import operation."""
+    created: int
+    skipped: int
+    errors: list[str]
+
+
+def import_transactions(
+    csv_path: Path,
+    session: Session,
+    user_id: int,
+    *,
+    account_id: int | None = None,
+    category_map: dict[str, int] | None = None,
+) -> ImportResult:
+    """Import transactions from CSV file with robust column detection and logging."""
+
+    created = 0
+    skipped = 0
+    errors: list[str] = []
+
+    logger.info(f"Starting transaction import from: {csv_path}")
+
+    try:
+        with csv_path.open("r", newline="", encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+
+            headers = reader.fieldnames or []
+            logger.info(f"CSV headers found: {headers}")
+
+            if not headers:
+                errors.append("CSV file has no headers")
+                return ImportResult(created=0, skipped=0, errors=errors)
+
+            row_count = 0
+            for row_num, row in enumerate(reader, start=2):
+                row_count += 1
+
+                if row_num <= 4:
+                    logger.info(f"Row {row_num} data: {dict(row)}")
+
+                try:
+                    # Extract date with multiple column name support
+                    date_str = (
+                        row.get("date")
+                        or row.get("Date")
+                        or row.get("DATE")
+                        or row.get("occurred_at")
+                        or row.get("transaction_date")
+                        or row.get("Transaction Date")
+                    )
+
+                    if not date_str:
+                        errors.append(f"Row {row_num}: No date found. Columns: {list(row.keys())}")
+                        skipped += 1
+                        continue
+
+                    # Parse date with multiple format support
+                    parsed_date = None
+                    date_str = date_str.strip()
+
+                    for fmt in ["%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%Y/%m/%d", "%m-%d-%Y", "%d-%m-%Y"]:
+                        try:
+                            parsed_date = datetime.strptime(date_str, fmt)
+                            break
+                        except ValueError:
+                            continue
+
+                    if parsed_date is None:
+                        if "T" in date_str:
+                            try:
+                                parsed_date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                            except Exception:
+                                pass
+
+                    if parsed_date is None:
+                        errors.append(f"Row {row_num}: Could not parse date '{date_str}'")
+                        skipped += 1
+                        continue
+
+                    # Extract amount
+                    amount_str = (
+                        row.get("amount")
+                        or row.get("Amount")
+                        or row.get("AMOUNT")
+                        or row.get("value")
+                        or row.get("Value")
+                        or row.get("transaction_amount")
+                    )
+
+                    if not amount_str:
+                        errors.append(f"Row {row_num}: No amount found")
+                        skipped += 1
+                        continue
+
+                    try:
+                        clean_amount = str(amount_str).replace("$", "").replace(",", "").replace(" ", "").strip()
+                        # Handle parentheses for negative: (100.00) -> -100.00
+                        if clean_amount.startswith("(") and clean_amount.endswith(")"):
+                            clean_amount = "-" + clean_amount[1:-1]
+                        amount = float(clean_amount)
+                    except (ValueError, TypeError) as amt_exc:
+                        errors.append(f"Row {row_num}: Could not parse amount '{amount_str}'")
+                        skipped += 1
+                        continue
+
+                    # Extract memo/description
+                    memo = (
+                        row.get("memo")
+                        or row.get("Memo")
+                        or row.get("MEMO")
+                        or row.get("description")
+                        or row.get("Description")
+                        or row.get("DESCRIPTION")
+                        or row.get("note")
+                        or row.get("Note")
+                        or row.get("Payee")
+                        or row.get("payee")
+                        or ""
+                    )
+                    if memo:
+                        memo = str(memo).strip()
+
+                    # Extract or generate external_id
+                    external_id = (
+                        row.get("external_id")
+                        or row.get("id")
+                        or row.get("transaction_id")
+                        or row.get("reference")
+                    )
+
+                    if not external_id:
+                        # Include row_num and filename in hash for uniqueness
+                        hash_input = f"{csv_path.name}|{row_num}|{date_str}|{amount}|{memo}"
+                        external_id = f"import-{hashlib.md5(hash_input.encode()).hexdigest()[:16]}"
+
+                    # Check for existing transaction
+                    existing = session.exec(
+                        select(Transaction).where(
+                            Transaction.external_id == external_id,
+                            Transaction.user_id == user_id,
+                        )
+                    ).first()
+
+                    if existing:
+                        logger.debug(f"Row {row_num}: Skipping duplicate (external_id={external_id})")
+                        skipped += 1
+                        continue
+
+                    # Resolve category
+                    category_id = None
+                    category_str = (
+                        row.get("category")
+                        or row.get("Category")
+                        or row.get("CATEGORY")
+                        or row.get("category_id")
+                        or row.get("category_name")
+                    )
+
+                    if category_str:
+                        category_str = str(category_str).strip()
+                        if category_map and category_str in category_map:
+                            category_id = category_map[category_str]
+                        else:
+                            cat = session.exec(
+                                select(Category).where(
+                                    Category.name == category_str,
+                                    Category.user_id == user_id,
+                                )
+                            ).first()
+                            if cat:
+                                category_id = cat.id
+                            else:
+                                # Case-insensitive fallback
+                                cat = session.exec(
+                                    select(Category).where(
+                                        func.lower(Category.name) == category_str.lower(),
+                                        Category.user_id == user_id,
+                                    )
+                                ).first()
+                                if cat:
+                                    category_id = cat.id
+
+                    # Resolve account
+                    resolved_account_id = account_id
+                    account_str = (
+                        row.get("account")
+                        or row.get("Account")
+                        or row.get("ACCOUNT")
+                        or row.get("account_id")
+                        or row.get("account_name")
+                    )
+
+                    if account_str and not account_id:
+                        account_str = str(account_str).strip()
+                        acc = session.exec(
+                            select(Account).where(
+                                Account.name == account_str,
+                                Account.user_id == user_id,
+                            )
+                        ).first()
+                        if acc:
+                            resolved_account_id = acc.id
+
+                    # Create transaction
+                    tx = Transaction(
+                        user_id=user_id,
+                        external_id=external_id,
+                        occurred_at=parsed_date,
+                        amount=amount,
+                        memo=memo,
+                        category_id=category_id,
+                        account_id=resolved_account_id,
+                        currency="USD",
+                    )
+
+                    session.add(tx)
+                    created += 1
+
+                except Exception as row_exc:
+                    errors.append(f"Row {row_num}: {row_exc}")
+                    skipped += 1
+
+            logger.info(f"Import complete: {row_count} rows processed, {created} created, {skipped} skipped")
+
+            if created > 0:
+                session.flush()
+
+    except Exception as file_exc:
+        logger.error(f"Import failed: {file_exc}")
+        errors.append(f"File error: {file_exc}")
+
+    return ImportResult(created=created, skipped=skipped, errors=errors)
+
 
 _DEFAULT_LEDGER_MAPPING = ColumnMapping(
     amount="amount",
