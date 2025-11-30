@@ -46,8 +46,7 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
     ])
 
     def _open_new_transaction():
-        ctx.pending_new_transaction = True
-        page.go("/ledger")
+        page.go("/add-data")
 
     # Build stat cards
     stat_cards = ft.Row(

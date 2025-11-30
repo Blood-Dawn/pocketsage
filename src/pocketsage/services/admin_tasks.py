@@ -260,12 +260,12 @@ def _seed_transactions(
 
 
 def _heavy_transactions_seed(session: Session, user_id: int, accounts: dict[str, Account]) -> None:
-    """Generate a randomized heavy transaction dataset for testing."""
+    """Generate a randomized heavy transaction dataset for testing (5 years)."""
 
     import random
     from datetime import timedelta
 
-    start_date = datetime(2015, 1, 1)
+    start_date = datetime(2020, 1, 1)
     # Always include the current month in the randomized dataset
     end_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
     income_categories = ["Salary", "Bonus", "Interest", "Dividends", "Side Hustle", "Refund"]

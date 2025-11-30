@@ -2,11 +2,10 @@
 
 Implements a clean top menu bar similar to HomeBank's UI with dropdown menus:
 - File: New, Open, Save, Import, Export, Backup, Restore, Quit
-- Edit: Categories, Accounts, Budgets (future: Preferences)
-- View: (future: filters, sorting options)
-- Manage: Transactions, Habits, Debts, Portfolio
-- Reports: Dashboard, Monthly, Year-to-Date, Charts
-- Tools: Demo Seed, Reset Data (admin only)
+- View: Dashboard, Ledger, Budgets, Admin
+- Manage: Transactions, Habits, Debts, Portfolio, Budgets
+- Reports: All Reports
+- Settings: App Settings
 - Help: CSV Help, About
 """
 
@@ -81,9 +80,6 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
             ),
         ],
     )
-
-    # Edit menu (intentionally slimmed; categories/accounts managed in Settings/Add Data flows)
-    edit_menu = ft.SubmenuButton(content=ft.Text("Edit"), controls=[])
 
     # View menu
     view_menu = ft.SubmenuButton(
@@ -195,7 +191,6 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
     return ft.MenuBar(
         controls=[
             file_menu,
-            edit_menu,
             view_menu,
             manage_menu,
             reports_menu,

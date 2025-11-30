@@ -10,6 +10,8 @@ src/pocketsage.egg-info/SOURCES.txt
 src/pocketsage.egg-info/dependency_links.txt
 src/pocketsage.egg-info/requires.txt
 src/pocketsage.egg-info/top_level.txt
+src/pocketsage/constants/__init__.py
+src/pocketsage/constants/categories.py
 src/pocketsage/desktop/__init__.py
 src/pocketsage/desktop/app.py
 src/pocketsage/desktop/charts.py
