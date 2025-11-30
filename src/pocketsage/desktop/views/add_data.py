@@ -239,8 +239,16 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
             hint_text="What was this for?",
             width=400,
         )
+        def on_date_selected(e):
+            """Update the date field when a date is picked."""
+            if e.control.value:
+                # Extract date from datetime object
+                selected_date = e.control.value.date() if hasattr(e.control.value, 'date') else e.control.value
+                date_field.value = str(selected_date)
+                date_field.update()
+
         date_picker = ft.DatePicker(
-            on_change=lambda e: date_field.update(),
+            on_change=on_date_selected,
         )
         page.overlay.append(date_picker)
         date_field = ft.TextField(
@@ -302,10 +310,16 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 # Get the selected account to check if it's an investment account
                 selected_account = new_account or next((a for a in accounts if a.id == account_id), None)
 
+                # Get transaction type and set amount sign accordingly
+                # Transaction model uses: positive for income, negative for expense
+                txn_type = transaction_type_dd.value or "expense"
+                raw_amount = float(amount_field.value)
+                signed_amount = raw_amount if txn_type == "income" else -abs(raw_amount)
+
                 txn = Transaction(
                     account_id=account_id,
                     category_id=int(category_dd.value or 0),
-                    amount=float(amount_field.value),
+                    amount=signed_amount,
                     memo=description_field.value or "",
                     occurred_at=occurred_datetime,
                     user_id=uid,
@@ -773,7 +787,7 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         user_id=uid,
                     )
                     accounts.append(new_account)
-                    account_dd.options, holding_account_type_lookup = build_account_options(accounts, holding_option_pairs)
+                    account_dd.options, _ = build_account_options(accounts, holding_option_pairs)
                     account_dd.value = str(new_account.id or 0)
                     safe_update_fields(account_dd)
                     account_id = int(new_account.id or 0)

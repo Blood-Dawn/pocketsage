@@ -23,6 +23,7 @@ class ColumnMapping:
     account_id: str | None = None
     account_name: str | None = None
     currency: str | None = None
+    transaction_type: str | None = None
 
 
 def normalize_frame(*, file_path: Path, encoding: str = "utf-8") -> pd.DataFrame:
@@ -30,7 +31,26 @@ def normalize_frame(*, file_path: Path, encoding: str = "utf-8") -> pd.DataFrame
 
     frame = pd.read_csv(file_path, encoding=encoding)
     frame.columns = [c.strip().lower() for c in frame.columns]
-    # TODO(@qa-team): add validation for duplicate headers and inconsistent delimiters.
+
+    # Auto-detect common column name variations and normalize them
+    column_aliases = {
+        # Transaction type variations
+        "type": "transaction_type",
+        "txn_type": "transaction_type",
+        "trans_type": "transaction_type",
+        # Date variations
+        "transaction_date": "date",
+        "trans_date": "date",
+        # Memo/description variations
+        "description": "memo",
+        "note": "memo",
+        "notes": "memo",
+        "desc": "memo",
+    }
+
+    # Rename columns based on aliases
+    frame = frame.rename(columns=column_aliases)
+
     return frame
 
 
@@ -88,6 +108,13 @@ def upsert_transactions(*, rows: Iterable[Mapping], mapping: ColumnMapping) -> l
 
         category_field = mapping.category_id or mapping.category
 
+        # Handle transaction type if present
+        transaction_type = None
+        if mapping.transaction_type:
+            raw_type = row.get(mapping.transaction_type)
+            if isinstance(raw_type, str) and raw_type.strip():
+                transaction_type = raw_type.strip().lower()
+
         tx = {
             "occurred_at": occurred_at,
             "amount": amount,
@@ -101,6 +128,8 @@ def upsert_transactions(*, rows: Iterable[Mapping], mapping: ColumnMapping) -> l
             tx["account_name"] = account_name
         if currency:
             tx["currency"] = currency
+        if transaction_type:
+            tx["transaction_type"] = transaction_type
         created.append(tx)
 
     # Note: this function returns plain dicts; callers may persist them using a repository/session.
