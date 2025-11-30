@@ -32,6 +32,11 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
 
     is_admin = ctx.current_user and ctx.current_user.role == "admin"
 
+    def _ensure_picker_and_import():
+        if ctx.file_picker is None:
+            controllers.attach_file_picker(ctx, page)
+        controllers.start_ledger_import(ctx, page)
+
     # File menu
     file_menu = ft.SubmenuButton(
         content=ft.Text("File"),
@@ -44,22 +49,12 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
             ft.MenuItemButton(
                 content=ft.Text("Import CSV  Ctrl+I"),
                 leading=ft.Icon(ft.Icons.UPLOAD_FILE),
-                on_click=lambda _: _confirm_action(
-                    page,
-                    "Import CSV",
-                    "Import a CSV into the ledger?",
-                    on_confirm=lambda: controllers.start_ledger_import(ctx, page),
-                ),
+                on_click=lambda _: _ensure_picker_and_import(),
             ),
             ft.MenuItemButton(
                 content=ft.Text("Export CSV"),
                 leading=ft.Icon(ft.Icons.DOWNLOAD),
-                on_click=lambda _: _confirm_action(
-                    page,
-                    "Export CSV",
-                    "Export ledger transactions to CSV?",
-                    on_confirm=lambda: _export_ledger(ctx, page),
-                ),
+                on_click=lambda _: _export_ledger(ctx, page),
             ),
             ft.Divider(),
             ft.MenuItemButton(
@@ -88,36 +83,8 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
             ft.MenuItemButton(
                 content=ft.Text("Dashboard"),
                 leading=ft.Icon(ft.Icons.DASHBOARD),
-                on_click=lambda _: page.go("/dashboard"),
+                on_click=lambda _: controllers.navigate(page, "/dashboard"),
             ),
-            ft.MenuItemButton(
-                content=ft.Text("Ledger"),
-                leading=ft.Icon(ft.Icons.RECEIPT_LONG),
-                on_click=lambda _: page.go("/ledger"),
-            ),
-            ft.MenuItemButton(
-                content=ft.Text("Budgets"),
-                leading=ft.Icon(ft.Icons.SAVINGS),
-                on_click=lambda _: page.go("/budgets"),
-            ),
-            *(
-                [
-                    ft.MenuItemButton(
-                        content=ft.Text("Admin"),
-                        leading=ft.Icon(ft.Icons.ADMIN_PANEL_SETTINGS),
-                        on_click=lambda _: page.go("/admin"),
-                    )
-                ]
-                if is_admin
-                else []
-            ),
-        ],
-    )
-
-    # Manage menu
-    manage_menu = ft.SubmenuButton(
-        content=ft.Text("Manage"),
-        controls=[
             ft.MenuItemButton(
                 content=ft.Text("Ledger  Ctrl+1"),
                 leading=ft.Icon(ft.Icons.RECEIPT_LONG),
@@ -142,6 +109,22 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
                 content=ft.Text("Budgets  Ctrl+5"),
                 leading=ft.Icon(ft.Icons.SAVINGS),
                 on_click=lambda _: controllers.navigate(page, "/budgets"),
+            ),
+            ft.MenuItemButton(
+                content=ft.Text("Reports  Ctrl+6"),
+                leading=ft.Icon(ft.Icons.ASSESSMENT),
+                on_click=lambda _: controllers.navigate(page, "/reports"),
+            ),
+            *(
+                [
+                    ft.MenuItemButton(
+                        content=ft.Text("Admin"),
+                        leading=ft.Icon(ft.Icons.ADMIN_PANEL_SETTINGS),
+                        on_click=lambda _: page.go("/admin"),
+                    )
+                ]
+                if is_admin
+                else []
             ),
         ],
     )
@@ -192,7 +175,6 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
         controls=[
             file_menu,
             view_menu,
-            manage_menu,
             reports_menu,
             settings_menu,
             help_menu,

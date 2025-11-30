@@ -79,15 +79,16 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 with path.open("w", newline="") as handle:
                     writer = csv.writer(handle)
-                    writer.writerow(["symbol", "quantity", "avg_price", "cost_basis", "account"])
+                    writer.writerow(["symbol", "shares", "price", "market_price", "account", "currency"])
                     for h in holdings:
                         writer.writerow(
                             [
                                 h.symbol,
                                 f"{h.quantity:.4f}",
                                 f"{h.avg_price:.2f}",
-                                f"{h.quantity * h.avg_price:.2f}",
+                                f"{getattr(h, 'market_price', h.avg_price):.2f}",
                                 _account_name(h.account_id),
+                                h.currency or "USD",
                             ]
                             )
                 page.snack_bar = ft.SnackBar(

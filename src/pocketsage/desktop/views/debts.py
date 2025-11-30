@@ -579,7 +579,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 ft.FilledButton(
                     "Add Debt",
                     icon=ft.Icons.ADD,
-                    on_click=lambda _: _open_edit_dialog(None),
+                    on_click=lambda _: controllers.navigate(page, "/add-data"),
                 ),
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,

@@ -657,36 +657,44 @@ def _seed_holdings(session: Session, accounts: dict[str, Account], user_id: int)
         session.flush()
         accounts["Brokerage"] = brokerage
 
-    holdings_by_account = {
-        # Main brokerage - diversified ETFs and stocks
-        brokerage: [
-            {"symbol": "VTI", "quantity": 45, "avg_price": 215.00, "market_price": 242.50},    # Total Stock Market
-            {"symbol": "VXUS", "quantity": 30, "avg_price": 55.00, "market_price": 58.75},     # International
-            {"symbol": "BND", "quantity": 25, "avg_price": 78.00, "market_price": 73.25},      # Bonds
-            {"symbol": "AAPL", "quantity": 15, "avg_price": 145.00, "market_price": 178.50},   # Individual stock
-            {"symbol": "MSFT", "quantity": 10, "avg_price": 285.00, "market_price": 378.00},   # Individual stock
-            {"symbol": "GOOGL", "quantity": 8, "avg_price": 125.00, "market_price": 142.00},   # Individual stock
-        ],
-        # Retirement account - target date and index funds
-        retirement: [
-            {"symbol": "VFFVX", "quantity": 150, "avg_price": 42.00, "market_price": 48.50},   # Target Date 2055
-            {"symbol": "VFIAX", "quantity": 35, "avg_price": 410.00, "market_price": 445.00},  # S&P 500 Index
-        ] if retirement else [],
-        # Robinhood - individual stocks
-        robinhood: [
-            {"symbol": "TSLA", "quantity": 5, "avg_price": 210.00, "market_price": 248.00},
-            {"symbol": "NVDA", "quantity": 8, "avg_price": 450.00, "market_price": 875.00},
-            {"symbol": "AMD", "quantity": 20, "avg_price": 95.00, "market_price": 125.00},
-        ] if robinhood else [],
-        # Crypto account
-        coinbase: [
-            {"symbol": "BTC", "quantity": 0.15, "avg_price": 35000.00, "market_price": 42000.00},
-            {"symbol": "ETH", "quantity": 2.5, "avg_price": 2200.00, "market_price": 2650.00},
-            {"symbol": "SOL", "quantity": 25, "avg_price": 85.00, "market_price": 125.00},
-        ] if coinbase else [],
-    }
+    holdings_by_account = [
+        (
+            brokerage,
+            [
+                {"symbol": "VTI", "quantity": 45, "avg_price": 215.00, "market_price": 242.50},    # Total Stock Market
+                {"symbol": "VXUS", "quantity": 30, "avg_price": 55.00, "market_price": 58.75},     # International
+                {"symbol": "BND", "quantity": 25, "avg_price": 78.00, "market_price": 73.25},      # Bonds
+                {"symbol": "AAPL", "quantity": 15, "avg_price": 145.00, "market_price": 178.50},   # Individual stock
+                {"symbol": "MSFT", "quantity": 10, "avg_price": 285.00, "market_price": 378.00},   # Individual stock
+                {"symbol": "GOOGL", "quantity": 8, "avg_price": 125.00, "market_price": 142.00},   # Individual stock
+            ],
+        ),
+        (
+            retirement,
+            [
+                {"symbol": "VFFVX", "quantity": 150, "avg_price": 42.00, "market_price": 48.50},   # Target Date 2055
+                {"symbol": "VFIAX", "quantity": 35, "avg_price": 410.00, "market_price": 445.00},  # S&P 500 Index
+            ] if retirement else [],
+        ),
+        (
+            robinhood,
+            [
+                {"symbol": "TSLA", "quantity": 5, "avg_price": 210.00, "market_price": 248.00},
+                {"symbol": "NVDA", "quantity": 8, "avg_price": 450.00, "market_price": 875.00},
+                {"symbol": "AMD", "quantity": 20, "avg_price": 95.00, "market_price": 125.00},
+            ] if robinhood else [],
+        ),
+        (
+            coinbase,
+            [
+                {"symbol": "BTC", "quantity": 0.15, "avg_price": 35000.00, "market_price": 42000.00},
+                {"symbol": "ETH", "quantity": 2.5, "avg_price": 2200.00, "market_price": 2650.00},
+                {"symbol": "SOL", "quantity": 25, "avg_price": 85.00, "market_price": 125.00},
+            ] if coinbase else [],
+        ),
+    ]
 
-    for account, holdings in holdings_by_account.items():
+    for account, holdings in holdings_by_account:
         if account is None:
             continue
         for payload in holdings:

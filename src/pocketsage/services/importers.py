@@ -126,6 +126,14 @@ def import_portfolio_holdings(
     """Parse a holdings CSV and upsert rows by symbol/account."""
 
     frame = normalize_frame(file_path=csv_path)
+    column_aliases = {
+        "quantity": "shares",
+        "avg_price": "price",
+    }
+    for src, dest in column_aliases.items():
+        if src in frame.columns and dest not in frame.columns:
+            frame = frame.rename(columns={src: dest})
+
     required = {"symbol", "shares", "price"}
     missing = required - set(frame.columns)
     if missing:
