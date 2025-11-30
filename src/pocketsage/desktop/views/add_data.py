@@ -759,6 +759,9 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
         )
 
         def save_holding(_):
+            # Ensure holding_account_type_lookup is accessible via closure
+            nonlocal holding_account_type_lookup
+
             if not all([
                 account_dd.value,
                 ticker_field.value,

@@ -818,7 +818,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 controls=[
                     pagination_row,
                     ft.FilledButton(
-                        "+ Add transaction",
+                        "Add transaction",
                         icon=ft.Icons.ADD,
                         on_click=lambda _: controllers.navigate(page, "/add-data"),
                     ),

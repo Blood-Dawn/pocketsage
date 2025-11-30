@@ -177,7 +177,7 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
         logger.info("Backup button clicked")
         def _task():
             logger.info("Starting database backup")
-            path = backup_database(data_dir=ctx.config.DATA_DIR)
+            path = backup_database(config=ctx.config)
             logger.info(f"Backup completed: {path}")
             _notify(f"Backup saved: {path}")
 
@@ -187,7 +187,7 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
         logger.info("Restore button clicked")
         restore_picker.pick_files(
             allow_multiple=False,
-            allowed_extensions=["db", "zip"],
+            allowed_extensions=["db"],
         )
         logger.info("File picker opened for restore")
 
@@ -198,11 +198,32 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
             logger.warning("No file selected for restore")
             _notify("No file selected")
             return
-        logger.info(f"Restoring from: {selected.path}")
+
+        file_path = Path(selected.path)
+        logger.info(f"Restoring from: {file_path}")
+
+        # Validate file extension
+        if file_path.suffix.lower() != ".db":
+            logger.error(f"Invalid file type: {file_path.suffix}")
+            _notify(f"Invalid file type: {file_path.suffix}. Please select a .db file.")
+            return
+
+        # Validate it's actually a SQLite database
+        try:
+            with open(file_path, "rb") as f:
+                header = f.read(16)
+                if not header.startswith(b"SQLite format 3"):
+                    logger.error(f"File is not a valid SQLite database: {file_path}")
+                    _notify("File is not a valid SQLite database.")
+                    return
+        except Exception as ex:
+            logger.error(f"Could not read file: {ex}")
+            _notify(f"Could not read file: {ex}")
+            return
 
         def _task():
             logger.info("Starting database restore")
-            target = restore_database(Path(selected.path), config=ctx.config)
+            target = restore_database(file_path, config=ctx.config)
             logger.info(f"Restore completed: {target}")
             _notify(f"Database restored to {target}; restart app to reload.")
             _refresh_user_views()
@@ -283,11 +304,18 @@ def build_admin_view(ctx: AppContext, page: ft.Page) -> ft.View:
     confirm_pw_field = ft.TextField(label="Confirm password", password=True, can_reveal_password=True, width=260)
     user_status_ref = ft.Ref[ft.Text]()
 
-    def _safe_update(control: ft.Control | None) -> None:
+    def _safe_update(control: ft.Control | ft.Ref | None) -> None:
+        """Safely update a control or ref, handling both types."""
         if control is None:
             return
         try:
-            control.update()
+            # Handle Ref objects
+            if isinstance(control, ft.Ref):
+                if control.current:
+                    control.current.update()
+            else:
+                # Handle Control objects directly
+                control.update()
         except AssertionError:
             pass
 
