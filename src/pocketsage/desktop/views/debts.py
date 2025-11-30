@@ -186,6 +186,10 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         if table_ref.current:
             table_ref.current.rows = rows
+            try:
+                table_ref.current.update()
+            except Exception:
+                pass
 
         try:
             schedule, payoff, total_interest, months = _run_projection(

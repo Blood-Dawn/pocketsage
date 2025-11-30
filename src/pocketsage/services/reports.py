@@ -69,12 +69,13 @@ def build_spending_chart(
         # Create donut chart
         wedges, texts, autotexts = ax.pie(
             sizes,
-            labels=None,  # We'll use legend instead
+            labels=labels,  # show category names on the wedges
             autopct=lambda pct: f'{pct:.1f}%' if pct > 4 else '',
             wedgeprops=dict(width=0.45, edgecolor='white', linewidth=1.5),
             startangle=90,
             colors=colors,
             pctdistance=0.78,
+            labeldistance=1.05,
         )
 
         # Style the percentage labels
@@ -82,6 +83,10 @@ def build_spending_chart(
             autotext.set_fontsize(9)
             autotext.set_fontweight('bold')
             autotext.set_color('white')
+        # Style category name labels
+        for text in texts:
+            text.set_fontsize(9)
+            text.set_color('#111827')
 
         # Center text with total
         ax.text(0, 0.08, 'Total Spending',
