@@ -47,6 +47,7 @@ src/pocketsage/desktop/views/habits.py
 src/pocketsage/desktop/views/help.py
 src/pocketsage/desktop/views/ledger.py
 src/pocketsage/desktop/views/portfolio.py
+src/pocketsage/desktop/views/report_chart.py
 src/pocketsage/desktop/views/reports.py
 src/pocketsage/desktop/views/settings.py
 src/pocketsage/domain/__init__.py
@@ -127,6 +128,7 @@ tests/test_money_representation.py
 tests/test_performance.py
 tests/test_repositories.py
 tests/test_seed_coverage.py
+tests/test_sqlcipher_config.py
 tests/test_ui_add_flow_graphs.py
 tests/test_ui_regression.py
 tests/test_view_reachability.py

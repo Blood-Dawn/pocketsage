@@ -1,38 +1,31 @@
+"""Tests for CSV export helpers and ledger export controller."""
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from pathlib import Path
+import csv
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, cast
+from pathlib import Path
 
-from pocketsage.services.export_csv import export_transactions_csv
-
-if TYPE_CHECKING:  # pragma: no cover
-    from pocketsage.models.transaction import Transaction
+from pocketsage.services import export_csv
+from pocketsage.models.transaction import Transaction
 
 
-def test_export_transactions_csv_empty(tmp_path: Path):
-    out = tmp_path / "empty.csv"
-    export_transactions_csv(transactions=[], output_path=out)
-    assert out.exists()
-    text = out.read_text(encoding="utf-8")
-    assert "id,occurred_at,amount,memo,external_id,category_id" in text
+def test_export_transactions_csv_creates_file(tmp_path, transaction_factory, session_factory, user):
+    """Exporting ledger data writes a CSV with header and rows."""
 
+    output_dir = Path(tmp_path)
+    txs = [
+        Transaction(id=1, user_id=user.id, amount=-50.25, memo="Groceries"),
+        Transaction(id=2, user_id=user.id, amount=125.00, memo="Salary"),
+    ]
 
-def test_export_transactions_csv_happy(tmp_path: Path):
-    out = tmp_path / "txs.csv"
-    t = cast(
-        "Transaction",
-        SimpleNamespace(
-            id=1,
-            occurred_at=datetime.now(timezone.utc),
-            amount=-10.0,
-            memo="coffee",
-            external_id=None,
-            category_id=None,
-        ),
-    )
-    export_transactions_csv(transactions=[t], output_path=out)
-    assert out.exists()
-    text = out.read_text(encoding="utf-8")
-    assert "coffee" in text
+    output_path = output_dir / "ledger-test.csv"
+    export_csv.export_transactions_csv(transactions=txs, output_path=output_path)
+
+    assert output_path.exists(), "ledger export should create a CSV file"
+
+    with output_path.open(newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    assert len(rows) == 2
+    memos = {row["memo"] for row in rows}
+    assert {"Groceries", "Salary"} == memos

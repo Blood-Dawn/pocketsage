@@ -211,6 +211,41 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
         border=ft.InputBorder.UNDERLINE,
         expand=True,
     )
+    export_dir_value = controllers.resolve_export_dir(ctx)
+    export_dir_field = ft.TextField(
+        label="Export directory",
+        value=str(export_dir_value),
+        read_only=True,
+        border=ft.InputBorder.UNDERLINE,
+        expand=True,
+        helper_text="Defaults to your Downloads folder; choose another location if desired.",
+    )
+
+    export_picker = ft.FilePicker()
+    if page.overlay is None:
+        page.overlay = []
+    page.overlay.append(export_picker)
+
+    def _set_export_dir(path: Path):
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            ctx.settings_repo.set("export_dir", str(path), "Preferred export directory")
+            export_dir_field.value = str(path.resolve())
+            export_dir_field.update()
+            _notify(f"Export directory set to {path}")
+        except Exception as exc:
+            _notify(f"Failed to set export directory: {exc}")
+
+    def _on_export_pick(e: ft.FilePickerResultEvent):
+        selected = e.path if e and e.path else None
+        if not selected:
+            return
+        _set_export_dir(Path(selected))
+
+    export_picker.on_result = _on_export_pick
+
+    def choose_export_dir(_=None):
+        export_picker.get_directory_path()
 
     encryption_switch = ft.Switch(
         label="Encrypt database (SQLCipher-ready)",
@@ -261,11 +296,22 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 icon=ft.Icons.RESTORE,
                                 on_click=restore_db,
                             ),
+                            ft.TextButton(
+                                "Choose export folder",
+                                icon=ft.Icons.FOLDER,
+                                on_click=choose_export_dir,
+                            ),
                         ],
                         spacing=8,
                     ),
+                    export_dir_field,
                     ft.Text(
                         "To change data directory, set POCKETSAGE_DATA_DIR and restart. Backups can be restored here.",
+                        size=12,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                    ft.Text(
+                        "If the default instance path is protected (e.g., Program Files), the app falls back to %LOCALAPPDATA%/PocketSage automatically.",
                         size=12,
                         color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
@@ -332,11 +378,13 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         controls=[
                             ft.FilledButton(
                                 "Import Transactions",
+                                visible=False,  # hidden until import flow is finalized
                                 icon=ft.Icons.UPLOAD_FILE,
                                 on_click=lambda _: controllers.start_ledger_import(ctx, page),
                             ),
                             ft.FilledButton(
                                 "Import Portfolio",
+                                visible=False,  # hidden until import flow is finalized
                                 icon=ft.Icons.UPLOAD,
                                 on_click=lambda _: controllers.start_portfolio_import(ctx, page),
                             ),
@@ -372,6 +420,7 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
         ),
         elevation=2,
     )
+    data_section.visible = False  # hide until watcher/import flows are finalized
 
     # Build content
     content = ft.Column(

@@ -10,6 +10,7 @@ import flet as ft
 from ...devtools import dev_log
 from ...logging_config import get_logger
 from ...models.liability import Liability
+from ...services.liabilities import build_payment_transaction
 from .. import controllers
 from ..components import build_app_bar, build_main_layout, show_confirm_dialog, show_error_dialog
 
@@ -98,6 +99,26 @@ def build_edit_debt_view(ctx: AppContext, page: ft.Page) -> ft.View:
         width=260,
     )
 
+    payment_amount = ft.TextField(
+        label="Payment amount",
+        value=str(liability.minimum_payment),
+        width=180,
+        keyboard_type=ft.KeyboardType.NUMBER,
+    )
+    account_options = ctx.account_repo.list_all(user_id=uid)
+    account_dd = ft.Dropdown(
+        label="Account (optional)",
+        options=[ft.dropdown.Option(str(a.id), a.name) for a in account_options if a.id],
+        width=220,
+    )
+    category_options = [c for c in ctx.category_repo.list_all(user_id=uid) if c.id]
+    category_dd = ft.Dropdown(
+        label="Category (optional)",
+        options=[ft.dropdown.Option(str(c.id), c.name) for c in category_options],
+        width=220,
+    )
+    reconcile_switch = ft.Switch(label="Also add to ledger", value=True)
+
     def _save(_):
         try:
             updated = Liability(
@@ -117,6 +138,42 @@ def build_edit_debt_view(ctx: AppContext, page: ft.Page) -> ft.View:
         except Exception as exc:
             dev_log(ctx.config, "Liability edit failed", exc=exc)
             show_error_dialog(page, "Save failed", str(exc))
+
+    def _apply_payment(_):
+        try:
+            amt = float(payment_amount.value or 0)
+            if amt <= 0:
+                payment_amount.error_text = "Payment must be greater than 0"
+                payment_amount.update()
+                return
+            current = ctx.liability_repo.get_by_id(liability.id or 0, user_id=uid)
+            if current is None:
+                raise ValueError("Liability not found")
+            current.balance = max(0.0, current.balance - amt)
+            ctx.liability_repo.update(current, user_id=uid)
+            if reconcile_switch.value:
+                txn = build_payment_transaction(
+                    liability=current,
+                    amount=amt,
+                    account_id=int(account_dd.value) if account_dd.value else None,
+                    category_id=int(category_dd.value) if category_dd.value else None,
+                    user_id=uid,
+                )
+                ctx.transaction_repo.create(txn, user_id=uid)
+            dev_log(
+                ctx.config,
+                "Payment applied (edit page)",
+                context={"id": liability.id, "amount": amt},
+            )
+            page.snack_bar = ft.SnackBar(
+                content=ft.Text(f"Payment recorded; new balance ${current.balance:,.2f}"),
+                show_close_icon=True,
+            )
+            page.snack_bar.open = True
+            _finish(None)
+        except Exception as exc:
+            dev_log(ctx.config, "Payment apply failed", exc=exc)
+            show_error_dialog(page, "Payment failed", str(exc))
 
     def _delete():
         try:
@@ -160,17 +217,45 @@ def build_edit_debt_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                             "This will remove the liability and its payoff data.",
                                             _delete,
                                         ),
-                                    ),
-                                    ft.TextButton("Cancel", icon=ft.Icons.CLOSE, on_click=_back),
-                                ],
-                                spacing=12,
-                            ),
-                        ],
-                        spacing=12,
-                    ),
+                                ),
+                                ft.TextButton("Cancel", icon=ft.Icons.CLOSE, on_click=_back),
+                            ],
+                            spacing=12,
+                        ),
+                    ],
+                    spacing=12,
                 ),
-                elevation=2,
             ),
+            elevation=2,
+        ),
+        ft.Card(
+            content=ft.Container(
+                padding=16,
+                content=ft.Column(
+                    controls=[
+                        ft.Text("Record payment", size=18, weight=ft.FontWeight.BOLD),
+                        ft.Text(
+                            "Apply a payment and optionally mirror it in the ledger.",
+                            size=12,
+                            color=ft.Colors.ON_SURFACE_VARIANT,
+                        ),
+                        ft.Row([payment_amount, account_dd, category_dd], spacing=12, wrap=True, run_spacing=8),
+                        reconcile_switch,
+                        ft.Row(
+                            controls=[
+                                ft.FilledButton("Apply payment", icon=ft.Icons.PAYMENTS, on_click=_apply_payment),
+                                ft.TextButton("Back to Debts", icon=ft.Icons.ARROW_BACK, on_click=_back),
+                            ],
+                            spacing=10,
+                            run_spacing=8,
+                            wrap=True,
+                        ),
+                    ],
+                    spacing=10,
+                ),
+            ),
+            elevation=2,
+        ),
         ],
         spacing=16,
         scroll=ft.ScrollMode.AUTO,

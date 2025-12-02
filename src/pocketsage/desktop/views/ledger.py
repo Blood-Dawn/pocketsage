@@ -102,19 +102,25 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     table_ref = ft.Ref[ft.DataTable]()
+    income_label_ref = ft.Ref[ft.Text]()
+    expense_label_ref = ft.Ref[ft.Text]()
+    net_label_ref = ft.Ref[ft.Text]()
     page_label = ft.Ref[ft.Text]()
     income_text = ft.Ref[ft.Text]()
     expense_text = ft.Ref[ft.Text]()
     net_text = ft.Ref[ft.Text]()
     spending_image_ref = ft.Ref[ft.Image]()
     spending_empty_ref = ft.Ref[ft.Text]()
+    spending_label_ref = ft.Ref[ft.Text]()
     budget_progress_ref = ft.Ref[ft.Column]()
+    budget_label_ref = ft.Ref[ft.Text]()
     recent_categories_ref = ft.Ref[ft.Column]()
     selected_label = ft.Ref[ft.Text]()
     edit_selected_ref = ft.Ref[ft.FilledButton]()
     delete_selected_ref = ft.Ref[ft.TextButton]()
     selected_tx_id: int | None = None
     current_slice: list[Transaction] = []
+    current_range_label = "All time"
 
     def _ensure_default_account() -> Account:
         accounts = ctx.account_repo.list_all(user_id=uid)
@@ -218,13 +224,53 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         page.snack_bar.open = True
         page.update()
 
-    def _render_summary(totals: dict[str, float]) -> None:
+    def _format_range_label(start_dt: datetime | None, end_dt: datetime | None) -> str:
+        def _fmt(dt: datetime) -> str:
+            return dt.date().isoformat()
+
+        if start_dt and end_dt:
+            return f"{_fmt(start_dt)} to {_fmt(end_dt)}"
+        if start_dt:
+            return f"From {_fmt(start_dt)}"
+        if end_dt:
+            return f"Through {_fmt(end_dt)}"
+        value = quick_range.value
+        if value == "this_month":
+            return "This month"
+        if value == "last_month":
+            return "Last month"
+        if value == "ytd":
+            return "Year-to-date"
+        return "All time"
+
+    def _render_summary(totals: dict[str, float], *, range_label: str) -> None:
         if income_text.current:
             income_text.current.value = _format_currency(totals["income"])
         if expense_text.current:
             expense_text.current.value = _format_currency(totals["expenses"])
         if net_text.current:
             net_text.current.value = _format_currency(totals["net"])
+        for ref, prefix in [
+            (income_label_ref, "Income"),
+            (expense_label_ref, "Expenses"),
+            (net_label_ref, "Net"),
+        ]:
+            if ref.current:
+                ref.current.value = f"{prefix} ({range_label})"
+                if getattr(ref.current, "page", None):
+                    ref.current.update()
+        if spending_label_ref.current:
+            spending_label_ref.current.value = f"Spending breakdown ({range_label})"
+            if getattr(spending_label_ref.current, "page", None):
+                spending_label_ref.current.update()
+        if budget_label_ref.current:
+            budget_label_ref.current.value = f"Budget progress ({range_label})"
+            if getattr(budget_label_ref.current, "page", None):
+                budget_label_ref.current.update()
+        if spending_empty_ref.current:
+            spending_empty_ref.current.value = f"No expense data for {range_label}"
+            if getattr(spending_empty_ref.current, "page", None):
+                spending_empty_ref.current.update()
 
     def _render_recent_categories(breakdown: list[dict[str, object]]) -> None:
         container = recent_categories_ref.current
@@ -351,6 +397,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         _render_table(current_slice)
 
     def _render_table(transactions: list[Transaction]) -> None:
+        nonlocal current_range_label
         table = table_ref.current
         if not table:
             return
@@ -376,32 +423,14 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         ft.DataCell(ft.Text(category.name if category else "Uncategorized")),
                         ft.DataCell(ft.Text(type_label)),
                         ft.DataCell(ft.Text(_format_currency(tx.amount), color=amount_color)),
-                        ft.DataCell(
-                            ft.Row(
-                                controls=[
-                                    ft.IconButton(
-                                        icon=ft.Icons.EDIT,
-                                        tooltip="Edit",
-                                        on_click=lambda _e, record=tx: open_transaction_dialog(record),
-                                    ),
-                                    ft.IconButton(
-                                        icon=ft.Icons.DELETE_OUTLINE,
-                                        tooltip="Delete",
-                                        icon_color=ft.Colors.RED,
-                                        on_click=lambda _e, record=tx: delete_transaction(record.id),
-                                    ),
-                                ],
-                                spacing=6,
-                            )
-                        ),
                     ],
                 )
             )
         if not rows:
             rows = [
                 ft.DataRow(
-                    cells=[ft.DataCell(ft.Text("No transactions in this period."))]
-                    + [ft.DataCell(ft.Text("")) for _ in range(5)],
+                    cells=[ft.DataCell(ft.Text(f"No transactions for {current_range_label}."))]
+                    + [ft.DataCell(ft.Text("")) for _ in range(4)],
                 )
             ]
         table.rows = rows
@@ -421,6 +450,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             page.update()
             return
 
+        current_range_label = _format_range_label(start_dt, end_dt)
         filters = ledger_service.LedgerFilters(
             user_id=uid,
             start_date=start_dt,
@@ -439,7 +469,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         current_slice = page_slice
         selected_tx_id = None
         _render_table(current_slice)
-        _render_summary(ledger_service.compute_summary(txs))
+        _render_summary(ledger_service.compute_summary(txs), range_label=current_range_label)
         breakdown = ledger_service.compute_spending_by_category(
             txs, ctx.category_repo.list_all(user_id=uid)
         )
@@ -720,18 +750,43 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         show_confirm_dialog(page, "Delete transaction", "Are you sure?", _confirm)
 
     def _export_csv(_=None) -> None:
-        if not cached_transactions:
+        """Export the currently filtered ledger transactions to CSV."""
+
+        try:
+            start_dt = _parse_date(start_field)
+            end_dt = _parse_date(end_field)
+        except ValueError:
+            _snack("Use YYYY-MM-DD for dates before exporting")
+            return
+
+        filters = ledger_service.LedgerFilters(
+            user_id=uid,
+            start_date=start_dt,
+            end_date=end_dt,
+            category_id=ledger_service.normalize_category_value(category_field.value),
+            text=(search_field.value or "").strip() or None,
+            txn_type=type_field.value or "all",
+        )
+        txs = ledger_service.filtered_transactions(ctx.transaction_repo, filters)
+        if not txs:
             _snack("No transactions to export for this filter")
             return
+
         stamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        export_dir = ctx.config.DATA_DIR / "exports"
+        export_dir = controllers.resolve_export_dir(ctx)
         output_path = export_dir / f"ledger_export_{stamp}.csv"
         try:
-            export_csv.export_transactions_csv(
-                transactions=cached_transactions, output_path=output_path
+            export_csv.export_transactions_csv(transactions=txs, output_path=output_path)
+            dev_log(ctx.config, "Ledger CSV exported", context={"path": str(output_path), "count": len(txs)})
+            page.snack_bar = ft.SnackBar(
+                content=ft.Text(f"Exported {len(txs)} transactions to {output_path}", selectable=True),
+                show_close_icon=True,
+                bgcolor=ft.Colors.GREEN_100,
             )
-            _snack(f"Exported {len(cached_transactions)} transactions to {output_path}")
+            page.snack_bar.open = True
+            page.update()
         except Exception as exc:  # pragma: no cover - user-facing guard
+            dev_log(ctx.config, "Ledger export failed", exc=exc)
             show_error_dialog(page, "Export failed", str(exc))
 
     # Reset page scroll handler to avoid lingering callbacks
@@ -772,7 +827,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     content=ft.Container(
                         ft.Column(
                             controls=[
-                                ft.Text("Income (this period)"),
+                                ft.Text("Income (this period)", ref=income_label_ref),
                                 ft.Text("", ref=income_text, size=20, weight=ft.FontWeight.BOLD),
                             ]
                         ),
@@ -786,7 +841,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     content=ft.Container(
                         ft.Column(
                             controls=[
-                                ft.Text("Expenses (this period)"),
+                                ft.Text("Expenses (this period)", ref=expense_label_ref),
                                 ft.Text("", ref=expense_text, size=20, weight=ft.FontWeight.BOLD),
                             ]
                         ),
@@ -800,7 +855,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     content=ft.Container(
                         ft.Column(
                             controls=[
-                                ft.Text("Net (this period)"),
+                                ft.Text("Net (this period)", ref=net_label_ref),
                                 ft.Text("", ref=net_text, size=20, weight=ft.FontWeight.BOLD),
                             ]
                         ),
@@ -822,7 +877,6 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.DataColumn(ft.Text("Category")),
             ft.DataColumn(ft.Text("Type")),
             ft.DataColumn(ft.Text("Amount")),
-            ft.DataColumn(ft.Text("Actions")),
         ],
         rows=[],
         expand=True,
@@ -852,6 +906,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         controls=[
                             ft.TextButton(
                                 "Import CSV",
+                                visible=False,  # hidden until import flow is finalized
                                 on_click=lambda _: (
                                     controllers.attach_file_picker(ctx, page)
                                     if ctx.file_picker is None
@@ -868,7 +923,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 controls=[
                     pagination_row,
                     ft.FilledButton(
-                        "+ Add transaction",
+                        "Add transaction",
                         icon=ft.Icons.ADD,
                         on_click=lambda _: controllers.navigate(page, "/add-data"),
                     ),
@@ -931,7 +986,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         content=ft.Container(
             ft.Column(
                 controls=[
-                    ft.Text("Spending breakdown (this period)", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Text("Spending breakdown (this period)", size=18, weight=ft.FontWeight.BOLD, ref=spending_label_ref),
                     ft.Text(
                         "Expense categories only; refreshed when filters change.",
                         size=12,
@@ -961,7 +1016,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         content=ft.Container(
             ft.Column(
                 controls=[
-                    ft.Text("Budget progress (this period)", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Text("Budget progress (this period)", size=18, weight=ft.FontWeight.BOLD, ref=budget_label_ref),
                     ft.Column(ref=budget_progress_ref, spacing=8),
                 ],
                 spacing=8,

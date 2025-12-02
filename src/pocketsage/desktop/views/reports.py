@@ -8,6 +8,7 @@ import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING
 from zipfile import ZipFile
 
 import flet as ft
@@ -152,12 +153,13 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         return ft.ResponsiveRow(
             controls=[
-                _chart_card("Spending by category", spending_png, page=page, drill_route="/ledger"),
+                _chart_card("Spending by category", spending_png, page=page, ctx=ctx, drill_route="/ledger"),
                 _chart_card(
                     "Budget usage",
                     None,
                     ft.Column(controls=budget_rows, spacing=6),
                     page=page,
+                    ctx=ctx,
                     drill_route="/budgets",
                 ),
                 _chart_card(
@@ -165,10 +167,11 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     None,
                     ft.Column(controls=habit_rows, spacing=6),
                     page=page,
+                    ctx=ctx,
                     drill_route="/habits",
                 ),
-                _chart_card("Debt payoff projection", payoff_png, page=page, drill_route="/debts"),
-                _chart_card("Portfolio allocation", allocation_png, page=page, drill_route="/portfolio"),
+                _chart_card("Debt payoff projection", payoff_png, page=page, ctx=ctx, drill_route="/debts"),
+                _chart_card("Portfolio allocation", allocation_png, page=page, ctx=ctx, drill_route="/portfolio"),
             ],
             spacing=12,
             run_spacing=12,
@@ -957,91 +960,19 @@ def _chart_card(
     extra_content: ft.Control | None = None,
     *,
     page: ft.Page,
+    ctx: "AppContext",
     drill_route: str | None = None,
 ) -> ft.Container:
-    """Create a chart card with click-to-expand functionality."""
+    """Create a chart card that navigates to a dedicated full-size chart view."""
 
-    def _show_expanded_image(e):
-        """Show the image in a full-screen modal dialog."""
-        if not image_path:
-            return
-
-        try:
-            if not image_path.exists():
-                return
-        except Exception:
-            return
-
-        def close_dialog(e):
-            expand_dialog.open = False
-            try:
-                page.update()
-            except AssertionError:
-                pass
-
-        def _open_in_viewer():
-            """Open the image file in the system's default image viewer."""
-            try:
-                import os
-                import subprocess
-                import sys
-
-                if sys.platform == "win32":
-                    os.startfile(str(image_path))
-                elif sys.platform == "darwin":
-                    subprocess.run(["open", str(image_path)])
-                else:
-                    subprocess.run(["xdg-open", str(image_path)])
-            except Exception:
-                pass
-
-        expand_dialog = ft.AlertDialog(
-            modal=True,
-            title=ft.Row(
-                controls=[
-                    ft.Icon(ft.Icons.ZOOM_IN, color=ft.Colors.PRIMARY),
-                    ft.Text(title, size=20, weight=ft.FontWeight.BOLD),
-                ],
-                spacing=10,
-            ),
-            content=ft.Container(
-                content=ft.Column(
-                    controls=[
-                        ft.Image(
-                            src=str(image_path),
-                            fit=ft.ImageFit.CONTAIN,
-                            width=900,
-                            height=650,
-                        ),
-                    ],
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                    scroll=ft.ScrollMode.AUTO,
-                ),
-                padding=10,
-                width=920,
-                height=700,
-            ),
-            actions=[
-                ft.TextButton(
-                    "Open in Viewer",
-                    icon=ft.Icons.OPEN_IN_NEW,
-                    on_click=lambda _: _open_in_viewer(),
-                ),
-                ft.FilledButton(
-                    "Close",
-                    icon=ft.Icons.CLOSE,
-                    on_click=close_dialog,
-                ),
-            ],
-            actions_alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-        )
-
-        page.dialog = expand_dialog
-        expand_dialog.open = True
-        try:
-            page.update()
-        except AssertionError:
-            pass
+    def _go_to_chart(_):
+        ctx.pending_chart = {
+            "title": title,
+            "image_path": str(image_path) if image_path else None,
+            "content": extra_content,
+            "drill_route": drill_route,
+        }
+        controllers.navigate(page, "/reports/chart")
 
     # Build the card content
     content_controls: list[ft.Control] = [
@@ -1084,7 +1015,7 @@ def _chart_card(
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     spacing=4,
                 ),
-                on_click=_show_expanded_image,
+                on_click=_go_to_chart,
                 ink=True,
                 border_radius=8,
                 tooltip="Click to expand chart",
@@ -1108,7 +1039,17 @@ def _chart_card(
                 )
             )
     elif extra_content:
-        content_controls.append(extra_content)
+        content_controls.append(
+            ft.Container(
+                content=extra_content,
+                on_click=_go_to_chart,
+                ink=True,
+                padding=8,
+                border=ft.border.all(1, ft.Colors.OUTLINE),
+                border_radius=8,
+                tooltip="Click to view details",
+            )
+        )
     else:
         content_controls.append(
             ft.Container(

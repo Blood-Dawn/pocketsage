@@ -89,7 +89,23 @@ For minor resets during development:
 - **Habits**: CRUD plus archive/reactivate; daily toggle writes entries and recalculates streaks immediately; streak/heatmap service logic lives in `services/habits` (reminder handling is still a placeholder).
 - **Debts**: Liabilities CRUD, payment recording, and snowball/avalanche payoff calculations with rollover guard; payoff chart + projected debt-free date wired into the Debts view.
 - **Portfolio**: Holding model fixed; CRUD + CSV import/export with dedupe; allocation donut updates on data change; totals honor accounts.
-- **Admin & backup**: Demo seed/reset/export/backup/restore wired with spinners and retention; secure dirs under `instance/`. Admin snackbars and status updates no-op safely if controls aren’t attached.
+- **Admin & backup**: Demo seed/reset/export/backup/restore wired with spinners and retention; secure dirs under `instance/`. Admin snackbars and status updates no-op safely if controls aren't attached.
 - **Reports/Dashboard**: Dashboard shows current month income/expense/net, debts, habits done today, recent txns, and quick actions; reports aggregate charts and export bundle is reusable.
 - **Data/Infra**: All models declare `__tablename__`; shared session factory; CSV imports share dedupe helper; job runner available for longer ops.
 - **QA/Tooling**: Ruff/pytest green; UI regression covers add dialogs; perf guardrails allow large (multi-thousand row) imports and pagination scans; packaging scripts are non-interactive and documented.
+
+## Building PocketSage Windows Installer
+
+### Prereqs
+- Windows 10/11 x64
+- Python 3.12
+- Virtualenv at `.venv` created and installed via `scripts/build_desktop.bat`
+- [Inno Setup 6](https://jrsoftware.org/isinfo.php) installed and `ISCC.exe` on PATH, or use the full path
+
+### Steps
+
+1. **Build the desktop exe**
+
+   ```powershell
+   # from repo root
+   scripts\build_desktop.bat

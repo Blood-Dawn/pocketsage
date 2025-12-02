@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 from .. import controllers
 from ..context import AppContext
+from ...devtools import dev_log
 from ...services.admin_tasks import reset_demo_database, run_demo_seed
 from ...services.heavy_seed import run_heavy_seed
 
@@ -60,28 +61,8 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
         page.update()
 
     def _confirm_export():
-        def _close(_=None):
-            if page.dialog:
-                page.dialog.open = False
-            page.dialog = None
-            page.update()
-
-        def _do_export(_=None):
-            _export_ledger(ctx, page)
-            _close()
-
-        dialog = ft.AlertDialog(
-            modal=True,
-            title=ft.Text("Export CSV"),
-            content=ft.Text("Export the current ledger to CSV?"),
-            actions=[
-                ft.TextButton("Cancel", on_click=_close),
-                ft.FilledButton("Confirm", on_click=_do_export),
-            ],
-        )
-        page.dialog = dialog
-        dialog.open = True
-        page.update()
+        # Export immediately; dialog removed to avoid no-op UX.
+        _export_ledger(ctx, page)
 
     # File menu
     file_menu = ft.SubmenuButton(
@@ -95,6 +76,7 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
             ft.MenuItemButton(
                 content=ft.Text("Import CSV  Ctrl+I"),
                 leading=ft.Icon(ft.Icons.UPLOAD_FILE),
+                visible=False,  # hidden until import flow is finalized
                 on_click=lambda _: _ensure_picker_and_import(),
             ),
             ft.MenuItemButton(
@@ -132,7 +114,7 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
                 on_click=lambda _: controllers.navigate(page, "/dashboard"),
             ),
             ft.MenuItemButton(
-                content=ft.Text("Transactions  Ctrl+1"),
+                content=ft.Text("Ledger  Ctrl+1"),
                 leading=ft.Icon(ft.Icons.RECEIPT_LONG),
                 on_click=lambda _: controllers.navigate(page, "/ledger"),
             ),
@@ -252,18 +234,14 @@ def _open_accounts_dialog(ctx: AppContext, page: ft.Page):
 
 def _export_ledger(ctx: AppContext, page: ft.Page):
     """Export ledger to CSV via ledger controller."""
-    try:
-        from ..controllers import export_ledger_to_csv
-    except ImportError:
-        export_ledger_to_csv = None
+    from ..controllers import export_ledger_to_csv
 
-    if export_ledger_to_csv:
+    try:
+        dev_log(getattr(ctx, "config", None), "Menu export CSV clicked")
         export_ledger_to_csv(ctx, page)
-    else:
-        controllers.navigate(page, "/ledger")
-        page.snack_bar = ft.SnackBar(
-            content=ft.Text("Go to Ledger page and click Export CSV button")
-        )
+    except Exception as exc:
+        dev_log(getattr(ctx, "config", None), "Menu export CSV failed", exc=exc)
+        page.snack_bar = ft.SnackBar(content=ft.Text(f"Export failed: {exc}"), show_close_icon=True)
         page.snack_bar.open = True
         page.update()
 

@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING, Optional
 
 import flet as ft
 
-from ..services import admin_tasks, auth, importers
+from datetime import datetime
+
+from ..services import admin_tasks, auth, export_csv, importers
 from ..devtools import dev_log
 from .navigation_helpers import handle_navigation_selection, resolve_shortcut_route
 
@@ -268,12 +270,61 @@ def logout(ctx: AppContext, page: ft.Page) -> None:
     navigate(page, "/dashboard")
 
 
+def resolve_export_dir(ctx: AppContext) -> Path:
+    """Return the export directory, honoring a user setting and defaulting to Downloads."""
+
+    # Preferred: user-configured path persisted in settings_repo
+    try:
+        if hasattr(ctx, "settings_repo"):
+            entry = ctx.settings_repo.get("export_dir")
+            if entry and entry.value:
+                path = Path(entry.value).expanduser()
+                path.mkdir(parents=True, exist_ok=True)
+                return path.resolve()
+    except Exception:
+        dev_log(_ctx_config(ctx), "Export dir lookup failed; falling back to defaults")
+
+    # Default: user Downloads if it exists or can be created; otherwise DATA_DIR/exports
+    downloads = Path.home() / "Downloads"
+    try:
+        downloads.mkdir(parents=True, exist_ok=True)
+        return downloads.resolve()
+    except Exception:
+        fallback = Path(ctx.config.DATA_DIR) / "exports"
+        fallback.mkdir(parents=True, exist_ok=True)
+        return fallback.resolve()
+
+
+def export_ledger_to_csv(ctx: AppContext, page: ft.Page) -> None:
+    """Export all ledger transactions to CSV and surface the path."""
+
+    try:
+        user_id = ctx.require_user_id()
+        dev_log(_ctx_config(ctx), "Ledger export requested", context={"user_id": user_id})
+        txs = ctx.transaction_repo.list_all(user_id=user_id)
+        stamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        output_dir = resolve_export_dir(ctx)
+        output_path = output_dir / f"ledger-{stamp}.csv"
+        export_csv.export_transactions_csv(transactions=txs, output_path=output_path)
+        dev_log(
+            _ctx_config(ctx),
+            "Ledger export completed",
+            context={"path": str(output_path), "count": len(txs)},
+        )
+        _show_snack(page, f"Exported to {output_path}")
+    except Exception as exc:  # pragma: no cover - user-facing guard
+        dev_log(_ctx_config(ctx), "Ledger export failed", exc=exc)
+        _show_snack(page, f"Export failed: {exc}")
+
+
 __all__ = [
     "attach_file_picker",
+    "export_ledger_to_csv",
     "go_to_help",
     "handle_nav_selection",
     "handle_shortcut",
     "navigate",
+    "resolve_export_dir",
     "start_edit",
     "reset_demo_data",
     "run_demo_seed",

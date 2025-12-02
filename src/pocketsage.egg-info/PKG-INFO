@@ -19,6 +19,8 @@ Provides-Extra: watcher
 Requires-Dist: watchdog>=3.0.0; extra == "watcher"
 Provides-Extra: scheduler
 Requires-Dist: apscheduler>=3.10.0; extra == "scheduler"
+Provides-Extra: sqlcipher
+Requires-Dist: sqlcipher3-binary>=0.5.4; extra == "sqlcipher"
 Provides-Extra: dev
 Requires-Dist: black==24.8.0; extra == "dev"
 Requires-Dist: pytest==8.2.0; extra == "dev"
@@ -29,6 +31,7 @@ Requires-Dist: pre-commit==3.8.0; extra == "dev"
 Requires-Dist: bandit[toml]==1.7.9; extra == "dev"
 Requires-Dist: apscheduler>=3.10.0; extra == "dev"
 Requires-Dist: watchdog>=3.0.0; extra == "dev"
+Requires-Dist: sqlcipher3-binary>=0.5.4; extra == "dev"
 
 # PocketSage - Offline Desktop Finance + Habits Tracker
 

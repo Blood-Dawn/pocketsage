@@ -447,6 +447,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ),
             ft.TextButton(
                 "Import CSV",
+                visible=False,  # hidden until import flow is finalized
                 icon=ft.Icons.UPLOAD_FILE,
                 on_click=lambda _: (
                     controllers.attach_file_picker(ctx, page)

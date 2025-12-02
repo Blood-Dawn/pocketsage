@@ -21,6 +21,7 @@ from .views.debt_timeline import build_debt_timeline_view
 from .views.habits import build_habits_view
 from .views.help import build_help_view
 from .views.ledger import build_ledger_view
+from .views.report_chart import build_report_chart_view
 from .views.edit_data import build_edit_data_view
 from .views.edit_debt import build_edit_debt_view
 from .views.edit_habit import build_edit_habit_view
@@ -110,6 +111,7 @@ def main(page: ft.Page) -> None:
         "/debts/timeline": build_debt_timeline_view,
         "/portfolio": build_portfolio_view,
         "/reports": build_reports_view,
+        "/reports/chart": build_report_chart_view,
         "/help": build_help_view,
         "/about": build_about_view,
         "/settings": build_settings_view,

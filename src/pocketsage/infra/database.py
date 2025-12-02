@@ -13,7 +13,26 @@ from ..config import BaseConfig
 def create_db_engine(config: BaseConfig):
     """Create SQLModel engine from configuration."""
     engine_options = config.sqlalchemy_engine_options()
+    if config.USE_SQLCIPHER:
+        try:
+            import sqlcipher3
+        except ImportError as exc:  # pragma: no cover - configuration guard
+            raise ImportError(
+                "SQLCipher requested but sqlcipher3 is not installed. "
+                "Install sqlcipher3-binary or disable POCKETSAGE_USE_SQLCIPHER."
+            ) from exc
+        engine_options["module"] = sqlcipher3
     engine = create_engine(config.DATABASE_URL, **engine_options)
+
+    if config.USE_SQLCIPHER:
+        from sqlalchemy import event
+
+        @event.listens_for(engine, "connect")
+        def set_sqlcipher_key(dbapi_connection, connection_record):  # pragma: no cover - hook
+            cursor = dbapi_connection.cursor()
+            cursor.execute(f"PRAGMA key='{config.SQLCIPHER_KEY}'")
+            cursor.close()
+
     return engine
 
 

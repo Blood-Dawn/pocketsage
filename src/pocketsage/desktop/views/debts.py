@@ -20,12 +20,10 @@ from .. import controllers
 from ...devtools import dev_log
 from ...models.liability import Liability
 from ...services.debts import DebtAccount, avalanche_schedule, schedule_summary, snowball_schedule
-from ...services.liabilities import build_payment_transaction
 from ..charts import debt_payoff_chart_png
 from ..components import (
     build_app_bar,
     build_main_layout,
-    safe_open_dialog,
     show_confirm_dialog,
     show_error_dialog,
 )
@@ -159,29 +157,6 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         ft.DataCell(ft.Text(f"{liab.apr:.2f}%")),
                         ft.DataCell(ft.Text(f"${liab.minimum_payment:,.2f}")),
                         ft.DataCell(ft.Text(f"${monthly_interest:,.2f}")),
-                        ft.DataCell(
-                            ft.Row(
-                                controls=[
-                                    ft.IconButton(
-                                        icon=ft.Icons.EDIT,
-                                        tooltip="Edit",
-                                        on_click=lambda _e, item=liab: _edit_selected(item.id),
-                                    ),
-                                    ft.IconButton(
-                                        icon=ft.Icons.PAYMENTS,
-                                        tooltip="Record payment",
-                                        on_click=lambda _e, item=liab: _record_payment(item),
-                                    ),
-                                    ft.IconButton(
-                                        icon=ft.Icons.DELETE_OUTLINE,
-                                        icon_color=ft.Colors.RED,
-                                        tooltip="Delete",
-                                        on_click=lambda _e, lid=liab.id: _confirm_delete(lid),
-                                    ),
-                                ],
-                                spacing=6,
-                            )
-                        ),
                     ]
                 )
             )
@@ -189,7 +164,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         if not rows:
             rows.append(
                 ft.DataRow(
-                    cells=[ft.DataCell(ft.Text("No liabilities found")) for _ in range(6)]
+                    cells=[ft.DataCell(ft.Text("No liabilities found")) for _ in range(5)]
                 )
             )
 
@@ -219,154 +194,6 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         elif selected_liability is not None and all(li.id != selected_liability for li in liabilities):
             _set_selected(None)
         page.update()
-
-    def _open_edit_dialog(liability: Liability | None = None) -> None:
-        editing = liability is not None
-        title = "Edit liability" if editing else "Add liability"
-        name = ft.TextField(label="Name", value=getattr(liability, "name", ""), width=220)
-        balance = ft.TextField(
-            label="Balance", value=str(getattr(liability, "balance", "") or ""), width=180
-        )
-        apr = ft.TextField(
-            label="APR", value=str(getattr(liability, "apr", "") or ""), width=140, suffix_text="%"
-        )
-        minimum_payment = ft.TextField(
-            label="Minimum payment",
-            value=str(getattr(liability, "minimum_payment", "") or ""),
-            width=180,
-            helper_text="What you must pay each month.",
-        )
-        due_day = ft.TextField(
-            label="Due day (1-28)",
-            value=str(getattr(liability, "due_day", 1) or 1),
-            width=140,
-        )
-
-        def _save(_):
-            try:
-                record = Liability(
-                    id=getattr(liability, "id", None),
-                    name=name.value or "Liability",
-                    balance=float(balance.value or 0),
-                    apr=float(apr.value or 0),
-                    minimum_payment=float(minimum_payment.value or 0),
-                    due_day=max(1, min(28, int(due_day.value or 1))),
-                    user_id=uid,
-                )
-                if editing:
-                    ctx.liability_repo.update(record, user_id=uid)
-                else:
-                    ctx.liability_repo.create(record, user_id=uid)
-                dev_log(
-                    ctx.config,
-                    "Liability saved",
-                    context={"id": getattr(record, "id", None), "editing": editing},
-                )
-                dialog.open = False
-                _refresh()
-            except Exception as exc:
-                dev_log(ctx.config, "Liability save failed", exc=exc)
-                show_error_dialog(page, "Save failed", str(exc))
-
-        def _cancel(_e):
-            dialog.open = False
-            page.update()
-
-        dialog = ft.AlertDialog(
-            title=ft.Text(title),
-            content=ft.Column(
-                controls=[name, balance, apr, minimum_payment, due_day],
-                tight=True,
-                spacing=8,
-            ),
-            actions=[
-                ft.TextButton("Cancel", on_click=_cancel),
-                ft.FilledButton("Save", on_click=_save),
-            ],
-        )
-        safe_open_dialog(page, dialog)
-
-    # TODO(@codex): Record payment action for a debt
-    #    - Allow user to input payment amount (beyond minimum)
-    #    - Update remaining balance when payment is recorded (DONE)
-    #    - Adjust payoff schedule after payment (DONE - via _refresh)
-    #    - Optionally create a transaction in the ledger (DONE - reconcile switch)
-    #    - This addresses UR-17 (record payments) and FR-23 (update schedule)
-    def _record_payment(liability: Liability) -> None:
-        amount_field = ft.TextField(
-            label="Payment amount",
-            value=str(liability.minimum_payment),
-            autofocus=True,
-        )
-        account_options = ctx.account_repo.list_all(user_id=uid)
-        account_dd = ft.Dropdown(
-            label="Account",
-            options=[ft.dropdown.Option(str(a.id), a.name) for a in account_options if a.id],
-            width=220,
-        )
-        category_options = [c for c in ctx.category_repo.list_all(user_id=uid) if c.id]
-        category_dd = ft.Dropdown(
-            label="Category",
-            options=[ft.dropdown.Option(str(c.id), c.name) for c in category_options],
-            width=220,
-        )
-        reconcile_switch = ft.Switch(label="Also add to ledger", value=True)
-
-        def _apply(_):
-            try:
-                payment = float(amount_field.value or 0)
-                if payment <= 0:
-                    amount_field.error_text = "Payment must be greater than 0"
-                    amount_field.update()
-                    return
-                current = ctx.liability_repo.get_by_id(liability.id or 0, user_id=uid)
-                if current is None:
-                    raise ValueError("Liability not found")
-                current.balance = max(0.0, current.balance - payment)
-                ctx.liability_repo.update(current, user_id=uid)
-                if reconcile_switch.value:
-                    txn = build_payment_transaction(
-                        liability=current,
-                        amount=payment,
-                        account_id=int(account_dd.value) if account_dd.value else None,
-                        category_id=int(category_dd.value) if category_dd.value else None,
-                        user_id=uid,
-                    )
-                    ctx.transaction_repo.create(txn, user_id=uid)
-                dev_log(
-                    ctx.config,
-                    "Payment applied",
-                    context={"liability": liability.id, "amount": payment},
-                )
-                payment_dialog.open = False
-                _refresh()
-                page.snack_bar = ft.SnackBar(
-                    content=ft.Text(
-                        f"Payment recorded; new balance ${current.balance:,.2f}"
-                        if current
-                        else "Payment recorded"
-                    ),
-                    show_close_icon=True,
-                )
-                page.snack_bar.open = True
-                page.update()
-            except Exception as exc:
-                dev_log(ctx.config, "Payment failed", exc=exc, context={"liability": liability.id})
-                show_error_dialog(page, "Payment failed", str(exc))
-
-        def _cancel_payment(_e):
-            payment_dialog.open = False
-            page.update()
-
-        payment_dialog = ft.AlertDialog(
-            title=ft.Text(f"Record payment for {liability.name}"),
-            content=ft.Column(controls=[amount_field, account_dd, category_dd, reconcile_switch], spacing=8),
-            actions=[
-                ft.TextButton("Cancel", on_click=_cancel_payment),
-                ft.FilledButton("Apply", on_click=_apply),
-            ],
-        )
-        safe_open_dialog(page, payment_dialog)
 
     def _confirm_delete(liability_id: int | None) -> None:
         if liability_id is None:
@@ -404,8 +231,8 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             page.snack_bar.open = True
             page.update()
             return
-        existing = ctx.liability_repo.get_by_id(target_id, user_id=uid)
-        _open_edit_dialog(existing)
+        ctx.pending_edit = {"id": target_id, "return_route": "/debts"}
+        controllers.navigate(page, "/edit-debt")
 
     def _on_strategy_change(e):
         strategy_state["value"] = e.control.value
@@ -477,7 +304,6 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.DataColumn(ft.Text("APR")),
             ft.DataColumn(ft.Text("Min. Payment")),
             ft.DataColumn(ft.Text("Interest/mo")),
-            ft.DataColumn(ft.Text("Actions")),
         ],
         rows=[],
         expand=True,

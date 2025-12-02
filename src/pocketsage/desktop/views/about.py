@@ -26,7 +26,7 @@ def _shortcut(key: str, description: str) -> ft.Row:
                 content=ft.Text(key, weight=ft.FontWeight.BOLD),
                 padding=ft.padding.symmetric(horizontal=8, vertical=4),
                 border_radius=6,
-                bgcolor=getattr(ft.Colors, "SURFACE_CONTAINER_LOW", ft.Colors.SURFACE_VARIANT),
+                bgcolor=getattr(ft.Colors, "SURFACE_CONTAINER_LOW", ft.Colors.SURFACE),
             ),
             ft.Text(description, expand=True, color=ft.Colors.ON_SURFACE_VARIANT),
         ],
@@ -63,6 +63,45 @@ def build_about_view(ctx: AppContext, page: ft.Page) -> ft.View:
         spacing=6,
     )
 
+    release_notes = _card(
+        "Release snapshot (v1.0.0)",
+        [
+            ft.Text(
+                "PocketSage is an offline-first desktop app for tracking money, debts, habits, and a simple portfolio. "
+                "Data stays local in SQLite under instance/ (override with POCKETSAGE_DATA_DIR); no cloud or telemetry. "
+                "SQLCipher flags are scaffolded for future encrypted builds.",
+                color=ft.Colors.ON_SURFACE_VARIANT,
+            ),
+            ft.Text(
+                "Highlights: guest-first desktop shell (Flet) with nav rail, theme switcher, quick actions, and shortcuts "
+                "(Ctrl+N new transaction, Ctrl+Shift+H new habit, Ctrl+1..7 nav); admin toolkit for demo seed/reset, backup/export/restore "
+                "with secure dirs and 5 export retention; packaging via PyInstaller/Flet pack and Inno Setup (dist\\PocketSage.exe, dist\\installer\\PocketSage-Setup-1.0.0.exe); "
+                "roadmap/docs with milestone planning and ops runbooks.",
+                color=ft.Colors.ON_SURFACE_VARIANT,
+                size=13,
+            ),
+            ft.Text(
+                "Core features: ledger CRUD with validation, flash toasts, pagination/filters, rollups, CSV export; budgets with per-category lines and progress; "
+                "habits CRUD/archive, optimistic toggles, streaks/heatmaps; debts with validation, payoff summaries/charts, payment schedule; "
+                "portfolio CRUD with grouping/sorting/filtering and CSV preview; reports/dashboard with spending/budget/habits/debt/alloc charts and CSV/PNG/ZIP exports.",
+                color=ft.Colors.ON_SURFACE_VARIANT,
+                size=13,
+            ),
+            ft.Text(
+                "Known limits: CSV import currently broken/hidden; delete buttons in grids not fully wired—use Admin → Delete Data; budget line errors need hardening; "
+                "no cloud sync or multi-user; SQLCipher not finalized; no watcher/auto-import yet; limited UI automation/perf coverage; uninstall keeps user data (delete/reset via Admin).",
+                color=ft.Colors.ON_SURFACE_VARIANT,
+                size=13,
+            ),
+            ft.Text(
+                "Getting started: install PocketSage-Setup-1.0.0.exe (defaults to C:\\Program Files\\PocketSage), launch, toggle Admin, run Demo Seed, switch back to Guest, "
+                "exports/backups under instance/exports (override via POCKETSAGE_DATA_DIR). Full changelog: github.com/Blood-Dawn/pocketsage/commits/V1.",
+                color=ft.Colors.ON_SURFACE_VARIANT,
+                size=13,
+            ),
+        ],
+    )
+
     key_areas = _card(
         "What you can do",
         [
@@ -97,7 +136,7 @@ def build_about_view(ctx: AppContext, page: ft.Page) -> ft.View:
     data_privacy = _card(
         "Data, privacy, and storage",
         [
-            _bullet("Data directory defaults to instance/; override with POCKETSAGE_DATA_DIR. The folder is auto-created."),
+            _bullet("Data directory defaults to instance/; if that path is protected (e.g., Program Files) we fall back to %LOCALAPPDATA%/PocketSage. Override with POCKETSAGE_DATA_DIR. The folder is auto-created."),
             _bullet("Database: SQLite (pocketsage.db) via SQLModel. SQLCipher-ready using POCKETSAGE_USE_SQLCIPHER=true and POCKETSAGE_SQLCIPHER_KEY."),
             _bullet("Exports and backups: ZIPs land under instance/exports (keeps 5 latest) and instance/backups; session logs live in instance/logs/."),
             _bullet("Network: fully offline - no external API calls or telemetry."),
@@ -127,6 +166,8 @@ def build_about_view(ctx: AppContext, page: ft.Page) -> ft.View:
         controls=[
             overview,
             ft.Divider(),
+            release_notes,
+            ft.Container(height=10),
             key_areas,
             ft.Container(height=10),
             quick_start,

@@ -24,6 +24,7 @@ dependencies = [
 [project.optional-dependencies]
 watcher = ["watchdog>=3.0.0"]
 scheduler = ["apscheduler>=3.10.0"]
+sqlcipher = ["sqlcipher3-binary>=0.5.4"]
 dev = [
 	"black==24.8.0",
 	"pytest==8.2.0",
@@ -34,6 +35,7 @@ dev = [
 	"bandit[toml]==1.7.9",
 	"apscheduler>=3.10.0",
 	"watchdog>=3.0.0",
+	"sqlcipher3-binary>=0.5.4",
 ]
 
 [project.urls]
