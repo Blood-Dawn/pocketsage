@@ -314,9 +314,9 @@ def test_megaflow_end_to_end(monkeypatch: pytest.MonkeyPatch, tmp_path):
         ("Habits  Ctrl+2", "/habits"),
         ("Debts  Ctrl+3", "/debts"),
         ("Portfolio  Ctrl+4", "/portfolio"),
-        ("Budgets  Ctrl+5", "/budgets"),
+        ("Reports  Ctrl+5", "/reports"),
         ("Dashboard", "/dashboard"),
-        ("All Reports  Ctrl+6", "/reports"),
+        ("All Reports  Ctrl+5", "/reports"),
     ]:
         item = _menu_item_by_label(menu, label)
         assert item is not None

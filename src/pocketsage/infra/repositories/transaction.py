@@ -85,6 +85,19 @@ class SQLModelTransactionRepository:
             session.expunge_all()
             return rows
 
+    def list_by_liability(self, liability_id: int, *, user_id: int) -> list[Transaction]:
+        """List transactions tied to a liability."""
+        with self.session_factory() as session:
+            statement = (
+                select(Transaction)
+                .where(Transaction.user_id == user_id)
+                .where(Transaction.liability_id == liability_id)
+                .order_by(Transaction.occurred_at.desc())  # type: ignore
+            )
+            rows = list(session.exec(statement).all())
+            session.expunge_all()
+            return rows
+
     def search(
         self,
         *,

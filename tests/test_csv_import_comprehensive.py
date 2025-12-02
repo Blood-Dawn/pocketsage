@@ -38,9 +38,10 @@ class TestNormalizeFrame:
             df = normalize_frame(file_path=csv_path)
 
             assert len(df) == 2
-            assert list(df.columns) == ["date", "amount", "description"]
+            assert list(df.columns) == ["date", "amount", "memo"]
             assert df["amount"].iloc[0] == 100.00
             assert df["amount"].iloc[1] == -50.00
+            assert df["memo"].tolist() == ["Salary", "Groceries"]
         finally:
             csv_path.unlink()
 
@@ -70,7 +71,7 @@ class TestNormalizeFrame:
             df = normalize_frame(file_path=csv_path)
 
             # Whitespace should be stripped
-            assert list(df.columns) == ["date", "amount", "description"]
+            assert list(df.columns) == ["date", "amount", "memo"]
         finally:
             csv_path.unlink()
 
@@ -88,8 +89,24 @@ class TestNormalizeFrame:
             df = normalize_frame(file_path=csv_path, encoding="utf-8")
 
             assert len(df) == 2
-            assert "Café" in df["description"].iloc[0]
-            assert "Paychèque" in df["description"].iloc[1]
+            assert "Café" in df["memo"].iloc[0]
+            assert "Paychèque" in df["memo"].iloc[1]
+        finally:
+            csv_path.unlink()
+
+    def test_aliases_description_like_headers_to_memo(self):
+        """Description-style headers should populate the memo column when absent."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write("date,amount,note\n")
+            f.write("2024-01-01,10.00,Coffee\n")
+            f.write("2024-01-02,-5.00,Lunch\n")
+            csv_path = Path(f.name)
+
+        try:
+            df = normalize_frame(file_path=csv_path)
+
+            assert list(df.columns) == ["date", "amount", "memo"]
+            assert df["memo"].tolist() == ["Coffee", "Lunch"]
         finally:
             csv_path.unlink()
 
@@ -324,7 +341,7 @@ class TestImportCsvFile:
             mapping = ColumnMapping(
                 amount="amount",
                 occurred_at="date",
-                memo="description",
+                memo="memo",
             )
 
             count = import_csv_file(csv_path=csv_path, mapping=mapping)
@@ -349,7 +366,7 @@ class TestImportCsvFile:
             mapping = ColumnMapping(
                 amount="amount",
                 occurred_at="date",
-                memo="description",
+                memo="memo",
             )
 
             count = import_csv_file(csv_path=csv_path, mapping=mapping)
@@ -369,7 +386,7 @@ class TestImportCsvFile:
             mapping = ColumnMapping(
                 amount="amount",
                 occurred_at="date",
-                memo="description",
+                memo="memo",
             )
 
             count = import_csv_file(csv_path=csv_path, mapping=mapping)
@@ -390,7 +407,7 @@ class TestImportCsvFile:
             mapping = ColumnMapping(
                 amount="amount",
                 occurred_at="date",
-                memo="description",
+                memo="memo",
                 external_id="transaction_id",
             )
 

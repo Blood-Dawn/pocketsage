@@ -761,6 +761,89 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
     charts_section = _build_charts()
 
+    # Budget summary cards (all-time budgets vs actuals)
+    budget_summary_row = None
+    try:
+        all_budgets = (
+            ctx.budget_repo.list_all(user_id=uid) if hasattr(ctx.budget_repo, "list_all") else []
+        )
+        budgeted_categories: set[int] = set()
+        total_planned = 0.0
+        total_spent = 0.0
+
+        for budget in all_budgets:
+            lines = ctx.budget_repo.get_lines_for_budget(budget.id, user_id=uid)
+            for line in lines:
+                total_planned += line.planned_amount
+                budgeted_categories.add(line.category_id)
+
+        if total_planned > 0 and budgeted_categories:
+            all_transactions = ctx.transaction_repo.search(
+                start_date=None, end_date=None, category_id=None, user_id=uid
+            )
+            for tx in all_transactions:
+                if tx.amount < 0 and tx.category_id in budgeted_categories:
+                    total_spent += abs(tx.amount)
+
+            budget_summary_row = ft.ResponsiveRow(
+                controls=[
+                    ft.Card(
+                        content=ft.Container(
+                            content=ft.Column(
+                                [
+                                    ft.Text("Total Budgeted", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
+                                    ft.Text(f"${total_planned:,.2f}", size=28, weight=ft.FontWeight.BOLD),
+                                ]
+                            ),
+                            padding=20,
+                        ),
+                        col={"sm": 12, "md": 4},
+                    ),
+                    ft.Card(
+                        content=ft.Container(
+                            content=ft.Column(
+                                [
+                                    ft.Text("Total Spent (budgeted categories)", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
+                                    ft.Text(
+                                        f"${total_spent:,.2f}",
+                                        size=28,
+                                        weight=ft.FontWeight.BOLD,
+                                        color=ft.Colors.ORANGE,
+                                    ),
+                                ]
+                            ),
+                            padding=20,
+                        ),
+                        col={"sm": 12, "md": 4},
+                    ),
+                    ft.Card(
+                        content=ft.Container(
+                            content=ft.Column(
+                                [
+                                    ft.Text("Remaining", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
+                                    ft.Text(
+                                        f"${(total_planned - total_spent):,.2f}",
+                                        size=28,
+                                        weight=ft.FontWeight.BOLD,
+                                        color=(
+                                            ft.Colors.GREEN
+                                            if total_spent <= total_planned
+                                            else ft.Colors.RED
+                                        ),
+                                    ),
+                                ]
+                            ),
+                            padding=20,
+                        ),
+                        col={"sm": 12, "md": 4},
+                    ),
+                ],
+                spacing=12,
+                run_spacing=12,
+            )
+    except Exception:
+        budget_summary_row = None
+
     content_controls = [
         ft.Text("Reports & Exports", size=24, weight=ft.FontWeight.BOLD),
         ft.Text(
@@ -771,6 +854,11 @@ def build_reports_view(ctx: AppContext, page: ft.Page) -> ft.View:
         charts_section,
         ft.Container(height=16),
     ]
+
+    if budget_summary_row:
+        content_controls.append(ft.Text("Budget Summary", size=18, weight=ft.FontWeight.BOLD))
+        content_controls.append(budget_summary_row)
+        content_controls.append(ft.Container(height=16))
 
     # Add debt summary if available
     if debt_summary_row:

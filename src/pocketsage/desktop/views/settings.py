@@ -212,6 +212,15 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
         expand=True,
     )
 
+    encryption_switch = ft.Switch(
+        label="Encrypt database (SQLCipher-ready)",
+        value=bool(getattr(ctx.config, "USE_SQLCIPHER", False)),
+        disabled=False,
+        on_change=lambda _: _notify(
+            "Configure POCKETSAGE_USE_SQLCIPHER and POCKETSAGE_SQLCIPHER_KEY then restart to enable encryption."
+        ),
+    )
+
     database_section = ft.Card(
         content=ft.Container(
             content=ft.Column(
@@ -227,6 +236,13 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ),
                     ft.Container(height=8),
                     data_dir_field,
+                    ft.Container(height=8),
+                    encryption_switch,
+                    ft.Text(
+                        "Encryption is optional; set SQLCipher env vars and restart to apply.",
+                        size=12,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
                     ft.Container(height=8),
                     ft.Row(
                         controls=[

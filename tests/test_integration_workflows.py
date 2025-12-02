@@ -297,7 +297,7 @@ class TestCSVImportToDatabase:
             mapping = ColumnMapping(
                 amount="amount",
                 occurred_at="date",
-                memo="description",
+                memo="memo",
                 external_id="transaction_id",
                 category_id="category",
                 account_id="account",

@@ -110,6 +110,11 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
     spending_empty_ref = ft.Ref[ft.Text]()
     budget_progress_ref = ft.Ref[ft.Column]()
     recent_categories_ref = ft.Ref[ft.Column]()
+    selected_label = ft.Ref[ft.Text]()
+    edit_selected_ref = ft.Ref[ft.FilledButton]()
+    delete_selected_ref = ft.Ref[ft.TextButton]()
+    selected_tx_id: int | None = None
+    current_slice: list[Transaction] = []
 
     def _ensure_default_account() -> Account:
         accounts = ctx.account_repo.list_all(user_id=uid)
@@ -328,6 +333,23 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         if container.page:
             container.update()
 
+    def _set_selected(tx_id: int | None) -> None:
+        nonlocal selected_tx_id
+        selected_tx_id = tx_id
+        if selected_label.current:
+            selected_label.current.value = f"Selected: #{tx_id}" if tx_id else "No selection"
+            if selected_label.current.page:
+                selected_label.current.update()
+        if edit_selected_ref.current:
+            edit_selected_ref.current.disabled = tx_id is None
+            if edit_selected_ref.current.page:
+                edit_selected_ref.current.update()
+        if delete_selected_ref.current:
+            delete_selected_ref.current.disabled = tx_id is None
+            if delete_selected_ref.current.page:
+                delete_selected_ref.current.update()
+        _render_table(current_slice)
+
     def _render_table(transactions: list[Transaction]) -> None:
         table = table_ref.current
         if not table:
@@ -346,38 +368,22 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             amount_color = ft.Colors.GREEN if tx.amount >= 0 else ft.Colors.RED
             rows.append(
                 ft.DataRow(
+                    selected=tx.id == selected_tx_id,
+                    on_select_changed=lambda _e, tid=tx.id: _set_selected(tid),
                     cells=[
                         ft.DataCell(ft.Text(tx.occurred_at.strftime("%Y-%m-%d"))),
                         ft.DataCell(ft.Text(tx.memo or "")),
                         ft.DataCell(ft.Text(category.name if category else "Uncategorized")),
                         ft.DataCell(ft.Text(type_label)),
                         ft.DataCell(ft.Text(_format_currency(tx.amount), color=amount_color)),
-                        ft.DataCell(ft.Text("")),
-                        ft.DataCell(
-                            ft.Row(
-                                controls=[
-                                    ft.IconButton(
-                                        icon=ft.Icons.EDIT,
-                                        tooltip="Edit",
-                                        on_click=lambda _, item=tx: open_transaction_dialog(item),
-                                    ),
-                                    ft.IconButton(
-                                        icon=ft.Icons.DELETE_OUTLINE,
-                                        icon_color=ft.Colors.RED,
-                                        tooltip="Delete",
-                                        on_click=lambda _, tx_id=tx.id: delete_transaction(tx_id),
-                                    ),
-                                ]
-                            )
-                        ),
-                    ]
+                    ],
                 )
             )
         if not rows:
             rows = [
                 ft.DataRow(
                     cells=[ft.DataCell(ft.Text("No transactions in this period."))]
-                    + [ft.DataCell(ft.Text("")) for _ in range(6)],
+                    + [ft.DataCell(ft.Text("")) for _ in range(4)],
                 )
             ]
         table.rows = rows
@@ -385,7 +391,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             table.update()
 
     def _load_transactions(page_index: int = 1) -> None:
-        nonlocal current_page, cached_transactions, total_pages
+        nonlocal current_page, cached_transactions, total_pages, selected_tx_id, current_slice
         try:
             start_dt = _parse_date(start_field)
             end_dt = _parse_date(end_field)
@@ -412,7 +418,9 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         page_slice, _ = ledger_service.paginate_transactions(
             txs, ledger_service.Pagination(page=current_page, per_page=per_page)
         )
-        _render_table(page_slice)
+        current_slice = page_slice
+        selected_tx_id = None
+        _render_table(current_slice)
         _render_summary(ledger_service.compute_summary(txs))
         breakdown = ledger_service.compute_spending_by_category(
             txs, ctx.category_repo.list_all(user_id=uid)
@@ -420,6 +428,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         _render_spending_chart(txs)
         _render_budget_progress(txs, start_dt)
         _render_recent_categories(breakdown)
+        _set_selected(None)
         if page_label.current:
             page_label.current.value = f"Page {current_page} / {total_pages}"
             if getattr(page_label.current, "page", None):
@@ -434,6 +443,25 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
         type_field.value = "all"
         search_field.value = ""
         _load_transactions(1)
+
+    def _edit_selected(_=None) -> None:
+        if selected_tx_id is None:
+            page.snack_bar = ft.SnackBar(content=ft.Text("Select a transaction to edit"))
+            page.snack_bar.open = True
+            page.update()
+            return
+        controllers.start_edit(
+            ctx,
+            page,
+            kind="transaction",
+            record_id=selected_tx_id,
+            return_route="/ledger",
+        )
+
+    def _delete_selected(_=None) -> None:
+        if selected_tx_id is None:
+            return
+        delete_transaction(selected_tx_id)
 
     def _paginate(delta: int) -> None:
         _load_transactions(current_page + delta)
@@ -776,8 +804,6 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.DataColumn(ft.Text("Category")),
             ft.DataColumn(ft.Text("Type")),
             ft.DataColumn(ft.Text("Amount")),
-            ft.DataColumn(ft.Text("Balance")),
-            ft.DataColumn(ft.Text("Actions")),
         ],
         rows=[],
         expand=True,
@@ -844,8 +870,30 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                     ft.Row(
                         controls=[
                             ft.Text("Transaction register", weight=ft.FontWeight.BOLD, size=18),
+                            ft.Row(
+                                controls=[
+                                    ft.Text("No selection", ref=selected_label),
+                                    ft.FilledButton(
+                                        "Edit selected",
+                                        icon=ft.Icons.EDIT,
+                                        ref=edit_selected_ref,
+                                        disabled=True,
+                                        on_click=_edit_selected,
+                                    ),
+                                    ft.TextButton(
+                                        "Delete selected",
+                                        icon=ft.Icons.DELETE_OUTLINE,
+                                        ref=delete_selected_ref,
+                                        disabled=True,
+                                        on_click=_delete_selected,
+                                    ),
+                                ],
+                                spacing=8,
+                            ),
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        wrap=True,
+                        run_spacing=8,
                     ),
                     ft.Divider(),
                     ft.Container(table, expand=True),
