@@ -178,6 +178,40 @@ def build_help_view(ctx: AppContext, page: ft.Page) -> ft.View:
         )
     )
 
+    encryption_card = ft.Card(
+        content=ft.Container(
+            padding=16,
+            content=ft.Column(
+                [
+                    ft.Text("Encryption (SQLCipher)", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Text(
+                        "PocketSage can encrypt the database using SQLCipher. "
+                        "When enabled, all SQLite data is encrypted at rest.",
+                        color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                    ft.Text(
+                        "How to enable:",
+                        weight=ft.FontWeight.BOLD,
+                    ),
+                    _code_block("set POCKETSAGE_USE_SQLCIPHER=true\nset POCKETSAGE_SQLCIPHER_KEY=<your-secret>"),
+                    ft.Text(
+                        "The key is applied via PRAGMA key on startup and is required to open the database. "
+                        "Keep it safe—without the key, data cannot be read.",
+                        color=ft.Colors.ON_SURFACE_VARIANT,
+                        size=12,
+                    ),
+                    ft.Text(
+                        "Windows note: the packaged build bundles the SQLCipher wheel/DLL if it was installed "
+                        "during packaging (sqlcipher3-wheels). For source installs, ensure sqlcipher3 is present.",
+                        color=ft.Colors.ON_SURFACE_VARIANT,
+                        size=12,
+                    ),
+                ],
+                spacing=10,
+            ),
+        )
+    )
+
     content = ft.Column(
         [
             ft.Text("Help & CSV Guide", size=24, weight=ft.FontWeight.BOLD),
@@ -193,6 +227,8 @@ def build_help_view(ctx: AppContext, page: ft.Page) -> ft.View:
             quick_start,
             ft.Container(height=10),
             shortcuts_card,
+            ft.Container(height=10),
+            encryption_card,
         ],
         expand=True,
         scroll=ft.ScrollMode.AUTO,
