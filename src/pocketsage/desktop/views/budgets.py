@@ -24,42 +24,6 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Build the budgets view."""
 
     uid = ctx.require_user_id()
-    # Get current month's budget
-    today = ctx.current_month
-    logger.info(f"build_budgets_view: ctx.current_month = {today}")
-    budget = ctx.budget_repo.get_for_month(today.year, today.month, user_id=uid)
-
-    # Date filters (mirrors ledger quick ranges but scoped to budgets)
-    filter_state = {
-        "start": getattr(ctx, "budget_filter_start", None),
-        "end": getattr(ctx, "budget_filter_end", None),
-        "quick": getattr(ctx, "budget_filter_quick_range", "this_month"),
-    }
-
-    start_field = ft.TextField(
-        label="Start date",
-        hint_text="YYYY-MM-DD",
-        width=160,
-        value=(filter_state["start"].date().isoformat() if filter_state["start"] else ""),
-    )
-    end_field = ft.TextField(
-        label="End date",
-        hint_text="YYYY-MM-DD",
-        width=160,
-        value=(filter_state["end"].date().isoformat() if filter_state["end"] else ""),
-    )
-    quick_range = ft.Dropdown(
-        label="Quick range",
-        options=[
-            ft.dropdown.Option("this_month", "This month"),
-            ft.dropdown.Option("last_month", "Last month"),
-            ft.dropdown.Option("ytd", "Year-to-date"),
-            ft.dropdown.Option("all_time", "All time"),
-            ft.dropdown.Option("custom", "Custom (use dates)"),
-        ],
-        width=170,
-        value=filter_state["quick"] or "this_month",
-    )
 
     def _parse_date(field: ft.TextField) -> datetime | None:
         raw = (field.value or "").strip()
@@ -82,41 +46,72 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
         return first, last
 
     def _set_quick_range(value: str) -> None:
-        """Update date fields to match selected quick range."""
-        value = value or "this_month"
-        quick_range.value = value
-        if value == "custom":
-            return
-
+        """Update date fields to match selected quick range (mirrors ledger)."""
+        today = date.today()
         start: date | None = None
         end: date | None = None
         if value == "this_month":
-            start, end = _month_bounds(ctx.current_month)
+            start, end = _month_bounds(today)
         elif value == "last_month":
-            first_this, _ = _month_bounds(ctx.current_month)
+            first_this, _ = _month_bounds(today)
             prev_last = first_this - timedelta(days=1)
             start, end = _month_bounds(prev_last)
         elif value == "ytd":
-            start = date(date.today().year, 1, 1)
-            end = date.today()
+            start = date(today.year, 1, 1)
+            end = today
         elif value == "all_time":
             start = None
             end = None
 
         start_field.value = start.isoformat() if start else ""
         end_field.value = end.isoformat() if end else ""
-        if start_field.page:
-            start_field.update()
-        if end_field.page:
-            end_field.update()
+        quick_range.value = value
+        if quick_range.page:
+            quick_range.update()
+        page.update()
 
-    quick_range.on_change = lambda _: _set_quick_range(quick_range.value or "this_month")
+    filter_state = {
+        "start": getattr(ctx, "budget_filter_start", None),
+        "end": getattr(ctx, "budget_filter_end", None),
+        "quick": getattr(ctx, "budget_filter_quick_range", "all_time"),
+    }
+
+    start_default, end_default = _month_bounds(ctx.current_month)
+
+    start_field = ft.TextField(
+        label="Start date",
+        hint_text="YYYY-MM-DD",
+        width=160,
+        value=(filter_state["start"].date().isoformat() if filter_state["start"] else ""),
+    )
+    end_field = ft.TextField(
+        label="End date",
+        hint_text="YYYY-MM-DD",
+        width=160,
+        value=(filter_state["end"].date().isoformat() if filter_state["end"] else ""),
+    )
+    quick_range = ft.Dropdown(
+        label="Quick range",
+        options=[
+            ft.dropdown.Option("this_month", "This month"),
+            ft.dropdown.Option("last_month", "Last month"),
+            ft.dropdown.Option("ytd", "Year-to-date"),
+            ft.dropdown.Option("all_time", "All time"),
+        ],
+        width=170,
+        value=filter_state["quick"] or "all_time",
+    )
+
+    quick_range.on_change = lambda _: _set_quick_range(quick_range.value or "all_time")
 
     def _reset_filters(_=None):
-        ctx.budget_filter_start = None
-        ctx.budget_filter_end = None
+        ctx.budget_filter_start = datetime.combine(start_default, datetime.min.time())
+        ctx.budget_filter_end = datetime.combine(end_default, datetime.max.time())
         ctx.budget_filter_quick_range = "this_month"
-        _set_quick_range("this_month")
+        ctx.current_month = start_default
+        start_field.value = start_default.isoformat()
+        end_field.value = end_default.isoformat()
+        quick_range.value = "this_month"
         page.go("/budgets")
 
     def _apply_filters(_=None):
@@ -126,14 +121,30 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
         except ValueError:
             return
 
-        selected_range = quick_range.value or "custom"
+        selected_range = quick_range.value or "all_time"
         ctx.budget_filter_quick_range = selected_range
         ctx.budget_filter_start = parsed_start
         ctx.budget_filter_end = parsed_end
+        anchor = parsed_start or parsed_end
+        if anchor:
+            ctx.current_month = anchor.date().replace(day=1)
         page.go("/budgets")
 
-    if (filter_state["quick"] or "this_month") != "custom":
-        _set_quick_range(filter_state["quick"] or "this_month")
+    if not filter_state["start"] and not filter_state["end"]:
+        _set_quick_range(filter_state["quick"] or "all_time")
+    else:
+        quick_range.value = filter_state["quick"] or "all_time"
+
+    # Align the budget month with the active filter window so results match ledger behavior.
+    filter_anchor: date | None = None
+    if filter_state["start"]:
+        filter_anchor = filter_state["start"].date()
+    elif filter_state["end"]:
+        filter_anchor = filter_state["end"].date()
+    today = (filter_anchor or ctx.current_month).replace(day=1)
+    ctx.current_month = today
+    logger.info(f"build_budgets_view: ctx.current_month = {today}")
+    budget = ctx.budget_repo.get_for_month(today.year, today.month, user_id=uid)
 
     def _shift_month(delta: int):
         current = ctx.current_month

@@ -50,7 +50,7 @@ class AppContext:
     current_month: date
     budget_filter_start: Optional[datetime] = None
     budget_filter_end: Optional[datetime] = None
-    budget_filter_quick_range: str = "this_month"
+    budget_filter_quick_range: str = "all_time"
 
     # Page reference (set after initialization)
     page: Optional[ft.Page] = None
@@ -129,6 +129,6 @@ def create_app_context(config: Optional[BaseConfig] = None) -> AppContext:
         current_month=current_date.replace(day=1),
         budget_filter_start=None,
         budget_filter_end=None,
-        budget_filter_quick_range="this_month",
+        budget_filter_quick_range="all_time",
         current_user=None,  # Start with no user logged in
     )
