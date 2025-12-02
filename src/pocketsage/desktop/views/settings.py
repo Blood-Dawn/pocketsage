@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 import flet as ft
 
 from ...devtools import dev_log
+from ...infra.database import rekey_database
 from ...services import importers
 from ...services.admin_tasks import backup_database, restore_database, run_export
 from ...services.watcher import start_watcher
@@ -18,6 +19,31 @@ from ..components import build_app_bar, build_main_layout
 
 if TYPE_CHECKING:
     from ..context import AppContext
+
+
+def _update_env_var(key: str, value: str) -> None:
+    """Update or add an env var in the project .env file."""
+
+    try:
+        env_path = Path(__file__).resolve().parents[4] / ".env"
+        lines: list[str] = env_path.read_text().splitlines() if env_path.exists() else []
+        updated: list[str] = []
+        found = False
+        for line in lines:
+            if not line or line.strip().startswith("#"):
+                updated.append(line)
+                continue
+            if line.split("=", 1)[0].strip() == key:
+                updated.append(f"{key}={value}")
+                found = True
+            else:
+                updated.append(line)
+        if not found:
+            updated.append(f"{key}={value}")
+        env_path.write_text("\n".join(updated) + "\n", encoding="utf-8")
+    except Exception:
+        # Best-effort; silently ignore to avoid breaking UI flow
+        return
 
 
 def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
@@ -247,6 +273,79 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
     def choose_export_dir(_=None):
         export_picker.get_directory_path()
 
+    # Encryption management (SQLCipher)
+    current_key_field = ft.TextField(
+        label="Current key",
+        password=True,
+        can_reveal_password=True,
+        width=280,
+        hint_text="Leave blank to use current configured key",
+    )
+    new_key_field = ft.TextField(
+        label="New key",
+        password=True,
+        can_reveal_password=True,
+        width=280,
+    )
+    confirm_key_field = ft.TextField(
+        label="Confirm new key",
+        password=True,
+        can_reveal_password=True,
+        width=280,
+    )
+
+    def _apply_rekey(_=None):
+        if not ctx.config.USE_SQLCIPHER:
+            _notify("Enable POCKETSAGE_USE_SQLCIPHER and restart before changing the key.")
+            return
+        new_key = (new_key_field.value or "").strip()
+        confirm_key = (confirm_key_field.value or "").strip()
+        if not new_key:
+            _notify("Enter a new key before applying.")
+            return
+        if new_key != confirm_key:
+            _notify("New key and confirmation do not match.")
+            return
+        current_key = (current_key_field.value or "").strip() or (ctx.config.SQLCIPHER_KEY or "")
+        try:
+            rekey_database(ctx.session_factory, current_key=current_key or None, new_key=new_key)
+            ctx.config.SQLCIPHER_KEY = new_key
+            _update_env_var("POCKETSAGE_USE_SQLCIPHER", "true")
+            _update_env_var("POCKETSAGE_SQLCIPHER_KEY", new_key)
+            _notify(
+                "Encryption key updated. Env file refreshed; restart the app to complete rotation."
+            )
+            # Clear fields after success
+            current_key_field.value = ""
+            new_key_field.value = ""
+            confirm_key_field.value = ""
+            current_key_field.update()
+            new_key_field.update()
+            confirm_key_field.update()
+        except Exception as exc:
+            dev_log(ctx.config, "Key rotation failed", exc=exc)
+            _notify(f"Key rotation failed: {exc}")
+
+    def _enable_sqlcipher(_=None):
+        """Set SQLCipher key/env and prompt for restart to enable encryption."""
+
+        new_key = (new_key_field.value or "").strip()
+        confirm_key = (confirm_key_field.value or "").strip()
+        if not new_key:
+            _notify("Enter a key to enable SQLCipher.")
+            return
+        if new_key != confirm_key:
+            _notify("Key and confirmation do not match.")
+            return
+
+        # Persist to .env so restart picks it up
+        _update_env_var("POCKETSAGE_USE_SQLCIPHER", "true")
+        _update_env_var("POCKETSAGE_SQLCIPHER_KEY", new_key)
+        ctx.config.SQLCIPHER_KEY = new_key
+        _notify(
+            "SQLCipher key saved to .env. Restart the app to open the database with encryption."
+        )
+
     encryption_switch = ft.Switch(
         label="Encrypt database (SQLCipher-ready)",
         value=bool(getattr(ctx.config, "USE_SQLCIPHER", False)),
@@ -319,6 +418,32 @@ def build_settings_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         f"Export retention: {ctx.config.EXPORT_RETENTION} archives (configure in config).",
                         size=12,
                         color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                    ft.Container(height=12),
+                    ft.Text("Encryption (SQLCipher)", size=16, weight=ft.FontWeight.BOLD),
+                    ft.Text(
+                        "Set or rotate the SQLCipher key. After changing the key, update POCKETSAGE_SQLCIPHER_KEY in your environment and restart.",
+                        size=12,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                    ft.Row(
+                        controls=[
+                            current_key_field,
+                            new_key_field,
+                            confirm_key_field,
+                        ],
+                        wrap=True,
+                        run_spacing=8,
+                        spacing=8,
+                    ),
+                    ft.Row(
+                        controls=[
+                            ft.FilledButton(
+                                "Apply new key" if ctx.config.USE_SQLCIPHER else "Enable SQLCipher",
+                                icon=ft.Icons.KEY,
+                                on_click=_apply_rekey if ctx.config.USE_SQLCIPHER else _enable_sqlcipher,
+                            ),
+                        ],
                     ),
                 ],
             ),

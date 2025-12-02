@@ -36,6 +36,19 @@ def create_db_engine(config: BaseConfig):
     return engine
 
 
+def rekey_database(session_factory, *, current_key: str | None, new_key: str) -> None:
+    """Rotate SQLCipher key in-place using PRAGMA rekey."""
+
+    with session_factory() as session:
+        conn = session.connection().connection  # DB-API connection
+        cursor = conn.cursor()
+        if current_key:
+            cursor.execute(f"PRAGMA key='{current_key}'")
+        cursor.execute(f"PRAGMA rekey='{new_key}'")
+        conn.commit()
+        cursor.close()
+
+
 def init_database(engine) -> None:
     """Initialize database schema."""
     # Import all models to ensure they're registered

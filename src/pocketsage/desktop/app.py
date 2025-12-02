@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import time
 from pathlib import Path
 
@@ -28,171 +29,264 @@ from .views.edit_habit import build_edit_habit_view
 from .views.portfolio import build_portfolio_view
 from .views.reports import build_reports_view
 from .views.settings import build_settings_view
+from ..config import BaseConfig
+from sqlalchemy.exc import DatabaseError
 
 
 def main(page: ft.Page) -> None:
     """Main entry point for the Flet desktop app."""
 
     # Configure page
-    # Create app context (needs config)
-    ctx = create_app_context()
+    config = BaseConfig()
 
-    # Initialize structured logging
-    logger = setup_logging(ctx.config)
-    logger.info("PocketSage desktop application starting")
+    def _update_env_var(key: str, value: str) -> None:
+        try:
+            env_path = Path(__file__).resolve().parents[3] / ".env"
+            lines: list[str] = env_path.read_text().splitlines() if env_path.exists() else []
+            updated: list[str] = []
+            found = False
+            for line in lines:
+                if not line or line.strip().startswith("#"):
+                    updated.append(line)
+                    continue
+                if line.split("=", 1)[0].strip() == key:
+                    updated.append(f"{key}={value}")
+                    found = True
+                else:
+                    updated.append(line)
+            if not found:
+                updated.append(f"{key}={value}")
+            env_path.write_text("\n".join(updated) + "\n", encoding="utf-8")
+        except Exception:
+            return
 
-    # Initialize background scheduler for periodic tasks
-    scheduler = create_scheduler(ctx, auto_start=True)
+    def _build_context():
+        nonlocal config
+        # reload config to pick up any new env vars
+        config = importlib.reload(importlib.import_module("pocketsage.config")).BaseConfig()
+        return create_app_context(config)
 
-    # Cleanup on page close
-    def on_page_close(_):
-        logger.info("Application closing, shutting down scheduler")
-        scheduler.stop()
-        # Export session log location for user reference
-        from ..logging_config import session_log_path
-        slp = session_log_path()
-        if slp:
-            logger.info(f"Debug session log saved to: {slp}")
-            print(f"\n=== Debug log saved to: {slp} ===\n")
+    def _show_key_prompt(error_msg: str):
+        """Render a blocking prompt to collect SQLCipher key and retry."""
 
-    page.on_close = on_page_close
-
-    ctx.page = page
-    page.title = "PocketSage (DEV)" if ctx.dev_mode else "PocketSage"
-    if ctx.dev_mode:
-        dev_log(ctx.config, "Dev mode enabled", context={"data_dir": ctx.config.DATA_DIR})
-        page.banner = ft.Banner(
-            bgcolor=ft.Colors.AMBER_50,
-            leading=ft.Icon(ft.Icons.BUG_REPORT, color=ft.Colors.AMBER_700),
-            content=ft.Text("Developer mode: errors will be printed to the console."),
-            actions=[ft.TextButton("Hide", on_click=lambda e: setattr(page.banner, "open", False))],
-            open=True,
+        key_field = ft.TextField(
+            label="SQLCipher key",
+            password=True,
+            can_reveal_password=True,
+            width=320,
         )
-    # Theme preference
-    persisted_theme = ctx.settings_repo.get("theme_mode")
-    saved_mode = (persisted_theme.value if persisted_theme else "").strip().lower()
-    if saved_mode == "light":
-        page.theme_mode = ft.ThemeMode.LIGHT
-        ctx.theme_mode = ft.ThemeMode.LIGHT
-    else:
-        page.theme_mode = ft.ThemeMode.DARK
-        ctx.theme_mode = ft.ThemeMode.DARK
-    page.padding = 0
-    page.window_width = 1280
-    page.window_height = 800
-    page.window_min_width = 1024
-    page.window_min_height = 600
-    transitions = ft.PageTransitionsTheme(
-        android=ft.PageTransitionTheme.NONE,
-        ios=ft.PageTransitionTheme.NONE,
-        macos=ft.PageTransitionTheme.NONE,
-        windows=ft.PageTransitionTheme.NONE,
-    )
-    page.theme = ft.Theme(page_transitions=transitions)
-    page.dark_theme = ft.Theme(page_transitions=transitions)
 
-    # Shared file picker overlay for imports
-    controllers.attach_file_picker(ctx, page)
+        def _apply(_=None):
+            key = (key_field.value or "").strip()
+            if not key:
+                page.snack_bar = ft.SnackBar(content=ft.Text("Enter a key"), show_close_icon=True)
+                page.snack_bar.open = True
+                page.update()
+                return
+            # Persist and retry
+            _update_env_var("POCKETSAGE_SQLCIPHER_KEY", key)
+            _update_env_var("POCKETSAGE_USE_SQLCIPHER", "true")
+            try:
+                ctx_retry = _build_context()
+                page.dialog.open = False
+                page.update()
+                # Continue normal startup with new context
+                return _start_app(ctx_retry)
+            except Exception as exc:
+                page.snack_bar = ft.SnackBar(content=ft.Text(f"Key failed: {exc}"), show_close_icon=True)
+                page.snack_bar.open = True
+                page.update()
 
-    # Create router
-    router = Router(page, ctx)
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Enter SQLCipher key", weight=ft.FontWeight.BOLD),
+            content=ft.Column(
+                controls=[
+                    ft.Text(error_msg, color=ft.Colors.ON_SURFACE_VARIANT, size=12),
+                    key_field,
+                ],
+                spacing=10,
+            ),
+            actions=[
+                ft.TextButton("Exit", on_click=lambda _: page.window.destroy()),
+                ft.FilledButton("Unlock", icon=ft.Icons.KEY, on_click=_apply),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        page.dialog = dialog
+        dialog.open = True
+        page.update()
 
-    # Register routes and aliases
-    from .views.about import build_about_view
-    from .views.auth import build_auth_view
+    def _start_app(ctx):
+        """Continue normal app startup once context is ready."""
 
-    route_builders = {
-        "/login": build_auth_view,
-        "/dashboard": build_dashboard_view,
-        "/": build_dashboard_view,
-        "/ledger": build_ledger_view,
-        "/habits": build_habits_view,
-        "/debts": build_debts_view,
-        "/debts/timeline": build_debt_timeline_view,
-        "/portfolio": build_portfolio_view,
-        "/reports": build_reports_view,
-        "/reports/chart": build_report_chart_view,
-        "/help": build_help_view,
-        "/about": build_about_view,
-        "/settings": build_settings_view,
-        "/admin": build_admin_view,
-        "/add-data": build_add_data_view,
-        "/edit-data": build_edit_data_view,
-        "/edit-habit": build_edit_habit_view,
-        "/edit-debt": build_edit_debt_view,
-    }
-    for route, builder in route_builders.items():
-        router.register(route, builder)
+        # Initialize structured logging
+        logger = setup_logging(ctx.config)
+        logger.info("PocketSage desktop application starting")
 
-    # Set up event handlers
-    page.on_route_change = router.route_change
-    page.on_view_pop = router.view_pop
+        # Initialize background scheduler for periodic tasks
+        scheduler = create_scheduler(ctx, auto_start=True)
 
-    # Capture flet page errors into logger
-    # Throttle repeated identical Flet error events (they can spam thousands of times in <1s)
-    _last_err_msg: str | None = None
-    _last_err_ts: float = 0.0
-    _suppress_count: int = 0
-    _error_log: list[str] = []
+        # Cleanup on page close
+        def on_page_close(_):
+            logger.info("Application closing, shutting down scheduler")
+            scheduler.stop()
+            # Export session log location for user reference
+            from ..logging_config import session_log_path
 
-    def _on_error(e: ft.ControlEvent):  # pragma: no cover (UI callback)
-        nonlocal _last_err_msg, _last_err_ts, _suppress_count, _error_log
-        msg = getattr(e, 'data', None) or "<no-data>"
-        _error_log.append(msg)
-        now = time.time()
-        # If same message within 0.5s, suppress
-        if _last_err_msg == msg and (now - _last_err_ts) < 0.5:
-            _suppress_count += 1
-            _last_err_ts = now
-            # Log a summary every 100 suppressed repeats to retain visibility without flooding
-            if _suppress_count % 100 == 0:
+            slp = session_log_path()
+            if slp:
+                logger.info(f"Debug session log saved to: {slp}")
+                print(f"\n=== Debug log saved to: {slp} ===\n")
+
+        page.on_close = on_page_close
+
+        ctx.page = page
+        page.title = "PocketSage (DEV)" if ctx.dev_mode else "PocketSage"
+        if ctx.dev_mode:
+            dev_log(ctx.config, "Dev mode enabled", context={"data_dir": ctx.config.DATA_DIR})
+            page.banner = ft.Banner(
+                bgcolor=ft.Colors.AMBER_50,
+                leading=ft.Icon(ft.Icons.BUG_REPORT, color=ft.Colors.AMBER_700),
+                content=ft.Text("Developer mode: errors will be printed to the console."),
+                actions=[ft.TextButton("Hide", on_click=lambda e: setattr(page.banner, "open", False))],
+                open=True,
+            )
+        # Theme preference
+        persisted_theme = ctx.settings_repo.get("theme_mode")
+        saved_mode = (persisted_theme.value if persisted_theme else "").strip().lower()
+        if saved_mode == "light":
+            page.theme_mode = ft.ThemeMode.LIGHT
+            ctx.theme_mode = ft.ThemeMode.LIGHT
+        else:
+            page.theme_mode = ft.ThemeMode.DARK
+            ctx.theme_mode = ft.ThemeMode.DARK
+        page.padding = 0
+        page.window_width = 1280
+        page.window_height = 800
+        page.window_min_width = 1024
+        page.window_min_height = 600
+        transitions = ft.PageTransitionsTheme(
+            android=ft.PageTransitionTheme.NONE,
+            ios=ft.PageTransitionTheme.NONE,
+            macos=ft.PageTransitionTheme.NONE,
+            windows=ft.PageTransitionTheme.NONE,
+        )
+        page.theme = ft.Theme(page_transitions=transitions)
+        page.dark_theme = ft.Theme(page_transitions=transitions)
+
+        # Shared file picker overlay for imports
+        controllers.attach_file_picker(ctx, page)
+
+        # Create router
+        router = Router(page, ctx)
+
+        # Register routes and aliases
+        from .views.about import build_about_view
+        from .views.auth import build_auth_view
+
+        route_builders = {
+            "/login": build_auth_view,
+            "/dashboard": build_dashboard_view,
+            "/": build_dashboard_view,
+            "/ledger": build_ledger_view,
+            "/habits": build_habits_view,
+            "/debts": build_debts_view,
+            "/debts/timeline": build_debt_timeline_view,
+            "/portfolio": build_portfolio_view,
+            "/reports": build_reports_view,
+            "/reports/chart": build_report_chart_view,
+            "/help": build_help_view,
+            "/about": build_about_view,
+            "/settings": build_settings_view,
+            "/admin": build_admin_view,
+            "/add-data": build_add_data_view,
+            "/edit-data": build_edit_data_view,
+            "/edit-habit": build_edit_habit_view,
+            "/edit-debt": build_edit_debt_view,
+        }
+        for route, builder in route_builders.items():
+            router.register(route, builder)
+
+        # Set up event handlers
+        page.on_route_change = router.route_change
+        page.on_view_pop = router.view_pop
+
+        # Capture flet page errors into logger
+        # Throttle repeated identical Flet error events (they can spam thousands of times in <1s)
+        _last_err_msg: str | None = None
+        _last_err_ts: float = 0.0
+        _suppress_count: int = 0
+        _error_log: list[str] = []
+
+        def _on_error(e: ft.ControlEvent):  # pragma: no cover (UI callback)
+            nonlocal _last_err_msg, _last_err_ts, _suppress_count, _error_log
+            msg = getattr(e, "data", None) or "<no-data>"
+            _error_log.append(msg)
+            now = time.time()
+            # If same message within 0.5s, suppress
+            if _last_err_msg == msg and (now - _last_err_ts) < 0.5:
+                _suppress_count += 1
+                _last_err_ts = now
+                # Log a summary every 100 suppressed repeats to retain visibility without flooding
+                if _suppress_count % 100 == 0:
+                    logger.warning(
+                        "Repeated Flet errors suppressed",
+                        extra={
+                            "event": "error_suppressed",
+                            "error_message": msg,
+                            "suppressed": _suppress_count,
+                        },
+                    )
+                return
+            # New message or spaced out
+            if _suppress_count:
                 logger.warning(
-                    "Repeated Flet errors suppressed",
+                    "Suppression summary",
                     extra={
-                        "event": "error_suppressed",
-                        "error_message": msg,
+                        "event": "error_suppression_summary",
+                        "error_message": _last_err_msg,
                         "suppressed": _suppress_count,
                     },
                 )
-            return
-        # New message or spaced out
-        if _suppress_count:
-            logger.warning(
-                "Suppression summary",
-                extra={
-                    "event": "error_suppression_summary",
-                    "error_message": _last_err_msg,
-                    "suppressed": _suppress_count,
-                },
+            _last_err_msg = msg
+            _last_err_ts = now
+            _suppress_count = 0
+            logger.error(
+                "Flet page error",
+                extra={"event": "error", "data": msg, "errors": _error_log[-5:]},
             )
-        _last_err_msg = msg
-        _last_err_ts = now
-        _suppress_count = 0
-        logger.error(
-            "Flet page error",
-            extra={"event": "error", "data": msg, "errors": _error_log[-5:]},
-        )
-        session_log = Path(ctx.config.DATA_DIR) / 'logs' / 'session.log'
-        page.snack_bar = ft.SnackBar(
-            content=ft.Text(f"UI error: {msg}"),
-            action="Open log",
-            on_action=lambda _: page.launch_url(str(session_log.as_posix()))
-            if hasattr(page, "launch_url")
-            else None,
-        )
-        page.snack_bar.open = True
-        page.update()
+            session_log = Path(ctx.config.DATA_DIR) / "logs" / "session.log"
+            page.snack_bar = ft.SnackBar(
+                content=ft.Text(f"UI error: {msg}"),
+                action="Open log",
+                on_action=lambda _: page.launch_url(str(session_log.as_posix()))
+                if hasattr(page, "launch_url")
+                else None,
+            )
+            page.snack_bar.open = True
+            page.update()
 
-    page.on_error = _on_error
+        page.on_error = _on_error
 
-    def handle_shortcuts(e: ft.KeyboardEvent):
-        """Global keyboard shortcuts for quick navigation."""
-        controllers.handle_shortcut(page, e.key, e.ctrl, e.shift)
+        def handle_shortcuts(e: ft.KeyboardEvent):
+            """Global keyboard shortcuts for quick navigation."""
 
-    page.on_keyboard_event = handle_shortcuts
+            controllers.handle_shortcut(page, e.key, e.ctrl, e.shift)
 
-    # Start at login screen
-    page.go("/login")
+        page.on_keyboard_event = handle_shortcuts
+
+        # Start at login screen
+        page.go("/login")
+
+    try:
+        ctx = _build_context()
+        _start_app(ctx)
+    except (DatabaseError, ValueError, ImportError) as exc:
+        if getattr(config, "USE_SQLCIPHER", False):
+            _show_key_prompt(str(exc))
+        else:
+            raise
 
 
 if __name__ == "__main__":
