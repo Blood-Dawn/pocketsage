@@ -38,12 +38,6 @@ NAVIGATION_DESTINATIONS: List[NavigationDestination] = [
         ft.Icons.RECEIPT_LONG,
     ),
     NavigationDestination(
-        "/budgets",
-        "Budgets",
-        ft.Icons.ACCOUNT_BALANCE_OUTLINED,
-        ft.Icons.ACCOUNT_BALANCE,
-    ),
-    NavigationDestination(
         "/habits",
         "Habits",
         ft.Icons.CHECK_CIRCLE_OUTLINE,
@@ -89,13 +83,12 @@ NAVIGATION_DESTINATIONS: List[NavigationDestination] = [
 
 
 _SHORTCUT_DIGIT_ROUTES = {
-    "1": "/dashboard",
-    "2": "/ledger",
-    "3": "/budgets",
-    "4": "/habits",
-    "5": "/debts",
-    "6": "/portfolio",
-    "7": "/settings",
+    "1": "/ledger",
+    "2": "/habits",
+    "3": "/debts",
+    "4": "/portfolio",
+    "5": "/reports",
+    "6": "/settings",
 }
 
 

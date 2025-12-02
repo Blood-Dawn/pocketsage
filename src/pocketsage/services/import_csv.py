@@ -41,12 +41,14 @@ def normalize_frame(*, file_path: Path, encoding: str = "utf-8") -> pd.DataFrame
         # Date variations
         "transaction_date": "date",
         "trans_date": "date",
-        # Memo/description variations
-        "description": "memo",
-        "note": "memo",
-        "notes": "memo",
-        "desc": "memo",
     }
+
+    # Memo/description variations -> standardize on memo for downstream mapping
+    if "memo" not in frame.columns:
+        for alias in ("description", "note", "notes", "desc"):
+            if alias in frame.columns:
+                column_aliases[alias] = "memo"
+                break
 
     # Rename columns based on aliases
     frame = frame.rename(columns=column_aliases)

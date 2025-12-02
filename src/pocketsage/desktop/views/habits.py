@@ -32,6 +32,9 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
     """Build the habits view."""
 
     uid = ctx.require_user_id()
+    if getattr(ctx, "pending_refresh_route", None) == "/habits":
+        ctx.pending_refresh_route = None
+
     habit_list_ref = ft.Ref[ft.Column]()
     archived_list_ref = ft.Ref[ft.Column]()
     heatmap_ref = ft.Ref[ft.GridView]()
@@ -41,6 +44,9 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
     reminder_ref = ft.Ref[ft.Text]()
     heatmap_label_ref = ft.Ref[ft.Text]()
     selected_habit: int | None = None
+    selected_is_archived = False
+    edit_selected_ref = ft.Ref[ft.FilledButton]()
+    archive_selected_ref = ft.Ref[ft.TextButton]()
     show_archived_checkbox = ft.Checkbox(label="Show archived", value=False)
     heatmap_days = ft.Dropdown(
         label="Heatmap window",
@@ -113,9 +119,23 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
             if getattr(heatmap_label_ref.current, "page", None):
                 heatmap_label_ref.current.update()
 
-    def select_habit(hid: int, name: str):
-        nonlocal selected_habit
+    def _update_selection_actions() -> None:
+        if edit_selected_ref.current:
+            edit_selected_ref.current.disabled = selected_habit is None
+            if getattr(edit_selected_ref.current, "page", None):
+                edit_selected_ref.current.update()
+        if archive_selected_ref.current:
+            archive_selected_ref.current.text = (
+                "Reactivate selected" if selected_is_archived else "Archive selected"
+            )
+            archive_selected_ref.current.disabled = selected_habit is None
+            if getattr(archive_selected_ref.current, "page", None):
+                archive_selected_ref.current.update()
+
+    def select_habit(hid: int, name: str, is_archived: bool):
+        nonlocal selected_habit, selected_is_archived
         selected_habit = hid
+        selected_is_archived = is_archived
         selected_ref.current.value = name
         streak_ref.current.value = (
             f"Current streak: {ctx.habit_repo.get_current_streak(hid, user_id=uid)}"
@@ -134,6 +154,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
             selected_ref.current.value = (
                 f"{habit_obj.name} ({'done today' if completed else 'not done today'})"
             )
+        _update_selection_actions()
         render_heatmap(hid)
         page.update()
 
@@ -158,25 +179,8 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
             if selected_habit == habit_id:
                 habit_obj = ctx.habit_repo.get_by_id(habit_id, user_id=uid)
                 if habit_obj:
-                    select_habit(habit_id, habit_obj.name)
+                    select_habit(habit_id, habit_obj.name, not habit_obj.is_active)
             page.snack_bar = ft.SnackBar(content=ft.Text("Habit updated"))
-            page.snack_bar.open = True
-            page.update()
-
-        def _archive(habit_id: int, is_active: bool):
-            rec = ctx.habit_repo.get_by_id(habit_id, user_id=uid)
-            if rec:
-                rec.is_active = is_active
-                ctx.habit_repo.update(rec, user_id=uid)
-                dev_log(
-                    ctx.config,
-                    "Habit status changed",
-                    context={"habit_id": habit_id, "active": is_active},
-                )
-            refresh_habit_list(show_archived)
-            page.snack_bar = ft.SnackBar(
-                content=ft.Text("Habit reactivated" if is_active else "Habit archived")
-            )
             page.snack_bar.open = True
             page.update()
 
@@ -216,21 +220,11 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                     ],
                                     expand=True,
                                 ),
-                                ft.IconButton(
-                                    icon=ft.Icons.EDIT,
-                                    tooltip="Edit",
-                                    on_click=lambda _e, h=habit: _edit(h),
-                                ),
-                                ft.IconButton(
-                                    icon=ft.Icons.ARCHIVE_OUTLINED,
-                                    tooltip="Archive habit",
-                                    on_click=lambda _e, hid=habit.id: _archive(hid, False),
-                                ),
                             ],
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         ),
                         padding=12,
-                        on_click=lambda _e, hid=habit.id, name=habit.name: select_habit(hid, name),
+                        on_click=lambda _e, hid=habit.id, name=habit.name: select_habit(hid, name, False),
                     )
                 )
             )
@@ -289,17 +283,13 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                     ],
                                     expand=True,
                                 ),
-                                ft.IconButton(
-                                    icon=ft.Icons.UNARCHIVE,
-                                    tooltip="Reactivate habit",
-                                    on_click=lambda _e, hid=habit.id: _archive(hid, True),
-                                ),
                             ],
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         ),
                         padding=12,
                         bgcolor=ft.Colors.SURFACE,
                         border_radius=8,
+                        on_click=lambda _e, hid=habit.id, name=habit.name: select_habit(hid, name, True),
                     )
                 )
         elif show_archived:
@@ -319,6 +309,24 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
             if getattr(archived_list_ref.current, "page", None):
                 archived_list_ref.current.update()
 
+        page.update()
+
+    def _set_habit_active(habit_id: int, is_active: bool):
+        """Archive or reactivate a habit and refresh the list."""
+        rec = ctx.habit_repo.get_by_id(habit_id, user_id=uid)
+        if rec:
+            rec.is_active = is_active
+            ctx.habit_repo.update(rec, user_id=uid)
+            dev_log(
+                ctx.config,
+                "Habit status changed",
+                context={"habit_id": habit_id, "active": is_active},
+            )
+        refresh_habit_list(show_archived_checkbox.value)
+        page.snack_bar = ft.SnackBar(
+            content=ft.Text("Habit reactivated" if is_active else "Habit archived")
+        )
+        page.snack_bar.open = True
         page.update()
 
     show_archived_checkbox.on_change = lambda _e: refresh_habit_list(show_archived_checkbox.value)
@@ -369,7 +377,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
             """Callback after habit is saved."""
             refresh_habit_list(show_archived_checkbox.value)
             if habit:
-                select_habit(habit.id, habit.name)
+                select_habit(habit.id, habit.name, not habit.is_active)
 
         show_habit_dialog(
             ctx=ctx,
@@ -446,7 +454,7 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 dialog.open = False
                 refresh_habit_list(show_archived_checkbox.value)
                 if selected_id and selected_name:
-                    select_habit(selected_id, selected_name)
+                    select_habit(selected_id, selected_name, False)
                 page.snack_bar = ft.SnackBar(
                     content=ft.Text("Habit updated" if is_edit else "Habit created")
                 )
@@ -474,10 +482,36 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
         dialog.open = True
         page.update()
 
+    def _edit_selected(_=None):
+        if selected_habit is None:
+            page.snack_bar = ft.SnackBar(content=ft.Text("Select a habit to edit"))
+            page.snack_bar.open = True
+            page.update()
+            return
+        habit_obj = ctx.habit_repo.get_by_id(selected_habit, user_id=uid)
+        if habit_obj:
+            controllers.start_edit(
+                ctx,
+                page,
+                kind="habit",
+                record_id=selected_habit,
+                return_route="/habits",
+            )
+
+    def _toggle_selected_archive(_=None):
+        nonlocal selected_is_archived
+        if selected_habit is None:
+            return
+        # Flip active status: active -> archive (False), archived -> reactivate (True)
+        target_active = selected_is_archived
+        _set_habit_active(selected_habit, target_active)
+        selected_is_archived = not target_active
+        _update_selection_actions()
+
     refresh_habit_list()
     active = ctx.habit_repo.list_active(user_id=uid)
     if active:
-        select_habit(active[0].id, active[0].name)
+        select_habit(active[0].id, active[0].name, False)
 
     content = ft.Row(
         controls=[
@@ -497,6 +531,33 @@ def build_habits_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             ),
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    ),
+                    ft.Row(
+                        controls=[
+                            ft.Text("Select a habit to manage"),
+                            ft.Row(
+                                controls=[
+                                    ft.FilledButton(
+                                        "Edit selected",
+                                        icon=ft.Icons.EDIT,
+                                        ref=edit_selected_ref,
+                                        disabled=True,
+                                        on_click=_edit_selected,
+                                    ),
+                                    ft.TextButton(
+                                        "Archive selected",
+                                        icon=ft.Icons.ARCHIVE_OUTLINED,
+                                        ref=archive_selected_ref,
+                                        disabled=True,
+                                        on_click=_toggle_selected_archive,
+                                    ),
+                                ],
+                                spacing=8,
+                            ),
+                        ],
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        wrap=True,
+                        run_spacing=8,
                     ),
                     ft.Container(height=8),
                     habit_list,

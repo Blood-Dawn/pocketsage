@@ -1,7 +1,7 @@
 """Unit tests for repository implementations."""
 
 import tempfile
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -194,7 +194,7 @@ def test_transaction_repository_date_filter(session_factory):
 
     # Create transactions with different dates
     today = datetime.now()
-    yesterday = today.replace(day=today.day - 1) if today.day > 1 else today
+    yesterday = today - timedelta(days=1)
 
     t1 = Transaction(user_id=uid, amount=-25.00, memo="Yesterday", occurred_at=yesterday)
     t2 = Transaction(user_id=uid, amount=-30.00, memo="Today", occurred_at=today)

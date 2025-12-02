@@ -46,7 +46,8 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
     ])
 
     def _open_new_transaction():
-        page.go("/add-data")
+        setattr(ctx, "pending_new_transaction", True)
+        page.go("/ledger")
 
     # Build stat cards
     stat_cards = ft.Row(
@@ -243,9 +244,9 @@ def build_dashboard_view(ctx: AppContext, page: ft.Page) -> ft.View:
                                 on_click=lambda _: page.go("/habits"),
                             ),
                             ft.FilledButton(
-                                "View Budget",
-                                icon=ft.Icons.ACCOUNT_BALANCE,
-                                on_click=lambda _: page.go("/budgets"),
+                                "View Reports",
+                                icon=ft.Icons.ASSESSMENT,
+                                on_click=lambda _: page.go("/reports"),
                             ),
                         ],
                         spacing=16,

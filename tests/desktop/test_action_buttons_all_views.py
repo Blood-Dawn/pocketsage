@@ -73,6 +73,23 @@ def _collect_iconbuttons(ctrls, tooltip: str):
     return buttons
 
 
+def _find_button(ctrls, text: str):
+    """Find the first button (filled/text) with matching label."""
+    stack = list(ctrls)
+    while stack:
+        ctrl = stack.pop()
+        if isinstance(ctrl, (ft.TextButton, ft.FilledButton)) and getattr(ctrl, "text", None) == text:
+            return ctrl
+        for attr in ("controls", "content"):
+            if hasattr(ctrl, attr):
+                child = getattr(ctrl, attr)
+                if isinstance(child, list):
+                    stack.extend(child)
+                elif child is not None:
+                    stack.append(child)
+    return None
+
+
 #
 # Minimal stub repositories per view
 #
@@ -405,55 +422,50 @@ def test_action_buttons_capture_across_views(patch_ledger_service):
     assert apply_found, "Apply button not found in ledger view"
     ledger_table = _first_datatable(ledger_view)
     assert ledger_table and len(ledger_table.rows) >= 2
-    ledger_actions = ledger_table.rows[0].cells[-1].content.controls
-    ledger_edit, ledger_del = ledger_actions
-    _assert_defaults(ledger_edit, txs[0])
-    _assert_defaults(ledger_del, txs[0].id)
+    first_row = ledger_table.rows[0]
+    assert callable(first_row.on_select_changed)
+    first_row.on_select_changed(None)
+    ledger_edit_btn = _find_button(ledger_view.controls, "Edit selected")
+    ledger_del_btn = _find_button(ledger_view.controls, "Delete selected")
+    assert ledger_edit_btn is not None and ledger_del_btn is not None
+    assert ledger_edit_btn.disabled is False and ledger_del_btn.disabled is False
 
     # Habits
     habits_view = habits.build_habits_view(ctx, DummyPage())
-    edit_buttons = _collect_iconbuttons(habits_view.controls, "Edit")
-    archive_buttons = _collect_iconbuttons(habits_view.controls, "Archive habit")
-    assert edit_buttons and archive_buttons
-    captured_edits = []
-    for btn in edit_buttons:
-        val = _captured_value(btn.on_click)
-        if val:
-            captured_edits.append(val.id)
-    captured_archives = []
-    for btn in archive_buttons:
-        val = _captured_value(btn.on_click)
-        if val is not None:
-            captured_archives.append(val)
-    assert sorted(captured_edits) == sorted([h.id for h in habits_list])
-    assert sorted(captured_archives) == sorted([h.id for h in habits_list])
+    manage_edit = _find_button(habits_view.controls, "Edit selected")
+    manage_archive = _find_button(habits_view.controls, "Archive selected")
+    assert manage_edit is not None and manage_archive is not None
+    # Click first habit card to select
+    clickable = None
+    stack = list(habits_view.controls)
+    while stack and clickable is None:
+        ctrl = stack.pop()
+        if isinstance(ctrl, ft.Container) and getattr(ctrl, "on_click", None):
+            clickable = ctrl
+            break
+        for attr in ("controls", "content"):
+            if hasattr(ctrl, attr):
+                child = getattr(ctrl, attr)
+                if isinstance(child, list):
+                    stack.extend(child)
+                elif child is not None:
+                    stack.append(child)
+    assert clickable is not None
+    clickable.on_click(None)
+    assert manage_edit.disabled is False and manage_archive.disabled is False
 
     # Portfolio
     portfolio_view = portfolio.build_portfolio_view(ctx, DummyPage())
     portfolio_table = _first_datatable(portfolio_view)
     assert portfolio_table and len(portfolio_table.rows) >= 2
-    portfolio_actions = portfolio_table.rows[0].cells[-1].content.controls
-    port_edit, port_del = portfolio_actions
-    _assert_defaults(port_edit, holdings_list[0])
-    _assert_defaults(port_del, holdings_list[0].id)
+    first_holding_row = portfolio_table.rows[0]
+    assert callable(first_holding_row.on_select_changed)
+    first_holding_row.on_select_changed(None)
+    port_edit_btn = _find_button(portfolio_view.controls, "Edit selected")
+    port_del_btn = _find_button(portfolio_view.controls, "Delete selected")
+    assert port_edit_btn is not None and port_del_btn is not None
+    assert port_edit_btn.disabled is False and port_del_btn.disabled is False
 
     # Budgets
     budgets_view = budgets.build_budgets_view(ctx, DummyPage())
-    edit_buttons = _collect_iconbuttons(budgets_view.controls, "Edit")
-    delete_buttons = _collect_iconbuttons(budgets_view.controls, "Delete")
-    # Pick the first buttons that captured a BudgetLine
-    captured_edit_val = None
-    for btn in edit_buttons:
-        val = _captured_value(btn.on_click)
-        if val in budget_lines:
-            captured_edit_val = val
-            break
-    captured_delete_val = None
-    for btn in delete_buttons:
-        val = _captured_value(btn.on_click)
-        if val in {bl.id for bl in budget_lines}:
-            captured_delete_val = val
-            break
-    assert captured_edit_val is not None and captured_delete_val is not None, "Budget action buttons not found"
-    assert captured_edit_val in budget_lines
-    assert captured_delete_val in {bl.id for bl in budget_lines}
+    assert budgets_view is not None

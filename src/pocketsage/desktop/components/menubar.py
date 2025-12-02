@@ -35,7 +35,53 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
     def _ensure_picker_and_import():
         if ctx.file_picker is None:
             controllers.attach_file_picker(ctx, page)
-        controllers.start_ledger_import(ctx, page)
+
+        def _close_dialog(_=None):
+            if page.dialog:
+                page.dialog.open = False
+            page.dialog = None
+            page.update()
+
+        def _start_import(_=None):
+            controllers.start_ledger_import(ctx, page)
+            _close_dialog()
+
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Import CSV"),
+            content=ft.Text("Choose a CSV file to import into the ledger."),
+            actions=[
+                ft.TextButton("Cancel", on_click=_close_dialog),
+                ft.FilledButton("Confirm", on_click=_start_import),
+            ],
+        )
+        page.dialog = dialog
+        dialog.open = True
+        page.update()
+
+    def _confirm_export():
+        def _close(_=None):
+            if page.dialog:
+                page.dialog.open = False
+            page.dialog = None
+            page.update()
+
+        def _do_export(_=None):
+            _export_ledger(ctx, page)
+            _close()
+
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Export CSV"),
+            content=ft.Text("Export the current ledger to CSV?"),
+            actions=[
+                ft.TextButton("Cancel", on_click=_close),
+                ft.FilledButton("Confirm", on_click=_do_export),
+            ],
+        )
+        page.dialog = dialog
+        dialog.open = True
+        page.update()
 
     # File menu
     file_menu = ft.SubmenuButton(
@@ -54,7 +100,7 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
             ft.MenuItemButton(
                 content=ft.Text("Export CSV"),
                 leading=ft.Icon(ft.Icons.DOWNLOAD),
-                on_click=lambda _: _export_ledger(ctx, page),
+                on_click=lambda _: _confirm_export(),
             ),
             ft.Divider(),
             ft.MenuItemButton(
@@ -106,12 +152,7 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
                 on_click=lambda _: controllers.navigate(page, "/portfolio"),
             ),
             ft.MenuItemButton(
-                content=ft.Text("Budgets  Ctrl+5"),
-                leading=ft.Icon(ft.Icons.SAVINGS),
-                on_click=lambda _: controllers.navigate(page, "/budgets"),
-            ),
-            ft.MenuItemButton(
-                content=ft.Text("Reports  Ctrl+6"),
+                content=ft.Text("Reports  Ctrl+5"),
                 leading=ft.Icon(ft.Icons.ASSESSMENT),
                 on_click=lambda _: controllers.navigate(page, "/reports"),
             ),
@@ -134,7 +175,7 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
         content=ft.Text("Reports"),
         controls=[
             ft.MenuItemButton(
-                content=ft.Text("All Reports  Ctrl+6"),
+                content=ft.Text("All Reports  Ctrl+5"),
                 leading=ft.Icon(ft.Icons.ASSESSMENT),
                 on_click=lambda _: controllers.navigate(page, "/reports"),
             ),

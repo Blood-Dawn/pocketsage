@@ -30,7 +30,7 @@ def test_navigation_selection_drives_page_route() -> None:
 
     handle_navigation_selection(page, 2)
 
-    assert page.navigated_to == ["/budgets"]
+    assert page.navigated_to == ["/habits"]
 
 
 def test_navigation_selection_for_habits() -> None:
@@ -68,6 +68,7 @@ def test_shortcut_resolution() -> None:
 
     assert resolve_shortcut_route("n", True, False) == "/ledger"
     assert resolve_shortcut_route("h", True, True) == "/habits"
-    assert resolve_shortcut_route("1", True, False) == "/dashboard"
-    assert resolve_shortcut_route("7", True, False) == "/settings"
+    assert resolve_shortcut_route("1", True, False) == "/ledger"
+    assert resolve_shortcut_route("5", True, False) == "/reports"
+    assert resolve_shortcut_route("6", True, False) == "/settings"
     assert resolve_shortcut_route("5", False, False) is None

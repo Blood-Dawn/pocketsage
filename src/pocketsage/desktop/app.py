@@ -15,12 +15,15 @@ from .context import create_app_context
 from .navigation import Router
 from .views.add_data import build_add_data_view
 from .views.admin import build_admin_view
-from .views.budgets import build_budgets_view
 from .views.dashboard import build_dashboard_view
 from .views.debts import build_debts_view
+from .views.debt_timeline import build_debt_timeline_view
 from .views.habits import build_habits_view
 from .views.help import build_help_view
 from .views.ledger import build_ledger_view
+from .views.edit_data import build_edit_data_view
+from .views.edit_debt import build_edit_debt_view
+from .views.edit_habit import build_edit_habit_view
 from .views.portfolio import build_portfolio_view
 from .views.reports import build_reports_view
 from .views.settings import build_settings_view
@@ -102,9 +105,9 @@ def main(page: ft.Page) -> None:
         "/dashboard": build_dashboard_view,
         "/": build_dashboard_view,
         "/ledger": build_ledger_view,
-        "/budgets": build_budgets_view,
         "/habits": build_habits_view,
         "/debts": build_debts_view,
+        "/debts/timeline": build_debt_timeline_view,
         "/portfolio": build_portfolio_view,
         "/reports": build_reports_view,
         "/help": build_help_view,
@@ -112,6 +115,9 @@ def main(page: ft.Page) -> None:
         "/settings": build_settings_view,
         "/admin": build_admin_view,
         "/add-data": build_add_data_view,
+        "/edit-data": build_edit_data_view,
+        "/edit-habit": build_edit_habit_view,
+        "/edit-debt": build_edit_debt_view,
     }
     for route, builder in route_builders.items():
         router.register(route, builder)

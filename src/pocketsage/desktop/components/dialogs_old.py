@@ -12,7 +12,10 @@ def show_error_dialog(page: ft.Page, title: str, message: str) -> None:
 
     def close_dialog(e):
         dialog.open = False
-        page.update()
+        try:
+            page.update()
+        except AssertionError:
+            pass
 
     dialog = ft.AlertDialog(
         modal=True,
@@ -25,7 +28,10 @@ def show_error_dialog(page: ft.Page, title: str, message: str) -> None:
 
     page.dialog = dialog
     dialog.open = True
-    page.update()
+    try:
+        page.update()
+    except AssertionError:
+        pass
 
 
 def show_confirm_dialog(
@@ -45,7 +51,10 @@ def show_confirm_dialog(
 
     def handle_cancel(e):
         dialog.open = False
-        page.update()
+        try:
+            page.update()
+        except AssertionError:
+            pass
         if on_cancel:
             on_cancel()
 
@@ -61,4 +70,18 @@ def show_confirm_dialog(
 
     page.dialog = dialog
     dialog.open = True
-    page.update()
+    try:
+        page.update()
+    except AssertionError:
+        pass
+
+
+def safe_open_dialog(page: ft.Page, dialog: ft.AlertDialog) -> None:
+    """Open a dialog and best-effort refresh without raising when detached."""
+    page.dialog = dialog
+    dialog.open = True
+    try:
+        page.update()
+    except AssertionError:
+        # Headless/preview contexts may not attach the dialog to a live page
+        pass

@@ -21,7 +21,39 @@ This app is now a desktop-only, offline-first finance + habits tracker built wit
 - Packaging: `make package` or `scripts\\build_desktop.bat` (non-interactive with `--delete-build`) -> `dist/`.
 - Data dir: controlled by `POCKETSAGE_DATA_DIR` (default `instance/`); backups/exports live under `instance/exports` and `instance/backups`.
 - CSV formats: ledger imports expect `date,amount,memo,category,account,currency,transaction_id` (idempotent by external_id/hash); portfolio imports expect `symbol,shares,price,account,market_price,as_of,currency` (upsert by symbol+account).
-- Reset DB during development: close the app, then delete the SQLite files under `POCKETSAGE_DATA_DIR` (default `instance/`), e.g., `pocketsage.db` plus any `-wal`/`-shm` files. On next launch, schema is recreated; rerun demo seed if you need sample data.
+
+### Fresh Install / Clean Slate
+When testing major changes or encountering caching issues, do a complete clean install:
+
+1. **Close the app** completely (ensure no processes are running)
+2. **Remove the instance directory**:
+   ```powershell
+   Remove-Item -Recurse -Force instance
+   ```
+3. **If using a packaged build**, also delete the `dist/` folder and rebuild:
+   ```powershell
+   Remove-Item -Recurse -Force dist
+   scripts\build_desktop.bat
+   ```
+4. **Launch fresh**: Run `python run_desktop.py` (or your packaged executable)
+5. **Re-seed demo data**: Go to Admin mode (user icon in app bar) → "Run Demo Seed" to populate with sample transactions across multiple months
+
+This ensures:
+- Clean database schema (no old migrations or cached data)
+- Fresh configuration files
+- All directories recreated properly
+- No stale Python bytecode (`.pyc` files) if running from source
+
+**Quick PowerShell one-liner for full dev reset:**
+```powershell
+Remove-Item -Recurse -Force -ErrorAction SilentlyContinue instance, dist, src\pocketsage.egg-info, **\__pycache__
+```
+
+### Partial Reset (Database Only)
+For minor resets during development:
+- Close the app, then delete the SQLite files under `POCKETSAGE_DATA_DIR` (default `instance/`), e.g., `pocketsage.db` plus any `-wal`/`-shm` files. On next launch, schema is recreated; rerun demo seed if you need sample data.
+- PowerShell 7 example: `Remove-Item -Force -ErrorAction SilentlyContinue instance\\pocketsage.db, instance\\pocketsage.db-wal, instance\\pocketsage.db-shm`
+- Full clean reset: `Remove-Item -Recurse -Force instance` to allow schema + dirs to be recreated on next launch.
 
 ### Dependency hygiene
 - Check a package/version in your venv: `.\.venv\Scripts\python -m pip show apscheduler` (swap the name as needed). `pip list` gives the full table.
@@ -41,9 +73,6 @@ This app is now a desktop-only, offline-first finance + habits tracker built wit
 - Data lives under `instance/` by default. Exports/backups under `instance/exports` and `instance/backups`.
 - Tests: `python -m pytest` (perf tests under `-m performance`). Lint: `ruff check .` and `black --check .`.
 - Packaging: `make package` or `scripts\\build_desktop.bat` (non-interactive) -> `dist/`.
-- Reset DB during development: close the app, then delete the SQLite files under `POCKETSAGE_DATA_DIR` (default `instance/`), e.g., `pocketsage.db` plus any `-wal`/`-shm` files. On next launch, schema is recreated; rerun demo seed if you need sample data.
-  - PowerShell 7 example: `Remove-Item -Force -ErrorAction SilentlyContinue instance\\pocketsage.db, instance\\pocketsage.db-wal, instance\\pocketsage.db-shm`
-  - Full clean reset: `Remove-Item -Recurse -Force instance` to allow schema + dirs to be recreated on next launch.
 - Startup debugging: run `python run_desktop.py` from a terminal to see errors; check `instance/logs/*.log` for startup issues if the UI spinner hangs.
 - Admin mode checklist:
   - Toggle Admin mode in the app bar (User vs Admin mode is login-free).

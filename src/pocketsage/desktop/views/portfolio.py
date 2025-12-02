@@ -27,6 +27,7 @@ from ..charts import allocation_chart_png
 from ..components import (
     build_app_bar,
     build_main_layout,
+    safe_open_dialog,
     show_confirm_dialog,
     show_error_dialog,
 )
@@ -48,6 +49,11 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
         )
         accounts = [default_account]
     table_ref = ft.Ref[ft.DataTable]()
+    selected_label = ft.Ref[ft.Text]()
+    edit_selected_ref = ft.Ref[ft.FilledButton]()
+    delete_selected_ref = ft.Ref[ft.TextButton]()
+    selected_holding_id: int | None = None
+    current_holdings: list[Holding] = []
     chart_ref = ft.Ref[ft.Image]()
     total_holdings_text = ft.Ref[ft.Text]()
     cost_basis_text = ft.Ref[ft.Text]()
@@ -199,9 +205,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 ft.FilledButton("Save", on_click=_save),
             ],
         )
-        page.dialog = dialog
-        dialog.open = True
-        page.update()
+        safe_open_dialog(page, dialog)
 
     def _delete_holding(holding_id: int | None) -> None:
         if holding_id is None:
@@ -214,7 +218,24 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         show_confirm_dialog(page, "Delete holding", "Are you sure?", _do_delete)
 
+    def _set_selected(holding_id: int | None) -> None:
+        nonlocal selected_holding_id
+        selected_holding_id = holding_id
+        if selected_label.current:
+            selected_label.current.value = (
+                f"Selected: #{holding_id}" if holding_id else "No selection"
+            )
+            if selected_label.current.page:
+                selected_label.current.update()
+        for btn in (edit_selected_ref.current, delete_selected_ref.current):
+            if btn:
+                btn.disabled = holding_id is None
+                if btn.page:
+                    btn.update()
+        _refresh()
+
     def _refresh() -> None:
+        nonlocal current_holdings, selected_holding_id
         selected_account = (
             int(account_filter.value)
             if account_filter.value and account_filter.value.isdigit()
@@ -225,6 +246,15 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
             if selected_account
             else ctx.holding_repo.list_all(user_id=uid)
         )
+        if selected_holding_id and all(getattr(h, "id", None) != selected_holding_id for h in holdings):
+            selected_holding_id = None
+        if selected_label.current:
+            selected_label.current.value = (
+                f"Selected: #{selected_holding_id}" if selected_holding_id else "No selection"
+            )
+            if selected_label.current.page:
+                selected_label.current.update()
+        current_holdings = holdings
         total_cost_basis = ctx.holding_repo.get_total_cost_basis(
             user_id=uid, account_id=selected_account
         )
@@ -253,6 +283,8 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
             gain_loss = market_value - cost_basis
             rows.append(
                 ft.DataRow(
+                    selected=h.id == selected_holding_id,
+                    on_select_changed=lambda _e, hid=h.id: _set_selected(hid),
                     cells=[
                         ft.DataCell(ft.Text(h.symbol)),
                         ft.DataCell(ft.Text(f"{h.quantity:,.4f}")),
@@ -267,24 +299,6 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             )
                         ),
                         ft.DataCell(ft.Text(_account_name(h.account_id))),
-                        ft.DataCell(
-                            ft.Row(
-                                [
-                                    ft.IconButton(
-                                        icon=ft.Icons.EDIT,
-                                        tooltip="Edit",
-                                        on_click=lambda _, existing=h: _open_dialog(existing),
-                                    ),
-                                    ft.IconButton(
-                                        icon=ft.Icons.DELETE_OUTLINE,
-                                        icon_color=ft.Colors.RED,
-                                        tooltip="Delete",
-                                        on_click=lambda _, hid=h.id: _delete_holding(hid),
-                                    ),
-                                ],
-                                spacing=4,
-                            )
-                        ),
                     ]
                 )
             )
@@ -294,7 +308,6 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 ft.DataRow(
                     cells=[
                         ft.DataCell(ft.Text("No holdings found")),
-                        ft.DataCell(ft.Text("")),
                         ft.DataCell(ft.Text("")),
                         ft.DataCell(ft.Text("")),
                         ft.DataCell(ft.Text("")),
@@ -320,8 +333,41 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 chart_ref.current.visible = False
         page.update()
 
+    def _edit_selected(_=None) -> None:
+        if selected_holding_id is None:
+            page.snack_bar = ft.SnackBar(
+                content=ft.Text("Select a holding to edit"), show_close_icon=True
+            )
+            page.snack_bar.open = True
+            page.update()
+            return
+        match = next((h for h in current_holdings if h.id == selected_holding_id), None)
+        if match:
+            controllers.start_edit(
+                ctx,
+                page,
+                kind="holding",
+                record_id=selected_holding_id,
+                return_route="/portfolio",
+            )
+        else:
+            page.snack_bar = ft.SnackBar(content=ft.Text("Selected holding is unavailable"))
+            page.snack_bar.open = True
+            page.update()
+
+    def _delete_selected(_=None) -> None:
+        if selected_holding_id is None:
+            page.snack_bar = ft.SnackBar(
+                content=ft.Text("Select a holding to delete"), show_close_icon=True
+            )
+            page.snack_bar.open = True
+            page.update()
+            return
+        _delete_holding(selected_holding_id)
+
     table = ft.DataTable(
         ref=table_ref,
+        show_checkbox_column=True,
         columns=[
             ft.DataColumn(ft.Text("Symbol")),
             ft.DataColumn(ft.Text("Quantity")),
@@ -331,7 +377,6 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.DataColumn(ft.Text("Market Value")),
             ft.DataColumn(ft.Text("Gain/Loss")),
             ft.DataColumn(ft.Text("Account")),
-            ft.DataColumn(ft.Text("Actions")),
         ],
         rows=[],
         expand=True,
@@ -415,6 +460,34 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
         spacing=8,
     )
 
+    selection_bar = ft.Row(
+        controls=[
+            ft.Text("No selection", ref=selected_label),
+            ft.Row(
+                controls=[
+                    ft.FilledButton(
+                        "Edit selected",
+                        icon=ft.Icons.EDIT,
+                        ref=edit_selected_ref,
+                        disabled=True,
+                        on_click=_edit_selected,
+                    ),
+                    ft.TextButton(
+                        "Delete selected",
+                        icon=ft.Icons.DELETE_OUTLINE,
+                        ref=delete_selected_ref,
+                        disabled=True,
+                        on_click=_delete_selected,
+                    ),
+                ],
+                spacing=8,
+            ),
+        ],
+        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+        wrap=True,
+        run_spacing=8,
+    )
+
     # Reset page scroll handler to avoid lingering callbacks
     page.on_scroll = None
 
@@ -438,6 +511,7 @@ def build_portfolio_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.Container(height=16),
             summary_card,
             ft.Container(height=16),
+            selection_bar,
             ft.Card(content=ft.Container(content=table, padding=12), expand=True),
         ],
         spacing=0,

@@ -6,7 +6,7 @@
 #    - Simulate month-by-month payments (DONE)
 #    - Apply extra payments to target debt after minimums (DONE)
 #    - Return payoff schedule with time and total interest (DONE)
-#    - Handle edge cases: tiny payments, infinite loops (DONE - max_iterations guard)
+#    - Handle edge cases: tiny payments, infinite loops (DONE - progress guard)
 #    - Ensure minimum payment always reduces principal (DONE - minimum_progress)
 
 from __future__ import annotations
@@ -52,15 +52,10 @@ def _calculate_schedule(*, debts: Iterable[DebtAccount], surplus: float) -> list
         month = ((month - 1) % 12) + 1
         return value.replace(year=year, month=month, day=1)
 
-    # safety guard to avoid runaway loops when payments cannot cover interest
-    max_iterations = 600
-    iterations = 0
+    previous_total_balance = sum(d["balance"] for d in debt_dicts)
+    stagnant_periods = 0  # used to detect non-decreasing balances
 
     while any(d["balance"] > 0 for d in debt_dicts):
-        iterations += 1
-        if iterations > max_iterations:
-            raise ValueError("Payoff schedule did not converge; payments too low")
-
         extra_pool = surplus + rolled_minimums
         row = {"date": current_date.isoformat(), "payments": {}}
 
@@ -103,6 +98,16 @@ def _calculate_schedule(*, debts: Iterable[DebtAccount], surplus: float) -> list
             }
 
         payoff_schedule.append(row)
+
+        # Progress guard: ensure balances continue to decrease to avoid infinite loops
+        total_balance = sum(d["balance"] for d in debt_dicts if d["balance"] > 0)
+        if total_balance >= previous_total_balance - 0.01:
+            stagnant_periods += 1
+        else:
+            stagnant_periods = 0
+        if stagnant_periods >= 3:
+            raise ValueError("Payoff schedule did not converge; payments too low")
+        previous_total_balance = total_balance
         current_date = _next_month(current_date)
 
     return payoff_schedule

@@ -37,6 +37,26 @@ def navigate(page: ft.Page, route: str) -> None:
     page.update()
 
 
+def start_edit(
+    ctx: AppContext,
+    page: ft.Page,
+    *,
+    kind: str,
+    record_id: int,
+    return_route: str,
+) -> None:
+    """Stage an edit target and navigate to the unified edit page."""
+
+    ctx.pending_edit = {"kind": kind, "id": record_id, "return_route": return_route}
+    dev_log(_ctx_config(ctx), "Navigating to edit page", context=ctx.pending_edit)
+    if kind.lower() == "habit":
+        navigate(page, "/edit-habit")
+    elif kind.lower() == "liability":
+        navigate(page, "/edit-debt")
+    else:
+        navigate(page, "/edit-data")
+
+
 def handle_nav_selection(ctx: AppContext, page: ft.Page, selected_index: int) -> None:
     """Delegate navigation rail selection to the helpers and update."""
 
@@ -254,6 +274,7 @@ __all__ = [
     "handle_nav_selection",
     "handle_shortcut",
     "navigate",
+    "start_edit",
     "reset_demo_data",
     "run_demo_seed",
     "logout",

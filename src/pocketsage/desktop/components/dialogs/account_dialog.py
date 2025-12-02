@@ -16,6 +16,7 @@ import flet as ft
 from ....logging_config import get_logger
 from ....models.account import Account
 from ...constants import ACCOUNT_TYPE_OPTIONS
+from .. import safe_open_dialog
 
 if TYPE_CHECKING:
     from ...context import AppContext
@@ -168,9 +169,7 @@ def show_account_dialog(
         actions_alignment=ft.MainAxisAlignment.END,
     )
 
-    page.dialog = dialog
-    dialog.open = True
-    page.update()
+    safe_open_dialog(page, dialog)
 
 
 def show_account_list_dialog(ctx: AppContext, page: ft.Page) -> None:
@@ -283,9 +282,7 @@ def show_account_list_dialog(ctx: AppContext, page: ft.Page) -> None:
                 ),
             ],
         )
-        page.dialog = confirm_dialog
-        confirm_dialog.open = True
-        page.update()
+        safe_open_dialog(page, confirm_dialog)
 
     def _close_dialog(_):
         """Close the list dialog."""

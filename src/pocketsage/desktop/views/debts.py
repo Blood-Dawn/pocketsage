@@ -25,12 +25,46 @@ from ..charts import debt_payoff_chart_png
 from ..components import (
     build_app_bar,
     build_main_layout,
+    safe_open_dialog,
     show_confirm_dialog,
     show_error_dialog,
 )
 
 if TYPE_CHECKING:
     from ..context import AppContext
+
+
+PAYMENT_MODE_SURPLUS = {
+    "aggressive": 150.0,
+    "balanced": 50.0,
+    "lazy": 0.0,
+}
+
+
+def project_payoff_schedule(
+    liabilities: list[Liability], *, strategy: str = "snowball", mode: str = "balanced"
+) -> tuple[list[dict], str | None, float, int]:
+    """Compute payoff schedule and summary based on strategy and mode."""
+    debts = [
+        DebtAccount(
+            id=lb.id or 0,
+            balance=lb.balance,
+            apr=lb.apr,
+            minimum_payment=lb.minimum_payment,
+            statement_due_day=getattr(lb, "due_day", 1) or 1,
+        )
+        for lb in liabilities
+    ]
+    if not debts:
+        return [], None, 0.0, 0
+    surplus = PAYMENT_MODE_SURPLUS.get(mode, PAYMENT_MODE_SURPLUS["balanced"])
+    schedule = (
+        avalanche_schedule(debts=debts, surplus=surplus)
+        if strategy == "avalanche"
+        else snowball_schedule(debts=debts, surplus=surplus)
+    )
+    payoff, total_interest, months = schedule_summary(schedule)
+    return schedule, payoff, total_interest, months
 
 
 def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
@@ -47,38 +81,10 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
     table_ref = ft.Ref[ft.DataTable]()
     schedule_ref = ft.Ref[ft.Column]()
     payoff_chart_ref = ft.Ref[ft.Image]()
-
-    def _to_accounts(liabilities: list[Liability]) -> list[DebtAccount]:
-        return [
-            DebtAccount(
-                id=lb.id or 0,
-                balance=lb.balance,
-                apr=lb.apr,
-                minimum_payment=lb.minimum_payment,
-                statement_due_day=getattr(lb, "due_day", 1) or 1,
-            )
-            for lb in liabilities
-        ]
-
-    def _run_projection(
-        liabilities: list[Liability], *, mode: str = "balanced"
-    ) -> tuple[list[dict], str | None, float, int]:
-        debts = _to_accounts(liabilities)
-        if not debts:
-            return [], None, 0.0, 0
-        surplus = 0.0
-        if mode == "aggressive":
-            surplus = 150.0
-        elif mode == "lazy":
-            surplus = 0.0
-        else:
-            surplus = 50.0
-        if strategy_state["value"] == "avalanche":
-            sched = avalanche_schedule(debts=debts, surplus=surplus)
-        else:
-            sched = snowball_schedule(debts=debts, surplus=surplus)
-        payoff, total_interest, months = schedule_summary(sched)
-        return sched, payoff, total_interest, months
+    selected_label = ft.Ref[ft.Text]()
+    edit_selected_ref = ft.Ref[ft.FilledButton]()
+    delete_selected_ref = ft.Ref[ft.TextButton]()
+    selected_liability: int | None = None
 
     def _update_schedule(
         schedule: list[dict], payoff: str | None, total_interest: float, months: int
@@ -143,36 +149,39 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         rows: list[ft.DataRow] = []
         for liab in liabilities:
             monthly_interest = liab.balance * (liab.apr / 100) / 12
-            action_row = ft.Row(
-                controls=[
-                    ft.IconButton(
-                        icon=ft.Icons.EDIT,
-                        tooltip="Edit",
-                        on_click=lambda _, l=liab: _open_edit_dialog(l),
-                    ),
-                    ft.IconButton(
-                        icon=ft.Icons.PAID,
-                        tooltip="Record payment",
-                        on_click=lambda _, l=liab: _record_payment(l),
-                    ),
-                    ft.IconButton(
-                        icon=ft.Icons.DELETE_OUTLINE,
-                        tooltip="Delete",
-                        icon_color=ft.Colors.RED,
-                        on_click=lambda _, lid=liab.id: _confirm_delete(lid),
-                    ),
-                ],
-                spacing=4,
-            )
             rows.append(
                 ft.DataRow(
+                    selected=liab.id == selected_liability,
+                    on_select_changed=lambda _e, lid=liab.id: _set_selected(lid),
                     cells=[
                         ft.DataCell(ft.Text(liab.name)),
                         ft.DataCell(ft.Text(f"${liab.balance:,.2f}")),
                         ft.DataCell(ft.Text(f"{liab.apr:.2f}%")),
                         ft.DataCell(ft.Text(f"${liab.minimum_payment:,.2f}")),
                         ft.DataCell(ft.Text(f"${monthly_interest:,.2f}")),
-                        ft.DataCell(action_row),
+                        ft.DataCell(
+                            ft.Row(
+                                controls=[
+                                    ft.IconButton(
+                                        icon=ft.Icons.EDIT,
+                                        tooltip="Edit",
+                                        on_click=lambda _e, item=liab: _edit_selected(item.id),
+                                    ),
+                                    ft.IconButton(
+                                        icon=ft.Icons.PAYMENTS,
+                                        tooltip="Record payment",
+                                        on_click=lambda _e, item=liab: _record_payment(item),
+                                    ),
+                                    ft.IconButton(
+                                        icon=ft.Icons.DELETE_OUTLINE,
+                                        icon_color=ft.Colors.RED,
+                                        tooltip="Delete",
+                                        on_click=lambda _e, lid=liab.id: _confirm_delete(lid),
+                                    ),
+                                ],
+                                spacing=6,
+                            )
+                        ),
                     ]
                 )
             )
@@ -190,14 +199,25 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 table_ref.current.update()
             except Exception:
                 pass
+        _set_selected(selected_liability)
 
         try:
-            schedule, payoff, total_interest, months = _run_projection(
-                liabilities, mode=strategy_state.get("mode", "balanced")
+            schedule, payoff, total_interest, months = project_payoff_schedule(
+                liabilities,
+                strategy=strategy_state["value"],
+                mode=strategy_state.get("mode", "balanced"),
             )
+            ctx.payoff_preferences = {
+                "strategy": strategy_state["value"],
+                "mode": strategy_state.get("mode", "balanced"),
+            }
             _update_schedule(schedule, payoff, total_interest, months)
         except ValueError as exc:
             show_error_dialog(page, "Payoff calculation failed", str(exc))
+        if not liabilities:
+            _set_selected(None)
+        elif selected_liability is not None and all(li.id != selected_liability for li in liabilities):
+            _set_selected(None)
         page.update()
 
     def _open_edit_dialog(liability: Liability | None = None) -> None:
@@ -264,9 +284,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 ft.FilledButton("Save", on_click=_save),
             ],
         )
-        page.dialog = dialog
-        dialog.open = True
-        page.update()
+        safe_open_dialog(page, dialog)
 
     # TODO(@codex): Record payment action for a debt
     #    - Allow user to input payment amount (beyond minimum)
@@ -348,9 +366,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 ft.FilledButton("Apply", on_click=_apply),
             ],
         )
-        page.dialog = payment_dialog
-        payment_dialog.open = True
-        page.update()
+        safe_open_dialog(page, payment_dialog)
 
     def _confirm_delete(liability_id: int | None) -> None:
         if liability_id is None:
@@ -362,6 +378,39 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             _refresh()
 
         show_confirm_dialog(page, "Delete liability", "Are you sure?", _delete)
+
+    def _set_selected(liability_id: int | None) -> None:
+        nonlocal selected_liability
+        selected_liability = liability_id
+        if selected_label.current:
+            selected_label.current.value = (
+                f"Selected: #{liability_id}" if liability_id is not None else "No selection"
+            )
+            if getattr(selected_label.current, "page", None):
+                selected_label.current.update()
+        if edit_selected_ref.current:
+            edit_selected_ref.current.disabled = liability_id is None
+            if getattr(edit_selected_ref.current, "page", None):
+                edit_selected_ref.current.update()
+        if delete_selected_ref.current:
+            delete_selected_ref.current.disabled = liability_id is None
+            if getattr(delete_selected_ref.current, "page", None):
+                delete_selected_ref.current.update()
+
+    def _edit_selected(liability_id: int | None) -> None:
+        target_id = liability_id if liability_id is not None else selected_liability
+        if target_id is None:
+            page.snack_bar = ft.SnackBar(content=ft.Text("Select a liability to edit"))
+            page.snack_bar.open = True
+            page.update()
+            return
+        controllers.start_edit(
+            ctx,
+            page,
+            kind="liability",
+            record_id=target_id,
+            return_route="/debts",
+        )
 
     def _on_strategy_change(e):
         strategy_state["value"] = e.control.value
@@ -443,7 +492,18 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
         content=ft.Container(
             content=ft.Column(
                 [
-                    ft.Text("Payoff schedule (first 6 months)", weight=ft.FontWeight.BOLD),
+                    ft.Row(
+                        [
+                            ft.Text("Payoff schedule (first 6 months)", weight=ft.FontWeight.BOLD),
+                            ft.TextButton(
+                                "View full timeline",
+                                icon=ft.Icons.CALENDAR_MONTH,
+                                on_click=lambda _: controllers.navigate(page, "/debts/timeline"),
+                            ),
+                        ],
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        wrap=True,
+                    ),
                     ft.Row(
                         [
                             ft.Text("Month", width=110, color=ft.Colors.ON_SURFACE_VARIANT),
@@ -513,7 +573,7 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
     )
 
     payoff_summary = ft.Text(
-        "Snowball: smallest balance first. Avalanche: highest APR first. Payment mode adds surplus toward the current focus debt.",
+        "Snowball: smallest balance first. Avalanche: highest APR first. Payment mode adds surplus toward the current focus debt. Preview shows six months; open the payoff timeline for every 6th month until debt free.",
         size=12,
         color=ft.Colors.ON_SURFACE_VARIANT,
         selectable=True,
@@ -525,6 +585,33 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 controls=[
                     ft.Text("Debts & Liabilities", size=24, weight=ft.FontWeight.BOLD),
                     ft.FilledButton("Add liability", icon=ft.Icons.ADD, on_click=lambda _: controllers.navigate(page, '/add-data')),
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                wrap=True,
+                run_spacing=8,
+            ),
+            ft.Row(
+                controls=[
+                    ft.Text("No selection", ref=selected_label),
+                    ft.Row(
+                        controls=[
+                            ft.FilledButton(
+                                "Edit selected",
+                                icon=ft.Icons.EDIT,
+                                ref=edit_selected_ref,
+                                disabled=True,
+                                on_click=lambda _: _edit_selected(None),
+                            ),
+                            ft.TextButton(
+                                "Delete selected",
+                                icon=ft.Icons.DELETE_OUTLINE,
+                                ref=delete_selected_ref,
+                                disabled=True,
+                                on_click=lambda _: _confirm_delete(selected_liability),
+                            ),
+                        ],
+                        spacing=8,
+                    ),
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 wrap=True,
