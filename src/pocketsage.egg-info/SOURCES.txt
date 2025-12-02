@@ -38,7 +38,11 @@ src/pocketsage/desktop/views/admin.py
 src/pocketsage/desktop/views/auth.py
 src/pocketsage/desktop/views/budgets.py
 src/pocketsage/desktop/views/dashboard.py
+src/pocketsage/desktop/views/debt_timeline.py
 src/pocketsage/desktop/views/debts.py
+src/pocketsage/desktop/views/edit_data.py
+src/pocketsage/desktop/views/edit_debt.py
+src/pocketsage/desktop/views/edit_habit.py
 src/pocketsage/desktop/views/habits.py
 src/pocketsage/desktop/views/help.py
 src/pocketsage/desktop/views/ledger.py

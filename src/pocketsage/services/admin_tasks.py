@@ -1127,6 +1127,72 @@ def _seed_budget(session: Session, categories: dict[str, Category], user_id: int
             session.flush()
 
 
+def _ensure_min_budget_lines(
+    session: Session, categories: dict[str, Category], user_id: int, minimum: int = 5
+) -> None:
+    """Top up the latest budget so demo data always has enough budget lines."""
+
+    existing_lines = session.exec(select(BudgetLine).where(BudgetLine.user_id == user_id)).all()
+    if len(existing_lines) >= minimum:
+        return
+
+    budget = (
+        session.exec(
+            select(Budget)
+            .where(Budget.user_id == user_id)
+            .order_by(Budget.period_start.desc())
+        ).first()
+    )
+    today = date.today()
+    if budget is None:
+        period_start = date(today.year, today.month, 1)
+        period_end = date(today.year, today.month, monthrange(today.year, today.month)[1])
+        budget = Budget(
+            period_start=period_start,
+            period_end=period_end,
+            label=f"{period_start.strftime('%B %Y')} Budget",
+            user_id=user_id,
+        )
+        session.add(budget)
+        session.flush()
+
+    existing_for_budget = {
+        line.category_id
+        for line in session.exec(
+            select(BudgetLine).where(
+                BudgetLine.budget_id == budget.id, BudgetLine.user_id == user_id
+            )
+        ).all()
+        if line.category_id is not None
+    }
+    preferred_slugs = [
+        "groceries",
+        "rent",
+        "utilities",
+        "dining-out",
+        "transit",
+        "coffee",
+        "payment",
+        "transfer-out",
+    ]
+    for slug in preferred_slugs:
+        category = categories.get(slug)
+        if not category or category.id in existing_for_budget:
+            continue
+        line = BudgetLine(
+            budget_id=budget.id,
+            category_id=category.id,
+            planned_amount=round(random.uniform(25.0, 200.0), 2),
+            rollover_enabled=False,
+            user_id=user_id,
+        )
+        session.add(line)
+        existing_for_budget.add(category.id)
+        if len(existing_for_budget) >= minimum:
+            break
+    session.flush()
+
+
 def reset_demo_database(
     user_id: int, session_factory: Optional[SessionFactory] = None, reseed: bool = True
 ) -> SeedSummary:
@@ -1209,6 +1275,7 @@ def run_demo_seed(
         _seed_habit_entries(session, user_id=user_id)
         liabilities = _seed_liabilities(session, user_id=user_id)
         _seed_budget(session, categories, user_id=user_id)
+        _ensure_min_budget_lines(session, categories, user_id=user_id)
         _seed_holdings(session, accounts, user_id=user_id)
         _seed_liability_transactions(
             session, liabilities, accounts, categories, user_id=user_id

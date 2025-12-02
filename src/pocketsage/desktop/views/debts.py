@@ -404,13 +404,8 @@ def build_debts_view(ctx: AppContext, page: ft.Page) -> ft.View:
             page.snack_bar.open = True
             page.update()
             return
-        controllers.start_edit(
-            ctx,
-            page,
-            kind="liability",
-            record_id=target_id,
-            return_route="/debts",
-        )
+        existing = ctx.liability_repo.get_by_id(target_id, user_id=uid)
+        _open_edit_dialog(existing)
 
     def _on_strategy_change(e):
         strategy_state["value"] = e.control.value

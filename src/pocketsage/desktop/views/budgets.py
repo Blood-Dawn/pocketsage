@@ -526,6 +526,11 @@ def build_budgets_view(ctx: AppContext, page: ft.Page) -> ft.View:
                             icon=ft.Icons.EDIT,
                             on_click=_open_budget_dialog,
                         ),
+                        ft.FilledButton(
+                            "Add line",
+                            icon=ft.Icons.ADD,
+                            on_click=handle_add_line,
+                        ),
                         ft.TextButton(
                             "Add category",
                             icon=ft.Icons.ADD,

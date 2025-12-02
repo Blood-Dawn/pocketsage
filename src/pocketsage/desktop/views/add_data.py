@@ -154,6 +154,15 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
         categories = ctx.category_repo.list_all(user_id=uid)
         # Ensure default categories are present and ordered
         existing_by_name = {c.name: c for c in categories}
+        income_like = {
+            "Bonus",
+            "Dividends",
+            "Interest",
+            "Salary",
+            "Transfer In",
+            "Refund",
+            "Rebalance",
+        }
         for name in DEFAULT_CATEGORY_NAMES:
             if name not in existing_by_name:
                 from ...models.category import Category
@@ -163,9 +172,7 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         name=name,
                         slug=name.lower().replace(" ", "-"),
                         category_type=(
-                            "income"
-                            if name in ("Bonus", "Dividends", "Interest", "Salary")
-                            else "expense"
+                            "income" if name in income_like else "expense"
                         ),
                         user_id=uid,
                     ),
@@ -216,7 +223,7 @@ def build_add_data_view(ctx: AppContext, page: ft.Page) -> ft.View:
 
         category_dd = ft.Dropdown(
             label="Category *",
-            options=[ft.dropdown.Option(str(c.id), c.name) for c in get_filtered_categories("expense") if c.id],
+            options=[ft.dropdown.Option(str(c.id), c.name) for c in categories if c.id],
             width=300,
         )
         if not category_dd.options:

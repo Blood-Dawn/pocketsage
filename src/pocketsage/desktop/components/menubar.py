@@ -132,7 +132,7 @@ def build_menu_bar(ctx: AppContext, page: ft.Page) -> ft.MenuBar:
                 on_click=lambda _: controllers.navigate(page, "/dashboard"),
             ),
             ft.MenuItemButton(
-                content=ft.Text("Ledger  Ctrl+1"),
+                content=ft.Text("Transactions  Ctrl+1"),
                 leading=ft.Icon(ft.Icons.RECEIPT_LONG),
                 on_click=lambda _: controllers.navigate(page, "/ledger"),
             ),

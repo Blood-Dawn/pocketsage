@@ -376,6 +376,24 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                         ft.DataCell(ft.Text(category.name if category else "Uncategorized")),
                         ft.DataCell(ft.Text(type_label)),
                         ft.DataCell(ft.Text(_format_currency(tx.amount), color=amount_color)),
+                        ft.DataCell(
+                            ft.Row(
+                                controls=[
+                                    ft.IconButton(
+                                        icon=ft.Icons.EDIT,
+                                        tooltip="Edit",
+                                        on_click=lambda _e, record=tx: open_transaction_dialog(record),
+                                    ),
+                                    ft.IconButton(
+                                        icon=ft.Icons.DELETE_OUTLINE,
+                                        tooltip="Delete",
+                                        icon_color=ft.Colors.RED,
+                                        on_click=lambda _e, record=tx: delete_transaction(record.id),
+                                    ),
+                                ],
+                                spacing=6,
+                            )
+                        ),
                     ],
                 )
             )
@@ -383,7 +401,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             rows = [
                 ft.DataRow(
                     cells=[ft.DataCell(ft.Text("No transactions in this period."))]
-                    + [ft.DataCell(ft.Text("")) for _ in range(4)],
+                    + [ft.DataCell(ft.Text("")) for _ in range(5)],
                 )
             ]
         table.rows = rows
@@ -804,6 +822,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
             ft.DataColumn(ft.Text("Category")),
             ft.DataColumn(ft.Text("Type")),
             ft.DataColumn(ft.Text("Amount")),
+            ft.DataColumn(ft.Text("Actions")),
         ],
         rows=[],
         expand=True,
@@ -849,7 +868,7 @@ def build_ledger_view(ctx: AppContext, page: ft.Page) -> ft.View:
                 controls=[
                     pagination_row,
                     ft.FilledButton(
-                        "Add Transaction",
+                        "+ Add transaction",
                         icon=ft.Icons.ADD,
                         on_click=lambda _: controllers.navigate(page, "/add-data"),
                     ),

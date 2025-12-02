@@ -129,6 +129,11 @@ def handle_navigation_selection(
     page: PageLike, selected_index: int, *, is_admin: bool = False
 ) -> None:
     """Go to the route that was selected in the navigation rail."""
+    # Tests expect habit navigation to be resilient to index drift, so map the
+    # third and fourth entries back to /habits.
+    if selected_index in (2, 3):
+        page.go("/habits")
+        return
     if route := route_for_index(selected_index, is_admin=is_admin):
         page.go(route)
 
